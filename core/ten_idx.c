@@ -8,10 +8,13 @@ static uint
 nextMapCap( uint cap );
 
 static uint
+subMapCap( uint top );
+
+static uint
 stepTarget( uint cap );
 
 static void
-growMap( State* state, Index* idx );
+growMap( State* state, Index* idx, bool clean );
 
 static void
 growRefs( State* state, Index* idx );
@@ -50,7 +53,7 @@ idxNew( State* state ) {
     uint* refs = stateAllocRaw( state, &refsP, sizeof(uint)*rcap );
     
     idx->stepTarget = stepTarget( mcap );
-    idx->stepLimit  = idx->stepPref;
+    idx->stepLimit  = idx->stepTarget;
     idx->objCount   = 0;
     idx->map.cap    = mcap;
     idx->map.keys   = keys;
@@ -64,6 +67,70 @@ idxNew( State* state ) {
     stateCommitRaw( state, &refsP );
     
     return idx;
+}
+
+Index*
+idxSub( State* state, Index* idx, uint top ) {
+    if( top == 0 )
+        top = idx->nextLoc;
+    
+    Part subP;
+    Index* sub = stateAllocObj( state, &subP, sizeof(Index), OBJ_IDX );
+    
+    uint mcap = subMapCap( top );
+    
+    Part keysP;
+    TVal* keys = stateAllocRaw( state, &keysP, sizeof(TVal)*mcap );
+    for( uint i = 0 ; i < mcap ; i++ )
+        keys[i] = tvUdf();
+    
+    Part locsP;
+    uint* locs = stateAllocRaw( state, &locsP, sizeof(uint)*mcap );
+    for( uint i = 0 ; i < mcap ; i++ )
+        locs[i] = UINT_MAX;
+    
+    uint rcap = top;
+    
+    Part refsP;
+    uint* refs = stateAllocRaw( state, &refsP, sizeof(uint)*rcap );
+    
+    sub->stepTarget = stepTarget( mcap );
+    sub->stepLimit  = sub->stepTarget;
+    sub->objCount   = 0;
+    sub->map.cap    = mcap;
+    sub->map.keys   = keys;
+    sub->map.locs   = locs;
+    sub->refs.cap   = rcap;
+    sub->refs.buf   = refs;
+    
+    for( uint i = 0 ; i < idx->map.cap ; i++ ) {
+        if( tvIsUdf( idx->map.keys[i] ) )
+            continue;
+        if( idx->map.locs[i] >= top )
+            continue;
+        
+        uint s = 0;
+        uint j = find( keys, mcap, &s, idx->map.keys[i] );
+        rigAssert( s < mcap );
+        
+        keys[j] = idx->map.keys[i];
+        
+        if( s > sub->stepLimit )
+            sub->stepLimit = s;
+    }
+    
+    // Commit these because growMap() will reallocate them.
+    stateCommitRaw( state, &keysP );
+    stateCommitRaw( state, &valsP );
+    stateCommitRaw( state, &refsP );
+    
+    // Grow the Index until the stepTarget is reached
+    // to ensure we begin with the target step count.
+    while( sub->stepLimit > sub->stepTarget )
+        growMap( state, sub, false );
+    
+    stateCommitObj( state, &subP );
+    return sub;
 }
 
 uint
@@ -112,7 +179,7 @@ idxAddByKey( State* state, Index* idx, TVal key ) {
     // it'll work toward the target with each new definition
     // until it's reached.
     if( idx->stepLimit > idx->stepTarget )
-        growMap( state, idx );
+        growMap( state, idx, true );
     
     return loc;
 }
@@ -201,6 +268,12 @@ nextMapCap( uint cap ) {
     }
 }
 
+
+static uint
+subMapCap( uint top ) {
+    return top*3;
+}
+
 static uint
 stepTarget( uint cap ) {
     // This computes the truncated log2( cap )
@@ -217,7 +290,7 @@ stepTarget( uint cap ) {
 }
 
 static void
-growMap( State* state, Index* idx ) {
+growMap( State* state, Index* idx, bool clean ) {
     uint mcap  = nextMapCap( idx->map.cap );
     uint steps = idx->stepTarget;
     
@@ -240,7 +313,7 @@ growMap( State* state, Index* idx ) {
         // Also don't migrate keys with a ref count of zero
         // yet, we'll do that in the next pass.  We need to
         // migrate these to recycle their allocated locators,
-        // but since the keys themselves will be replaced with
+        // but since the keys themselves may be replaced with
         // `udf` it's better to give the valid keys the best
         // slots.
         if( idx->refs.buf[idx->map.locs[i]] == 0 )
@@ -257,14 +330,8 @@ growMap( State* state, Index* idx ) {
     }
     
     // Migrate the old locators whose keys are no longer being
-    // used.  We want to distribute these throughout the Index
-    // pretty evenly for best chance of recycling.  I'm not yet
-    // sure if a random distribution or using the old key for
-    // positioning is the best option.  But for now we'll use
-    // the old key to lookup a new position for the locator, but
-    // will only migrate the locator, leaving the key's slot
-    // undefined to be reused.
-    // Migrate the old keys to positions in the new arrays.
+    // used.  If `clean` is true then we'll also skip the keys
+    // and just migrate the locators, leaving the keys as `udf`.
     if( uint i = 0 ; i < idx->map.cap ; i++ ) {
         if( tvIsUdf( idx->map.keys[i] ) )
             continue;
@@ -274,6 +341,8 @@ growMap( State* state, Index* idx ) {
         uint s = 0;
         uint j = find( keys, mcap, &s, idx->map.keys[i] );
         
+        if( !clean )
+            keys[j] = idx->map.keys[i];
         locs[j] = idx->map.locs[i];
     }
     

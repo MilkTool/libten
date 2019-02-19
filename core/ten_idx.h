@@ -82,7 +82,11 @@ struct Index {
 };
 
 #define idxSize( STATE, IDX ) (sizeof(Index))
-#define idxTrav( STATE, IDX ) (idxTraverse( (STATE), (IDX) )
+#define idxTrav( STATE, IDX )                   \
+    do {                                        \
+        if( (STATE)->gcFull )                   \
+            idxTraverse( (STATE), (IDX) );      \
+    } while( 0 )
 #define idxDest( STATE, IDX ) (idxDestruct( (STATE), (IDX) )
 
 
@@ -91,6 +95,9 @@ idxInit( State* state );
 
 Index*
 idxNew( State* state );
+
+Index*
+idxSub( State* state, Index* idx, uint top );
 
 uint
 idxAddByKey( State* state, Index* idx, TVal key );
