@@ -105,7 +105,7 @@ typedef struct Part {
 
 
 typedef struct Defer {
-    #define PART_BEGIN_NUM \
+    #define DEFER_BEGIN_NUM \
         ((uint)'D' << 24 | (uint)'B' << 16 | (uint)'M' << 8 | (uint)'N')
     #ifdef ten_DEBUG
         uint beginNum;
@@ -121,9 +121,9 @@ typedef struct Defer {
     // removing the Defer even if an error hasn't occured.
     // The error type and value itself will be set in the State
     // before calling, so can be retrieved from there.
-    void (*cb)( State* state, Defer* self );
+    void (*cb)( State* state, struct Defer* self );
     
-    #define PART_END_NUM \
+    #define DEFER_END_NUM \
         ((uint)'D' << 24 | (uint)'E' << 16 | (uint)'M' << 8 | (uint)'N')
     #ifdef ten_DEBUG
         uint endNum;
@@ -148,14 +148,14 @@ typedef struct Scanner {
     struct Scanner*  next;
     struct Scanner** link;
     
-    void (*cb)( State* state, Scanner* self );
+    void (*cb)( State* state, struct Scanner* self );
 } Scanner;
 
-typedef Finalizer {
+typedef struct Finalizer {
     struct Finalizer*  next;
     struct Finalizer** link;
     
-    void (*cb)( State* state, Finalizer* self );
+    void (*cb)( State* state, struct Finalizer* self );
 } Finalizer;
 
 
@@ -164,7 +164,7 @@ typedef Finalizer {
 // handling; otherwise it's just a place to put pointers to all the
 // other components' state.  We also keep a few fields for statistics
 // tracking here if ten_VERBOSE is defined.
-typedef struct {
+struct State {
     
     // A copy of the VM configuration, its structure is specified
     // in the user API file `ten.h`.
@@ -199,7 +199,7 @@ typedef struct {
     // a String object can't be allocated; this is
     // expected to always be a static string.
     jmp_buf*    errJmp;
-    ten_Error   errNum;
+    ten_ErrNum   errNum;
     TVal        errVal;
     char const* errStr;
     ten_Trace*  trace;
@@ -244,7 +244,7 @@ typedef struct {
     
     
     // Runtime stats.
-    #ifdef rigK_VERBOSE
+    #ifdef ten_VERBOSE
         size_t heapInitUsage;
         size_t heapMaxUsage;
         size_t gcNumCycles;
@@ -259,11 +259,11 @@ typedef struct {
         double vmInitTime;
         double vmFinlTime;
     #endif
-} State;
+};
 
 // Initialization and finalization.
 void
-stateInit( State* state, rigK_Config const* config, jmp_buf* errJmp );
+stateInit( State* state, ten_Config const* config, jmp_buf* errJmp );
 
 void
 stateFinl( State* state );
@@ -273,10 +273,10 @@ stateFinl( State* state );
 // stack.  If there's a current running fiber (i.e `fib != NULL`)
 // then these calls will be forwarded to that fiber; otherwise
 // they'll be forwarded to the environment component.
-rig_Tup
+ten_Tup
 statePush( State* state, uint n );
 
-rig_Tup
+ten_Tup
 stateTop( State* state );
 
 void
@@ -327,6 +327,9 @@ stateCommitRaw( State* state, Part* p );
 
 void
 stateCancelRaw( State* state, Part* p );
+
+void
+stateFreeRaw( State* state, void* old, size_t osz );
 
 
 // Defers.  Once registered a defer will be invoked if

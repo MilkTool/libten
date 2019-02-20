@@ -2,18 +2,45 @@
 // interacting with the Ten VM.
 #ifndef ten_api_h
 #define ten_api_h
+#include <setjmp.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 typedef struct {
-    int TODO;
-} ten_Config;
+    char pri[64];
+} ten_DatInfo;
 
 typedef struct {
-    int TODO;
+    char pri[64];
+} ten_PtrInfo;
+
+
+typedef struct {
+    char pri[32];
 } ten_Tup;
 
 typedef struct {
-    int TODO;
+    ten_Tup* tup;
+    unsigned loc;
 } ten_Var;
+
+typedef enum {
+    ten_ERR_MEMORY,
+    ten_ERR_RECORD,
+    ten_ERR_STRING,
+    ten_ERR_ASSERT
+} ten_ErrNum;
+
+typedef struct {
+    int TODO;
+} ten_Trace;
+
+typedef struct ten_Config {
+    void* udata;
+    void* (*frealloc)( void* udata,  void* old, size_t osz, size_t nsz );
+    
+    double memLimitGrowth;
+} ten_Config;
 
 
 typedef struct ten_Core ten_Core;

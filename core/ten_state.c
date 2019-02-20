@@ -1,4 +1,5 @@
 #include "ten_state.h"
+#include "ten_assert.h"
 #include "ten_com.h"
 #include "ten_gen.h"
 #include "ten_env.h"
@@ -47,6 +48,34 @@ datInit( State* state );
 void
 ptrInit( State* state );
 
+void
+symStartCycle( State* state );
+void
+symFinishCycle( State* state );
+void
+ptrStartCycle( State* state );
+void
+ptrFinishCycle( State* state );
+
+#define strSize( STATE, STR ) 0
+#define strTrav( STATE, STR ) {}
+#define strDest( STATE, STR ) {}
+#define funSize( STATE, FUN ) 0
+#define funTrav( STATE, FUN ) {}
+#define funDest( STATE, FUN ) {}
+#define clsSize( STATE, CLS ) 0
+#define clsTrav( STATE, CLS ) {}
+#define clsDest( STATE, CLS ) {}
+#define fibSize( STATE, FIB ) 0
+#define fibTrav( STATE, FIB ) {}
+#define fibDest( STATE, FIB ) {}
+#define upvSize( STATE, UPV ) 0
+#define upvTrav( STATE, UPV ) {}
+#define upvDest( STATE, UPV ) {}
+#define datSize( STATE, DAT ) 0
+#define datTrav( STATE, DAT ) {}
+#define datDest( STATE, DAT ) {}
+
 #define addNode( LIST, NODE )                           \
     do {                                                \
         (NODE)->next = *(LIST);                         \
@@ -66,7 +95,7 @@ ptrInit( State* state );
 static void*
 mallocRaw( State* state, size_t nsz );
 
-static void
+static void*
 reallocRaw( State* state, void* old, size_t osz, size_t nsz );
 
 static void
@@ -76,11 +105,11 @@ static void
 collect( State* state, size_t extra );
 
 void
-stateInit( State* state, rigK_Config const* config, jmp_buf* errJmp ) {
+stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     memset( state, 0, sizeof(*state) );
     
-    state->config   = config;
-    state->errVal   = valUdf();
+    state->config   = *config;
+    state->errVal   = tvUdf();
     state->memLimit = MEM_LIMIT_INIT;
     
     apiInit( state );
@@ -88,7 +117,7 @@ stateInit( State* state, rigK_Config const* config, jmp_buf* errJmp ) {
     genInit( state );
     envInit( state );
     fmtInit( state );
-    syminit( state );
+    symInit( state );
     strInit( state );
     idxInit( state );
     recInit( state );
@@ -105,16 +134,16 @@ stateFinl( State* state ) {
     // TODO
 }
 
-rig_Tup
+ten_Tup
 statePush( State* state, uint n ) {
     // TODO
-    return (rig_Tup){ 0 };
+    return (ten_Tup){ 0 };
 }
 
-rig_Tup
+ten_Tup
 stateTop( State* state ) {
     // TODO
-    return (rig_Tup){ 0 };
+    return (ten_Tup){ 0 };
 }
 
 void
@@ -195,7 +224,13 @@ stateCommitRaw( State* state, Part* p ) {
 
 void
 stateCancelRaw( State* state, Part* p ) {
+    remNode( p );
     freeRaw( state, p->ptr, p->sz );
+}
+
+void
+stateFreeRaw( State* state, void* old, size_t osz ) {
+    freeRaw( state, old, osz );
 }
 
 void
@@ -266,16 +301,15 @@ stateMark( State* state, void* ptr ) {
     obj->next = tpMake( tag | OBJ_MARK_BIT, next );
     
     switch( ( tag & OBJ_TAG_BITS ) >> OBJ_TAG_SHIFT ) {
-        case 
-        case VAL_STR: strTrav( (String*)ptr );    break;
-        case VAL_IDX: idxTrav( (Index*)ptr );     break;
-        case VAL_REC: recTrav( (Record*)ptr );    break;
-        case VAL_FUN: funTrav( (Function*)ptr );  break;
-        case VAL_CLS: clsTrav( (Closure*)ptr );   break;
-        case VAL_FIB: fibTrav( (Fiber*)ptr );     break;
-        case VAL_UPV: upvTrav( (Upvalue*)ptr );   break;
-        case VAL_DAT: datTrav( (Date*)ptr );      break;
-        default: rigAssertNeverReached();         break;
+        case OBJ_STR: strTrav( state, (String*)ptr );    break;
+        case OBJ_IDX: idxTrav( state, (Index*)ptr );     break;
+        case OBJ_REC: recTrav( state, (Record*)ptr );    break;
+        case OBJ_FUN: funTrav( state, (Function*)ptr );  break;
+        case OBJ_CLS: clsTrav( state, (Closure*)ptr );   break;
+        case OBJ_FIB: fibTrav( state, (Fiber*)ptr );     break;
+        case OBJ_UPV: upvTrav( state, (Upvalue*)ptr );   break;
+        case OBJ_DAT: datTrav( state, (Date*)ptr );      break;
+        default: tenAssertNeverReached();         break;
     }
 }
 
@@ -286,10 +320,10 @@ stateCollect( State* state ) {
 
 static void*
 mallocRaw( State* state, size_t nsz ) {
-    reallocRaw( state, NULL, 0, nsz );
+    return reallocRaw( state, NULL, 0, nsz );
 }
 
-static void
+static void*
 reallocRaw( State* state, void* old, size_t osz, size_t nsz ) {
     size_t need = state->memUsed + nsz;
     if( need > state->memLimit )
@@ -297,7 +331,7 @@ reallocRaw( State* state, void* old, size_t osz, size_t nsz ) {
     
     void* mem = state->config.frealloc( state->config.udata, old, osz, nsz );
     if( nsz > 0 && !mem )
-        stateErrStr( state, rigK_ERR_MEMORY, "Allocation failed" );
+        stateErrStr( state, ten_ERR_MEMORY, "Allocation failed" );
     
     state->memUsed += nsz;
     state->memUsed -= osz;
@@ -307,7 +341,7 @@ reallocRaw( State* state, void* old, size_t osz, size_t nsz ) {
 
 static void
 freeRaw( State* state, void* old, size_t osz ) {
-    rigAssert( state, state->memUsed >= osz );
+    tenAssert( state->memUsed >= osz );
     state->config.frealloc( state->config.udata, old, osz, 0 );
     state->memUsed -= osz;
 }
@@ -318,15 +352,15 @@ static void
 destructObj( State* state, Object* obj ) {
     void* ptr = objGetDat( obj );
     switch( tpGetTag( obj->next ) ) {
-        case VAL_STR: strDest( state, (String*)ptr );       break;
-        case VAL_IDX: idxDest( state, (Index*)ptr );        break;
-        case VAL_REC: recDest( state, (Record*)ptr );       break;
-        case VAL_FUN: funDest( state, (Function*)ptr );     break;
-        case VAL_CLS: clsDest( state, (Closure*)ptr );      break;
-        case VAL_FIB: fibDest( state, (Fiber*)ptr );        break;
-        case VAL_UPV: upvDest( state, (Upvalue*)ptr );      break;
-        case VAL_DAT: datDest( state, (Data*)ptr );         break;
-        default: rigAssertNeverReached();                   break;
+        case OBJ_STR: strDest( state, (String*)ptr );       break;
+        case OBJ_IDX: idxDest( state, (Index*)ptr );        break;
+        case OBJ_REC: recDest( state, (Record*)ptr );       break;
+        case OBJ_FUN: funDest( state, (Function*)ptr );     break;
+        case OBJ_CLS: clsDest( state, (Closure*)ptr );      break;
+        case OBJ_FIB: fibDest( state, (Fiber*)ptr );        break;
+        case OBJ_UPV: upvDest( state, (Upvalue*)ptr );      break;
+        case OBJ_DAT: datDest( state, (Data*)ptr );         break;
+        default: tenAssertNeverReached();                   break;
     }
 }
 
@@ -335,23 +369,23 @@ freeObj( State* state, Object* obj ) {
     void* ptr = objGetDat( obj );
     size_t sz;
     switch( tpGetTag( obj->next ) ) {
-        case VAL_STR: sz = strSize( state, (String*)ptr );   break;
-        case VAL_IDX: sz = idxSize( state, (Index*)ptr );    break;
-        case VAL_REC: sz = recSize( state, (Record*)ptr );   break;
-        case VAL_FUN: sz = funSize( state, (Function*)ptr ); break;
-        case VAL_CLS: sz = clsSize( state, (Closure*)ptr );  break;
-        case VAL_FIB: sz = fibSize( state, (Fiber*)ptr );    break;
-        case VAL_UPV: sz = upvSize( state, (Upvalue*)ptr );  break;
-        case VAL_DAT: sz = datSize( state, (Data*)ptr );     break;
-        default: rigAssertNeverReached();                    break;
+        case OBJ_STR: sz = strSize( state, (String*)ptr );   break;
+        case OBJ_IDX: sz = idxSize( state, (Index*)ptr );    break;
+        case OBJ_REC: sz = recSize( state, (Record*)ptr );   break;
+        case OBJ_FUN: sz = funSize( state, (Function*)ptr ); break;
+        case OBJ_CLS: sz = clsSize( state, (Closure*)ptr );  break;
+        case OBJ_FIB: sz = fibSize( state, (Fiber*)ptr );    break;
+        case OBJ_UPV: sz = upvSize( state, (Upvalue*)ptr );  break;
+        case OBJ_DAT: sz = datSize( state, (Data*)ptr );     break;
+        default: tenAssertNeverReached();                    break;
     }
     freeRaw( state, obj, sizeof(Object) + sz );
 }
 
 static void
 adjustMemLimit( State* state, size_t extra ) {
-    rigAssert( state->config.memLimitGrowth >  1.0 );
-    rigAssert( state->config.memLimitGrowth <= 2.0 );
+    tenAssert( state->config.memLimitGrowth >  1.0 );
+    tenAssert( state->config.memLimitGrowth <= 2.0 );
     
     double mul = state->config.memLimitGrowth + 1.0;
     state->memLimit = (double)state->memUsed * mul;
@@ -378,7 +412,7 @@ collect( State* state, size_t extra ) {
     
     // Mark the State owned objects.
     stateMark( state, state->fiber );
-    tvMark( state, state->errVal );
+    tvMark( state->errVal );
     
     // By now we've finished scanning for references,
     // so divide the objects into two lists, marked
@@ -423,8 +457,8 @@ collect( State* state, size_t extra ) {
     
     // Tell the Symbol and Pointer components that we're
     // done collecting.
-    if( state->isFull ) {
-        state->isFull = false;
+    if( state->gcFull ) {
+        state->gcFull = false;
         symFinishCycle( state );
         ptrFinishCycle( state );
     }

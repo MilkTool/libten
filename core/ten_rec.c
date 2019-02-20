@@ -1,23 +1,28 @@
 #include "ten_rec.h"
+#include "ten_idx.h"
+#include "ten_sym.h"
+#include "ten_ptr.h"
 #include "ten_state.h"
+#include "ten_assert.h"
+#include <limits.h>
 
 void
 recInit( State* state ) {
     state->recState = NULL;
 }
 
-void
+Record*
 recNew( State* state, Index* idx ) {
     Part recP;
     Record* rec = stateAllocObj( state, &recP, sizeof(Record), OBJ_REC );
     
-    rigAssert( idx->nextLoc < USHORT_MAX );
+    tenAssert( idx->nextLoc < USHRT_MAX );
     ushort cap = idx->nextLoc;
     
     Part valsP;
     TVal* vals = stateAllocRaw( state, &valsP, sizeof(TVal)*cap );
     for( uint i = 0 ; i < cap ; i++ )
-        vals[i] = valUdf();
+        vals[i] = tvUdf();
     
     rec->idx  = tpMake( 0, idx );
     rec->vals = tpMake( cap, vals );
@@ -31,7 +36,7 @@ recNew( State* state, Index* idx ) {
 void
 recSep( State* state, Record* rec ) {
     Index* idx = tpGetPtr( rec->idx );
-    rec->idx = mkIndex( 1, idx );
+    rec->idx = tpMake( 1, idx );
 }
 
 void
@@ -70,16 +75,17 @@ recDef( State* state, Record* rec, TVal key, TVal val ) {
         
         int   ncap  = idx->nextLoc;
         TVal* nvals = stateResizeRaw( state, &valsP, ncap );
-        for( uint j = cap ; j = ncap ; j++ )
+        for( uint j = cap ; j < ncap ; j++ )
             nvals[j] = tvUdf();
         
+        stateCommitRaw( state, &valsP );
         rec->vals = tpMake( ncap, nvals );
         cap  = ncap;
         vals = nvals;
     }
     
     if( tvIsUdf( vals[i] ) )
-        idxAddByLoc( i );
+        idxAddByLoc( state, idx, i );
     
     vals[i] = val;
 }
@@ -92,11 +98,11 @@ recSet( State* state, Record* rec, TVal key, TVal val ) {
     
     uint i = idxGetByKey( state, idx, key );
     if( i >= cap || tvIsUdf( vals[i] ) )
-        stateErrFmt( state, ten_ERR_REC, "Set of undefined record field" );
+        stateErrFmt( state, ten_ERR_RECORD, "Set of undefined record field" );
     if( tvIsUdf( val ) )
-        stateErrFmt( state, ten_ERR_REC, "Field set to `udf`" );
+        stateErrFmt( state, ten_ERR_RECORD, "Field set to `udf`" );
     
-    rec->vals[i] = val;
+    vals[i] = val;
 }
 
 TVal
@@ -106,8 +112,8 @@ recGet( State* state, Record* rec, TVal key ) {
     TVal*  vals = tpGetPtr( rec->vals );
     
     uint i = idxGetByKey( state, idx, key );
-    if( i >= rec->cap || tvIsUdf( vals[i] ) )
-        return tvUdf()
+    if( i >= cap || tvIsUdf( vals[i] ) )
+        return tvUdf();
     else
         return vals[i];
 }
@@ -117,7 +123,7 @@ void
 recTraverse( State* state, Record* rec ) {
     Index* idx  = tpGetPtr( rec->idx );
     uint   cap  = tpGetTag( rec->vals );
-    Value* vals = tpGetPtr( rec->vals );
+    TVal*  vals = tpGetPtr( rec->vals );
     
     stateMark( state, idx );
     for( uint i = 0 ; i < cap ; i++ )
@@ -128,13 +134,13 @@ void
 recDestruct( State* state, Record* rec ) {
     Index* idx  = tpGetPtr( rec->idx );
     uint   cap  = tpGetTag( rec->vals );
-    Value* vals = tpGetPtr( rec->vals );
+    TVal*  vals = tpGetPtr( rec->vals );
     
     // If the Index hasn't been destructed yet then
     // unref all the record's keys.
     if( idx->map.cap > 0 )
-    for( uint i = 0 ; i < cap ; i++ )
-        idxRemByLoc( state, idx, i );
+        for( uint i = 0 ; i < cap ; i++ )
+            idxRemByLoc( state, idx, i );
     
     stateFreeRaw( state, vals, sizeof(TVal)*cap );
 }

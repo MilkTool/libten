@@ -1,6 +1,8 @@
 #include "ten_idx.h"
 #include "ten_state.h"
 #include "ten_assert.h"
+#include "ten_sym.h"
+#include "ten_ptr.h"
 #include <string.h>
 #include <limits.h>
 
@@ -31,10 +33,10 @@ idxInit( State* state ) {
 Index*
 idxNew( State* state ) {
     Part idxP;
-    Index* idx = stateAllocObj( state, &idxP, sizeof(Index), VAL_IDX );
+    Index* idx = stateAllocObj( state, &idxP, sizeof(Index), OBJ_IDX );
     memset( idx, 0, sizeof(*idx) );
     
-    uint mcap = nextCap( 0 );
+    uint mcap = nextMapCap( 0 );
     
     Part keysP;
     TVal* keys = stateAllocRaw( state, &keysP, sizeof(TVal)*mcap );
@@ -63,7 +65,7 @@ idxNew( State* state ) {
     
     stateCommitObj( state, &idxP );
     stateCommitRaw( state, &keysP );
-    stateCommitRaw( state, &valsP );
+    stateCommitRaw( state, &locsP );
     stateCommitRaw( state, &refsP );
     
     return idx;
@@ -111,7 +113,7 @@ idxSub( State* state, Index* idx, uint top ) {
         
         uint s = 0;
         uint j = find( keys, mcap, &s, idx->map.keys[i] );
-        rigAssert( s < mcap );
+        tenAssert( s < mcap );
         
         keys[j] = idx->map.keys[i];
         
@@ -121,7 +123,7 @@ idxSub( State* state, Index* idx, uint top ) {
     
     // Commit these because growMap() will reallocate them.
     stateCommitRaw( state, &keysP );
-    stateCommitRaw( state, &valsP );
+    stateCommitRaw( state, &locsP );
     stateCommitRaw( state, &refsP );
     
     // Grow the Index until the stepTarget is reached
@@ -140,7 +142,7 @@ idxAddByKey( State* state, Index* idx, TVal key ) {
     // of steps from the key's ideal location in `s`.
     uint s = 0;
     uint i = find( idx->map.keys, idx->map.cap, &s, key );
-    rigAssert( i < idx->map.cap );
+    tenAssert( i < idx->map.cap );
     
     // If an entry for the key doesn't exist then add one.
     if( tvIsUdf( idx->map.keys[i] ) ) {
@@ -150,7 +152,7 @@ idxAddByKey( State* state, Index* idx, TVal key ) {
         // has never been assigned a locator, so allocate
         // a new one.
         if( idx->map.locs[i] == UINT_MAX ) {
-            rigAssert( idx->nextLoc < UINT_MAX );
+            tenAssert( idx->nextLoc < UINT_MAX );
             
             uint loc = idx->nextLoc++;
             idx->map.locs[i] = loc;
@@ -162,7 +164,7 @@ idxAddByKey( State* state, Index* idx, TVal key ) {
         
         // Increment ref count.
         idx->refs.buf[idx->map.locs[i]]++;
-        rigAssert( idx->refs.buf[idx->map.locs[i]] < UINT_MAX );
+        tenAssert( idx->refs.buf[idx->map.locs[i]] < UINT_MAX );
     }
     
     // Save the locator since the Index may be grown below,
@@ -188,7 +190,7 @@ uint
 idxGetByKey( State* state, Index* idx, TVal key ) {
     // Find the key's map slot, this'll only try stepLimit
     // steps beyond the key's ideal location.
-    uint i = find( idx->map.keys, &idx->stepLimit, key );
+    uint i = find( idx->map.keys, idx->map.cap, &idx->stepLimit, key );
     if( i == UINT_MAX )
         return UINT_MAX;
     
@@ -199,26 +201,26 @@ void
 idxRemByKey( State* state, Index* idx, TVal key ) {
     // Find the key's map slot, this'll only try stepLimit
     // steps beyond the key's ideal location.
-    uint i = find( idx->map.keys, &idx->stepLimit, key );
+    uint i = find( idx->map.keys, idx->map.cap, &idx->stepLimit, key );
     if( i == UINT_MAX )
         return;
     
-    rigAssert( idx->refs.buf[idx->map.locs[i]] > 0 );
+    tenAssert( idx->refs.buf[idx->map.locs[i]] > 0 );
     idx->refs.buf[idx->map.locs[i]]--;
 }
 
-uint
+void
 idxAddByLoc( State* state, Index* idx, uint loc ) {
-    rigAssert( idx->refs.buf[loc] < idx->nextLoc );
-    rigAssert( idx->refs.buf[loc] < UINT_MAX );
+    tenAssert( idx->refs.buf[loc] < idx->nextLoc );
+    tenAssert( idx->refs.buf[loc] < UINT_MAX );
     
     idx->refs.buf[loc]++;
 }
 
 void
 idxRemByLoc( State* state, Index* idx, uint loc ) {
-    rigAssert( idx->refs.buf[loc] < idx->nextLoc );
-    rigAssert( idx->refs.buf[loc] > 0 );
+    tenAssert( idx->refs.buf[loc] < idx->nextLoc );
+    tenAssert( idx->refs.buf[loc] > 0 );
     
     idx->refs.buf[loc]--;
 }
@@ -231,7 +233,7 @@ idxTraverse( State* state, Index* idx ) {
 
 void
 idxDestruct( State* state, Index* idx ) {
-    stateFreeRaw( state, idx->map.keys, sizeof(Value)*idx->map.cap );
+    stateFreeRaw( state, idx->map.keys, sizeof(TVal)*idx->map.cap );
     stateFreeRaw( state, idx->map.locs, sizeof(uint)*idx->map.cap );
     stateFreeRaw( state, idx->refs.buf, sizeof(uint)*idx->refs.cap );
     
@@ -305,7 +307,7 @@ growMap( State* state, Index* idx, bool clean ) {
         locs[i] = UINT_MAX;
     
     // Migrate the old keys to positions in the new arrays.
-    if( uint i = 0 ; i < idx->map.cap ; i++ ) {
+    for( uint i = 0 ; i < idx->map.cap ; i++ ) {
         // Unallocated slots of course are not migrated.
         if( tvIsUdf( idx->map.keys[i] ) )
             continue;
@@ -332,7 +334,7 @@ growMap( State* state, Index* idx, bool clean ) {
     // Migrate the old locators whose keys are no longer being
     // used.  If `clean` is true then we'll also skip the keys
     // and just migrate the locators, leaving the keys as `udf`.
-    if( uint i = 0 ; i < idx->map.cap ; i++ ) {
+    for( uint i = 0 ; i < idx->map.cap ; i++ ) {
         if( tvIsUdf( idx->map.keys[i] ) )
             continue;
         if( idx->refs.buf[idx->map.locs[i]] != 0 )
@@ -347,7 +349,7 @@ growMap( State* state, Index* idx, bool clean ) {
     }
     
     // Finalize the memory.
-    stateFreeRaw( state, idx->map.keys, sizeof(Value)*idx->map.cap );
+    stateFreeRaw( state, idx->map.keys, sizeof(TVal)*idx->map.cap );
     stateFreeRaw( state, idx->map.locs, sizeof(uint)*idx->map.cap );
     stateCommitRaw( state, &keysP );
     stateCommitRaw( state, &locsP );
@@ -364,6 +366,7 @@ growRefs( State* state, Index* idx ) {
     
     Part  bufP = { .ptr = idx->refs.buf, .sz = sizeof(uint)*idx->refs.cap };
     uint* buf  = stateResizeRaw( state, &bufP, sizeof(uint)*cap );
+    stateCommitRaw( state, &bufP );
     
     idx->refs.cap = cap;
     idx->refs.buf = buf;
@@ -374,8 +377,8 @@ find( TVal* keys, uint cap, uint* steps, TVal key ) {
     uint hash = tvHash( key );
     uint lim  = *steps > 0 ? *steps : cap;
     
-    register s = 0;
-    register i = hash % cap;
+    register uint s = 0;
+    register uint i = hash % cap;
     while( s++ < lim ) {
         if( tvIsUdf( keys[i] ) || tvEqual( keys[i], key ) ) {
             if( *steps == 0 )

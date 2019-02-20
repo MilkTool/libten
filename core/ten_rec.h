@@ -32,7 +32,7 @@ struct Record {
 void
 recInit( State* state );
 
-void
+Record*
 recNew( State* state, Index* idx );
 
 void

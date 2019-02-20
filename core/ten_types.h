@@ -93,7 +93,7 @@ typedef ullong   TupT;
     
     #define tpMake( TAG, PTR ) ((ullong)(TAG) << 58 | (ullong)(PTR))
     #define tpGetTag( TPTR )   ((ushort)((TPTR) >> 58))
-    #define tpGetPtr( TPTR )   ((void*)((TPTR) << 16 >> 16)
+    #define tpGetPtr( TPTR )   ((void*)((TPTR) << 16 >> 16))
 
 #else
 
@@ -152,29 +152,29 @@ typedef ullong   TupT;
     } TVal;
     
     #define NAN_BITS (0x7FFLLU << 52)
-    #define TAG_BITS (0xF << 48)
-    #define VAL_BITS (0xFFFFFFFFFFFF)
-    #define OBJ_BITS (0xFFFFFFFFFFFFF)
+    #define TAG_BITS (0xFLLU << 48)
+    #define VAL_BITS (0xFFFFFFFFFFFFLLU)
+    #define OBJ_BITS (0xFFFFFFFFFFFFFLLU)
     #define SIGN_BIT (1LLU << 63)
     
     #define tvObj( OBJ ) \
         (TVal){.nan = SIGN_BIT | NAN_BITS | (ullong)(OBJ)}
     #define tvUdf() \
-        (TVal){.nan = NAN_BITS | VAL_UDF << 48 | 0LLU }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_UDF << 48 | 0LLU }
     #define tvNil() \
-        (TVal){.nan = NAN_BITS | VAL_NIL << 48 | 0LLU }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_NIL << 48 | 0LLU }
     #define tvLog( LOG ) \
-        (TVal){.nan = NAN_BITS | VAL_LOG << 48 | !!(LOG) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_LOG << 48 | !!(LOG) }
     #define tvDec( DEC ) \
         (TVal){.num = (DEC)}
     #define tvInt( INT ) \
-        (TVal){.nan = NAN_BITS | VAL_INT << 48 | (INT) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_INT << 48 | (INT) }
     #define tvSym( SYM ) \
-        (TVal){.nan = NAN_BITS | VAL_SYM << 48 | (SYM) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_SYM << 48 | (SYM) }
     #define tvPtr( PTR ) \
-        (TVal){.nan = NAN_BITS | VAL_PTR << 48 | (PTR) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_PTR << 48 | (PTR) }
     #define tvTup( TUP ) \
-        (TVal){.nan = NAN_BITS | VAL_PTR << 48 | (TUP) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (TUP) }
     
     #define tvIsObj( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & SIGN_BIT))
@@ -187,12 +187,12 @@ typedef ullong   TupT;
     #define tvIsInt( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_INT)
     #define tvIsDec( TVAL ) \
-        ((TVAL).nan & (NAN_BITS | TAG_BITS) > NAN_BITS)
+        (((TVAL).nan & (NAN_BITS | TAG_BITS)) > NAN_BITS)
     #define tvIsSym( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_SYM)
     #define tvIsPtr( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_PTR)
-    #define tvIsPtr( TVAL ) \
+    #define tvIsTup( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_TUP)
     
     #define tvGetObj( TVAL ) \
@@ -218,10 +218,19 @@ typedef ullong   TupT;
 
     #define tvMark( TVAL )                                          \
         switch( ((TVAL).nan & TAG_BITS) >> 48 ) {                   \
-            case VAL_OBJ: stateMark( state, tvGetObj(TVAL) ); break;\
-            case VAL_SYM: symMark( state, tvGetSym(TVAL) );   break;\
-            case VAL_PTR: ptrMark( state, tvGetPtr(TVAL) );   break;\
-            default: /* NADA */                               break;\
+            case VAL_OBJ:                                           \
+                stateMark( state, tvGetObj(TVAL) );                 \
+            break;                                                  \
+            case VAL_SYM:                                           \
+                if( state->gcFull )                                 \
+                    symMark( state, tvGetSym(TVAL) );               \
+            break;                                                  \
+            case VAL_PTR:                                           \
+                if( state->gcFull )                                 \
+                    ptrMark( state, tvGetPtr(TVAL) );               \
+            break;                                                  \
+            default:                                                \
+            break;                                                  \
         }
 #else
 
@@ -294,10 +303,19 @@ typedef ullong   TupT;
 
     #define tvMark( TVAL )                                          \
         switch( (TVAL).tag ) {                                      \
-            case VAL_OBJ: stateMark( state, tvGetObj(TVAL) ); break;\
-            case VAL_SYM: symMark( state, tvGetSym(TVAL) );   break;\
-            case VAL_PTR: ptrMark( state, tvGetPtr(TVAL) );   break;\
-            default: /* NADA */                               break;\
+            case VAL_OBJ:                                           \
+                stateMark( state, tvGetObj(TVAL) );                 \
+            break;                                                  \
+            case VAL_SYM:                                           \
+                if( state->gcFull )                                 \
+                    symMark( state, tvGetSym(TVAL) );               \
+            break;                                                  \
+            case VAL_PTR:                                           \
+                if( state->gcFull )                                 \
+                    ptrMark( state, tvGetPtr(TVAL) );               \
+            break;                                                  \
+            default:                                                \
+            break;                                                  \
         }
 #endif
 

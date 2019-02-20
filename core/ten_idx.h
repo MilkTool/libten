@@ -10,6 +10,8 @@
 #ifndef ten_idx_h
 #define ten_idx_h
 #include "ten_types.h"
+#include <stddef.h>
+#include <stdbool.h>
 
 // The Index type just maps Ten values (used as keys) to
 // locators used as offsets in the value array of records.
@@ -87,7 +89,7 @@ struct Index {
         if( (STATE)->gcFull )                   \
             idxTraverse( (STATE), (IDX) );      \
     } while( 0 )
-#define idxDest( STATE, IDX ) (idxDestruct( (STATE), (IDX) )
+#define idxDest( STATE, IDX ) (idxDestruct( (STATE), (IDX) ))
 
 
 void
@@ -108,7 +110,7 @@ idxGetByKey( State* state, Index* idx, TVal key );
 void
 idxRemByKey( State* state, Index* idx, TVal key );
 
-uint
+void
 idxAddByLoc( State* state, Index* idx, uint loc );
 
 void
