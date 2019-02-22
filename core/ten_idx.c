@@ -1,16 +1,11 @@
 #include "ten_idx.h"
 #include "ten_state.h"
 #include "ten_assert.h"
+#include "ten_tables.h"
 #include "ten_sym.h"
 #include "ten_ptr.h"
 #include <string.h>
 #include <limits.h>
-
-static uint
-nextMapCap( uint cap );
-
-static uint
-subMapCap( uint top );
 
 static uint
 stepTarget( uint cap );
@@ -36,7 +31,7 @@ idxNew( State* state ) {
     Index* idx = stateAllocObj( state, &idxP, sizeof(Index), OBJ_IDX );
     memset( idx, 0, sizeof(*idx) );
     
-    uint mcap = nextMapCap( 0 );
+    uint mcap = fastGrowthMapCapTable[0];
     
     Part keysP;
     TVal* keys = stateAllocRaw( state, &keysP, sizeof(TVal)*mcap );
@@ -57,6 +52,7 @@ idxNew( State* state ) {
     idx->stepTarget = stepTarget( mcap );
     idx->stepLimit  = idx->stepTarget;
     idx->objCount   = 0;
+    idx->map.row    = 1;
     idx->map.cap    = mcap;
     idx->map.keys   = keys;
     idx->map.locs   = locs;
@@ -79,7 +75,7 @@ idxSub( State* state, Index* idx, uint top ) {
     Part subP;
     Index* sub = stateAllocObj( state, &subP, sizeof(Index), OBJ_IDX );
     
-    uint mcap = subMapCap( top );
+    uint mcap = fastGrowthMapCapTable[0];
     
     Part keysP;
     TVal* keys = stateAllocRaw( state, &keysP, sizeof(TVal)*mcap );
@@ -99,6 +95,7 @@ idxSub( State* state, Index* idx, uint top ) {
     sub->stepTarget = stepTarget( mcap );
     sub->stepLimit  = sub->stepTarget;
     sub->objCount   = 0;
+    sub->map.row    = 1;
     sub->map.cap    = mcap;
     sub->map.keys   = keys;
     sub->map.locs   = locs;
@@ -244,38 +241,6 @@ idxDestruct( State* state, Index* idx ) {
     idx->refs.cap = 0;
 }
 
-
-
-static uint
-nextMapCap( uint cap ) {
-    // We try to use prime numbers for the Index
-    // size while it's within a reasonable size
-    // to tabulate these for; otherwise revert
-    // to doubling.  Adding more primes to this
-    // table should improve performance for larger
-    // Indices.
-    switch( cap ) {
-        case 0:    return 7;
-        case 7:    return 13;
-        case 13:   return 23;
-        case 23:   return 47;
-        case 47:   return 97;
-        case 97:   return 199;
-        case 199:  return 401;
-        case 401:  return 809;
-        case 809:  return 1601;
-        case 1601: return 3217;
-        case 3217: return 6421;
-        default:   return cap*2;
-    }
-}
-
-
-static uint
-subMapCap( uint top ) {
-    return top*3;
-}
-
 static uint
 stepTarget( uint cap ) {
     // This computes the truncated log2( cap )
@@ -293,7 +258,12 @@ stepTarget( uint cap ) {
 
 static void
 growMap( State* state, Index* idx, bool clean ) {
-    uint mcap  = nextMapCap( idx->map.cap );
+    uint mcap;
+    if( idx->map.row < fastGrowthMapCapTableSize )
+        mcap = fastGrowthMapCapTable[idx->map.row++];
+    else
+        mcap = idx->map.cap * 2;
+    
     uint steps = idx->stepTarget;
     
     Part keysP;

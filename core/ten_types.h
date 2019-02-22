@@ -37,6 +37,10 @@ typedef struct Fiber    Fiber;
 typedef struct Upvalue  Upvalue;
 typedef struct Data     Data;
 
+// Types of lookup tables.
+typedef struct NTab NTab;
+typedef struct STab STab;
+
 // Primitive types, just give them shorter names.
 typedef unsigned char      uchar;
 typedef unsigned short     ushort;
@@ -44,6 +48,9 @@ typedef unsigned int       uint;
 typedef unsigned long      ulong;
 typedef unsigned long long ullong;
 typedef long long          llong;
+
+// Type used for bytecode instructions.
+typedef unsigned short instr;
 
 // These are the types we use to represent the primitive values.
 typedef void*    ObjT;
@@ -346,5 +353,16 @@ typedef enum {
     OBJ_UPV,
     OBJ_DAT
 } ObjTag;
+
+
+// The Tup struct is used to represent a reference to a sequence
+// of values in a way that's GC safe and allows the value array
+// to be reallocated.  So we store a pointer to the array's base,
+// an offset to the start of the array, and the size of the array.
+typedef struct {
+    TVal** base;
+    uint   offset;
+    uint   size;
+} Tup;
 
 #endif

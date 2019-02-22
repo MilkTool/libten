@@ -14,6 +14,7 @@ typedef struct {
     char pri[64];
 } ten_PtrInfo;
 
+typedef struct ten_Core ten_Core;
 
 typedef struct {
     char pri[32];
@@ -23,6 +24,8 @@ typedef struct {
     ten_Tup* tup;
     unsigned loc;
 } ten_Var;
+
+typedef void (*ten_FunCb)( ten_Core* core, ten_Tup* args, ten_Var* udat );
 
 typedef enum {
     ten_ERR_MEMORY,
@@ -41,9 +44,6 @@ typedef struct ten_Config {
     
     double memLimitGrowth;
 } ten_Config;
-
-
-typedef struct ten_Core ten_Core;
 
 ten_Core*
 ten_newCore( ten_Config* config, jmp_buf* errJmp );

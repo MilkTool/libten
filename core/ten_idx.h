@@ -68,6 +68,7 @@ struct Index {
     // keep track of which slots are still in use and which
     // can be recycled.
     struct {
+        size_t row;
         size_t cap;
         TVal*  keys;
         uint*  locs;

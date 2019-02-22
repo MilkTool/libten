@@ -1,6 +1,8 @@
 #include "ten_sym.h"
 #include "ten_state.h"
 #include "ten_assert.h"
+#include "ten_tables.h"
+#include "ten_macros.h"
 #include <string.h>
 #include <limits.h>
 
@@ -30,6 +32,7 @@ struct SymState {
     uint next;
     
     struct {
+        uint      row;
         uint      cap;
         SymNode** buf;
     } map;
@@ -42,25 +45,6 @@ struct SymState {
     SymNode* recycled;
     SymBuf   symBuf;
 };
-
-#define addNode( LIST, NODE )                           \
-    do {                                                \
-        (NODE)->next = *(LIST);                         \
-        (NODE)->link = (LIST);                          \
-        *(LIST) = (NODE);                               \
-        if( (NODE)->next )                              \
-            (NODE)->next->link = &(NODE)->next;         \
-    } while( 0 )
-
-#define remNode( NODE )                                 \
-    do {                                                \
-        *(NODE)->link = (NODE)->next;                   \
-        if( (NODE)->next )                              \
-            (NODE)->next->link = (NODE)->link;          \
-    } while( 0 )
-
-static uint
-nextMapCap( uint cap );
 
 static uint
 hash( char const* str, size_t len );
@@ -88,7 +72,7 @@ symFinl( State* state, Finalizer* finl ) {
 
 void
 symInit( State* state ) {
-    uint mcap = nextMapCap( 0 );
+    uint mcap = slowGrowthMapCapTable[0];
     
     Part stateP;
     SymState* symState = stateAllocRaw( state, &stateP, sizeof(SymState) );
@@ -106,6 +90,7 @@ symInit( State* state ) {
     
     symState->count     = 0;
     symState->next      = 0;
+    symState->map.row   = 1;
     symState->map.cap   = mcap;
     symState->map.buf   = map;
     symState->nodes.cap = ncap;
@@ -141,61 +126,59 @@ symGet( State* state, char const* buf, size_t len ) {
     SymNode* node = symState->map.buf[s];
     while( node ) {
         if( node->len == len && !memcmp( node->buf, buf, len ) )
-            break;
+            return node->loc;
         node = node->next;
     }
     
     // If the symbol doesn't exist then either create or
     // recycle a node to put it in.
-    if( !node ) {
-        if( symState->recycled ) {
-            node = symState->recycled;
-            remNode( node );
-        }
-        else {
-            Part nodeP;
-            node = stateAllocRaw( state, &nodeP, sizeof(SymNode) );
-            node->len = 0;
-            node->buf = NULL;
-            
-            tenAssert( symState->next < UINT_MAX );
-            node->loc = symState->next++;
-            if( node->loc >= symState->nodes.cap ) {
-                Part nodesP = {
-                    .ptr = symState->nodes.buf,
-                    .sz  = symState->nodes.cap*sizeof(SymNode*)
-                };
-                
-                uint      cap   = symState->nodes.cap*2;
-                SymNode** nodes = stateResizeRaw( state, &nodesP, sizeof(SymNode*)*cap );
-                for( uint i = symState->nodes.cap ; i < cap ; i++ )
-                    nodes[i] = NULL;
-                
-                symState->nodes.cap = cap;
-                symState->nodes.buf = nodes;
-                stateCommitRaw( state, &nodesP );
-            }
-            stateCommitRaw( state, &nodeP );
-        }
-        
-        addNode( &symState->map.buf[s], node );
-        
-        Part conP;
-        char* con = stateAllocRaw( state, &conP, len+1 );
-        memcpy( con, buf, len );
-        con[len] = '\0';
-        stateCommitRaw( state, &conP );
-        
-        node->len  = len;
-        node->buf  = con;
-        node->mark = false;
-        node->hash = h;
-        symState->nodes.buf[node->loc] = node;
-        symState->count++;
-        
-        if( symState->count*3 >= symState->map.cap )
-            growMap( state );
+    if( symState->recycled ) {
+        node = symState->recycled;
+        remNode( node );
     }
+    else {
+        Part nodeP;
+        node = stateAllocRaw( state, &nodeP, sizeof(SymNode) );
+        node->len = 0;
+        node->buf = NULL;
+        
+        tenAssert( symState->next < UINT_MAX );
+        node->loc = symState->next++;
+        if( node->loc >= symState->nodes.cap ) {
+            Part nodesP = {
+                .ptr = symState->nodes.buf,
+                .sz  = symState->nodes.cap*sizeof(SymNode*)
+            };
+            
+            uint      cap   = symState->nodes.cap*2;
+            SymNode** nodes = stateResizeRaw( state, &nodesP, sizeof(SymNode*)*cap );
+            for( uint i = symState->nodes.cap ; i < cap ; i++ )
+                nodes[i] = NULL;
+            
+            symState->nodes.cap = cap;
+            symState->nodes.buf = nodes;
+            stateCommitRaw( state, &nodesP );
+        }
+        stateCommitRaw( state, &nodeP );
+    }
+    
+    addNode( &symState->map.buf[s], node );
+    
+    Part conP;
+    char* con = stateAllocRaw( state, &conP, len+1 );
+    memcpy( con, buf, len );
+    con[len] = '\0';
+    stateCommitRaw( state, &conP );
+    
+    node->len  = len;
+    node->buf  = con;
+    node->mark = false;
+    node->hash = h;
+    symState->nodes.buf[node->loc] = node;
+    symState->count++;
+    
+    if( symState->count*3 >= symState->map.cap )
+        growMap( state );
     
     return node->loc;
 }
@@ -265,31 +248,14 @@ symFinishCycle( State* state ) {
         }
         
         remNode( node );
+        stateFreeRaw( state, node->buf, node->len + 1 );
+        node->len = 0;
+        node->buf = NULL;
+        
         addNode( &symState->recycled, node );
+        
+        tenAssert( symState->count > 0 );
         symState->count--;
-    }
-}
-
-
-static uint
-nextMapCap( uint cap ) {
-    // We try to use prime numbers for the map
-    // size while it's within a reasonable size
-    // to tabulate these for; otherwise revert
-    // to doubling.  Adding more primes to this
-    // table should improve performance for larger
-    // Indices.
-    switch( cap ) {
-        case 0:    return 23;
-        case 23:   return 47;
-        case 47:   return 97;
-        case 97:   return 199;
-        case 199:  return 401;
-        case 401:  return 809;
-        case 809:  return 1601;
-        case 1601: return 3217;
-        case 3217: return 6421;
-        default:   return cap*2;
     }
 }
 
@@ -305,7 +271,11 @@ static void
 growMap( State* state ) {
     SymState* symState = state->symState;
     
-    uint mcap = nextMapCap( symState->map.cap );
+    uint mcap;
+    if( symState->map.row < slowGrowthMapCapTableSize )
+        mcap = slowGrowthMapCapTable[symState->map.row++];
+    else
+        mcap = symState->map.cap * 2;
     
     Part mapP;
     SymNode** map = stateAllocRaw( state, &mapP, sizeof(SymNode*)*mcap );

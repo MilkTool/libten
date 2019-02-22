@@ -1,5 +1,6 @@
 #include "ten_state.h"
 #include "ten_assert.h"
+#include "ten_macros.h"
 #include "ten_com.h"
 #include "ten_gen.h"
 #include "ten_env.h"
@@ -75,22 +76,6 @@ ptrFinishCycle( State* state );
 #define datSize( STATE, DAT ) 0
 #define datTrav( STATE, DAT ) {}
 #define datDest( STATE, DAT ) {}
-
-#define addNode( LIST, NODE )                           \
-    do {                                                \
-        (NODE)->next = *(LIST);                         \
-        (NODE)->link = (LIST);                          \
-        *(LIST) = (NODE);                               \
-        if( (NODE)->next )                              \
-            (NODE)->next->link = &(NODE)->next;         \
-    } while( 0 )
-
-#define remNode( NODE )                                 \
-    do {                                                \
-        *(NODE)->link = (NODE)->next;                   \
-        if( (NODE)->next )                              \
-            (NODE)->next->link = (NODE)->link;          \
-    } while( 0 )
 
 static void*
 mallocRaw( State* state, size_t nsz );
