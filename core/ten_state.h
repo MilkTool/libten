@@ -41,6 +41,7 @@ typedef struct {
 #define OBJ_DAT_OFFSET ((size_t)&((Object*)0)->data)
 #define objGetDat( OBJ ) ((void*)(OBJ) + OBJ_DAT_OFFSET)
 #define datGetObj( DAT ) ((Object*)((void*)(DAT) - OBJ_DAT_OFFSET))
+#define datGetTag( DAT ) ((tpGetTag( datGetObj( DAT )->next ) >> OBJ_TAG_SHIFT) & OBJ_TAG_BITS)
 
 
 
@@ -199,7 +200,7 @@ struct State {
     // a String object can't be allocated; this is
     // expected to always be a static string.
     jmp_buf*    errJmp;
-    ten_ErrNum   errNum;
+    ten_ErrNum  errNum;
     TVal        errVal;
     char const* errStr;
     ten_Trace*  trace;
@@ -300,6 +301,19 @@ stateErrFmt( State* state, ten_ErrNum err, char const* fmt, ... );
 void
 stateErrVal( State* state, ten_ErrNum err, TVal val );
 
+void
+stateErrProp( State* state );
+
+
+// At some places we need to intercept the errors produced to
+// prevent them from propegating to the rest of the program;
+// in such cases the unit in question calls this to replace the
+// current error handling jump with its own; once the routine
+// finishes it's expected to swap back to the original, so it
+// must save the returned pointer.
+jmp_buf*
+stateSwapErrJmp( State* state, jmp_buf* jmp );
+
 
 // Memory management.  The allocators return the same value as
 // put in the `ptr` field of the given Part struct.  After
@@ -364,7 +378,7 @@ stateRemoveFinalizer( State* state, Finalizer* finalizer );
 // allows arbitrary components to add more specificity
 // to stack traces.
 void
-statePushTrace( State* state, char const* file, uint line, uint col );
+statePushTrace( State* state, char const* file, uint line );
 
 // Clear the current `trace`, this frees all entries.
 void

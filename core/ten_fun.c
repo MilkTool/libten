@@ -3,14 +3,19 @@
 #include "ten_ntab.h"
 #include "ten_stab.h"
 
+void
+funInit( State* state ) {
+    state->funState = NULL;
+}
+
 Function*
-funNewVir( State* state, int nParams, DocInfo* doc ) {
+funNewVir( State* state, uint nParams, Index* vargIdx ) {
     Part funP;
     Function* fun = stateAllocObj( state, &funP, sizeof(Function), OBJ_FUN );
     
     fun->type    = FUN_VIR;
     fun->nParams = nParams;
-    fun->doc     = doc;
+    fun->vargIdx = vargIdx;
     
     memset( &fun->u.vir, sizeof(VirFun) );
     
@@ -19,13 +24,13 @@ funNewVir( State* state, int nParams, DocInfo* doc ) {
 }
 
 Function*
-funNewNat( State* state, int nParams, DocInfo* doc, ten_FunCb cb ) {
+funNewNat( State* state, uint nParams, Index* vargIdx, ten_FunCb cb ) {
     Part funP;
     Function* fun = stateAllocObj( state, &funP, sizeof(Function), OBJ_FUN );
     
     fun->type    = FUN_NAT;
     fun->nParams = nParams;
-    fun->doc     = doc;
+    fun->vargIdx = vargIdx;
     
     memset( &fun->u.nat, sizeof(NatFun) );
     
@@ -35,8 +40,8 @@ funNewNat( State* state, int nParams, DocInfo* doc, ten_FunCb cb ) {
 
 void
 funTraverse( State* state, Function* fun ) {
-    if( fun->doc )
-        stateMark( state, fun->doc->docs );
+    if( fun->vargIdx )
+        stateTraverse( state, fun->vargIdx );
     
     if( fun->type == FUN_NAT ) {
         if( state->gcFull ) {
@@ -52,22 +57,20 @@ funTraverse( State* state, Function* fun ) {
             tvMark( vir->consts[i] );
         
         if( vir->dbg ) {
+            DbgInfo* dbg = vir->dbg;
             if( state->gcFull ) {
-                DbgInfo* dbg = vir->dbg;
                 symMark( state, dbg->func );
                 symMark( state, dbg->file );
-                for( uint i = 0 ; i < dbg->nLines ; i++ )
-                    if( dbg->lines[i] )
-                        stateMark( state, dbg->lines[i] );
             }
+            for( uint i = 0 ; i < dbg->nLines ; i++ )
+                if( dbg->lines[i].bcb )
+                    stateMark( state, dbg->lines[i].bcb );
         }
     }
 }
 
 void
 funDestruct( State* state, Function* fun ) {
-    if( fun->doc )
-        stateFreeRaw( state, fun->doc, sizeof(DocInfo) );
     
     if( fun->type == FUN_NAT ) {
         NatFun* nat = &fun->u.nat;

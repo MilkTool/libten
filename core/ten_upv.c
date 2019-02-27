@@ -7,7 +7,7 @@ upvInit( State* state ) {
 }
 
 Upvalue*
-upvNew( State* state, TVal* val ) {
+upvNew( State* state, TVal val ) {
     Part upvP;
     Upvalue* upv = stateAllocObj( state, &upvP, sizeof(Upvalue), OBJ_UPV );
     upv->val = val;

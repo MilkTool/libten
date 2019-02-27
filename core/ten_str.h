@@ -8,7 +8,7 @@ struct String {
     char   buf[];
 };
 
-#define strSize( STATE, STR ) (sizeof(String) + (STR)->cap)
+#define strSize( STATE, STR ) (sizeof(String) + (STR)->len)
 #define strTrav( STATE, STR ) do{}while(0)
 #define strDest( STATE, STR ) do{}while(0)
 

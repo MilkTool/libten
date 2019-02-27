@@ -8,7 +8,7 @@
     #define tenAssert( COND )                                           \
         do {                                                            \
             if( !(COND) ) {                                             \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__, -1 ); \
+                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
                                                                         \
                 stateErrFmt(                                            \
                     ASSERT_STATE, ten_ERR_ASSERT,                       \
@@ -20,7 +20,7 @@
     #define strAssert( COND, STR )                                      \
         do {                                                            \
             if( !(COND) ) {                                             \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__, -1 );  \
+                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
                 stateErrStr( ASSERT_STATE, ten_ERR_ASSERT, -1 );        \
             }                                                           \
         } while( 0 )
@@ -28,7 +28,7 @@
     #define fmtAssert( COND, FMT, ARGS... )                             \
         do {                                                            \
             if( !(COND) ) {                                             \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__, -1 ); \
+                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
                 stateErrFmt( ASSERT_STATE, ten_ERR_ASSERT, FMT, ARGS ); \
             }                                                           \
         } while( 0 )
@@ -37,14 +37,14 @@
         ((COND)                                                         \
             ? (RES)                                                     \
             : (                                                         \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__, -1 ), \
+                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ ),     \
                 stateErrFmt( ASSERT_STATE, ten_ERR_ASSERT, FMT, ARGS ); \
             )                                                           \
         )
         
     #define tenAssertNeverReached()                                 \
         do {                                                        \
-            statePushTrace( ASSERT_STATE, __FILE__, __LINE__, -1 ); \
+            statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
             stateErrFmt(                                            \
                 ASSERT_STATE, ten_ERR_ASSERT,                       \
                 "Control flow is broken somewhere"                  \

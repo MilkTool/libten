@@ -9,19 +9,28 @@
 #ifndef ten_stab_h
 #define ten_stab_h
 #include "ten_types.h"
+#include <stdbool.h>
 
+typedef void (*FreeEntryCb)( State* state, void* udat, void* edat );
+typedef void (*ProcEntryCb)( State* state, void* udat, void* edat );
 
 STab*
-stabMake( State* state );
+stabMake( State* state, bool recycle, void* udat, FreeEntryCb free );
 
 void
 stabFree( State* state, STab* stab );
 
 uint
-stabAdd( State* state, STab* stab, SymT sym );
+stabNumSlots( State* state, STab* stab );
 
 uint
-stabGet( State* state, STab* stab, SymT sym, uint pc );
+stabAdd( State* state, STab* stab, SymT sym, void* edat );
+
+uint
+stabGetLoc( State* state, STab* stab, SymT sym, uint pc );
+
+void*
+stabGetDat( State* state, STab* stab, SymT sym, uint pc );
 
 SymT
 stabRev( State* state, STab* stab, uint loc, uint pc );
@@ -31,5 +40,8 @@ stabOpenScope( State* state, STab* stab, uint pc );
 
 void
 stabCloseScope( State* state, STab* stab, uint pc );
+
+void
+stabForEach( State* state, STab* stab, ProcEntryCb proc );
 
 #endif

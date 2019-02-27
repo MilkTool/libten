@@ -2,6 +2,7 @@
 #include "ten_ntab.h"
 #include "ten_state.h"
 #include "ten_assert.h"
+#include "ten_macros.h"
 #include <limits.h>
 
 // This code can get a bit hairy.  Basically the way it works is we
@@ -63,9 +64,10 @@
     } while( 0 )
 
 typedef struct Entry {
-    uint loc;
-    uint scope;
-    SymT name;
+    uint  loc;
+    uint  scope;
+    SymT  name;
+    void* edat;
     struct {
         uint start;
         uint end;
@@ -80,6 +82,8 @@ typedef struct Entry {
 } Entry;
 
 struct STab {
+    Finalizer finl;
+    
     NTab* ntab;
     
     struct {
@@ -102,10 +106,63 @@ struct STab {
     // Next scope number and next array index to allocate.
     uint nextScope;
     uint nextLoc;
+    
+    // Cache pointing to last entry accessed.
+    Entry* last;
+    
+    // Should slots be recycled?
+    bool recycle;
+    
+    // Cleanup function for entry user data.
+    FreeEntryCb free;
+    
+    // Table user data.
+    void* udat;
 };
 
+static void
+stabFinl( State* state, Finalizer* finl ) {
+    STab* stab = structFromFinl( STab, finl );
+
+    Entry* eIt;
+    
+    eIt = stab->scoping.used;
+    while( eIt ) {
+        Entry* e = eIt;
+        eIt = eIt->forScope.next;
+        
+        if( eIt->edat && stab->free )
+            stab->free( state, stab->udat, eIt->edat );
+        
+        stateFreeRaw( state, e, sizeof(Entry) );    
+    }
+    eIt = stab->scoping.free;
+    while( eIt ) {
+        Entry* e = eIt;
+        eIt = eIt->forScope.next;
+        
+        if( eIt->edat && stab->free )
+            stab->free( state, stab->udat, eIt->edat );
+        
+        stateFreeRaw( state, e, sizeof(Entry) );
+    }
+    eIt = stab->scoping.stale;
+    while( eIt ) {
+        Entry* e = eIt;
+        eIt = eIt->forScope.next;
+        
+        if( eIt->edat && stab->free )
+            stab->free( state, stab->udat, eIt->edat );
+        
+        stateFreeRaw( state, e, sizeof(Entry) );
+    }
+
+    stateFreeRaw( state, stab->entries.buf, sizeof(Entry*)*stab->entries.cap );
+    stateFreeRaw( state, stab, sizeof(STab) );
+}
+
 STab*
-stabMake( State* state ) {
+stabMake( State* state, bool recycle, void* udat, FreeEntryCb free ) {
     Part stabP;
     STab* stab = stateAllocRaw( state, &stabP, sizeof(STab) );
     
@@ -124,6 +181,11 @@ stabMake( State* state ) {
     stab->current.scope = 0;
     stab->nextScope     = 1;
     stab->nextLoc       = 0;
+    stab->recycle       = recycle;
+    stab->free          = free;
+    stab->udat          = udat;
+    stab->finl.cb       = stabFinl;
+    stateInstallFinalizer( state, &stab->finl );
     
     stateCommitRaw( state, &entriesP );
     stateCommitRaw( state, &stabP );
@@ -131,37 +193,26 @@ stabMake( State* state ) {
     return stab;
 }
 
+
+
 void
 stabFree( State* state, STab* stab ) {
-    
-    Entry* eIt;
-    
-    eIt = stab->scoping.used;
-    while( eIt ) {
-        Entry* e = eIt;
-        eIt = eIt->forScope.next;
-        stateFreeRaw( state, e, sizeof(Entry) );    
-    }
-    eIt = stab->scoping.free;
-    while( eIt ) {
-        Entry* e = eIt;
-        eIt = eIt->forScope.next;
-        stateFreeRaw( state, e, sizeof(Entry) );
-    }
-    eIt = stab->scoping.stale;
-    while( eIt ) {
-        Entry* e = eIt;
-        eIt = eIt->forScope.next;
-        stateFreeRaw( state, e, sizeof(Entry) );
-    }
-    
     ntabFree( state, stab->ntab );
-    stateFreeRaw( state, stab->entries.buf, sizeof(Entry*)*stab->entries.cap );
-    stateFreeRaw( state, stab, sizeof(STab) );
+    
+    stateRemoveFinalizer( state, &stab->finl );
+    stabFinl( state, &stab->finl );
 }
 
 uint
-stabAdd( State* state, STab* stab, SymT sym ) {
+stabNumSlots( State* state, STab* stab ) {
+    return stab->nextLoc;
+}
+
+uint
+stabAdd( State* state, STab* stab, SymT sym, void* edat ) {
+    Entry* e = stab->last;
+    if( e && e->name == sym && e->scope == stab->current.scope )
+        return e->loc;
     
     // Allocate a slot for the entry if one doesn't exist.
     uint i = ntabAdd( state, stab->ntab, sym );
@@ -180,8 +231,13 @@ stabAdd( State* state, STab* stab, SymT sym ) {
     // Search existing entries for one with the current scope.
     Entry* eIt = stab->entries.buf[i];
     while( eIt ) {
-        if( eIt->scope == stab->current.scope )
+        if( eIt->scope == stab->current.scope ) {
+            if( eIt->edat && stab->free )
+                stab->free( state, stab->udat, eIt->edat );
+            stab->last = eIt;
+            eIt->edat = edat;
             return eIt->loc;
+        }
         
         eIt = eIt->forName.next;
     }
@@ -191,6 +247,7 @@ stabAdd( State* state, STab* stab, SymT sym ) {
     Entry* entry = stateAllocRaw( state, &entryP, sizeof(Entry) );
     entry->scope = stab->current.scope;
     entry->name  = sym;
+    entry->edat  = edat;
     entry->range.start = stab->current.start;
     entry->range.end   = UINT_MAX;
     putForScope( stab->scoping.used, entry );
@@ -214,25 +271,43 @@ stabAdd( State* state, STab* stab, SymT sym ) {
     return entry->loc;
 }
 
-uint
-stabGet( State* state, STab* stab, SymT sym, uint pc ) {
-    // The get is based on the current program counter,
-    // so for a search to succeed an entry has to exist
-    // for which `range.start <= pc < range.end`.
+static Entry*
+getEntry( State* state, STab* stab, SymT sym, uint pc ) {
+    Entry* e = stab->last;
+    if( e && e->name == sym && e->range.start <= pc && pc < e->range.end )
+        return e;
     
     uint i = ntabGet( state, stab->ntab, sym );
     if( i == UINT_MAX )
-        return UINT_MAX;
+        return NULL;
     
     Entry* eIt = stab->entries.buf[i];
     while( eIt ) {
-        if( eIt->range.start <= pc && pc < eIt->range.end )
-            return eIt->loc;
+        if( eIt->range.start <= pc && pc < eIt->range.end ) {
+            stab->last = eIt;
+            return eIt;
+        }
         
         eIt = eIt->forName.next;
     }
     
-    return UINT_MAX;
+    return NULL;
+}
+
+uint
+stabGetLoc( State* state, STab* stab, SymT sym, uint pc ) {
+    Entry* e = getEntry( state, stab, sym, pc );
+    if( e == NULL )
+        return UINT_MAX;
+    return e->loc;
+}
+
+void*
+stabGetDat( State* state, STab* stab, SymT sym, uint pc ) {
+    Entry* e = getEntry( state, stab, sym, pc );
+    if( e == NULL )
+        return NULL;
+    return e->edat;
 }
 
 SymT
@@ -278,6 +353,7 @@ stabOpenScope( State* state, STab* stab, uint pc ) {
     Entry* entry = stateAllocRaw( state, &entryP, sizeof(Entry) );
     entry->scope = stab->current.scope;
     entry->loc   = UINT_MAX;
+    entry->edat  = NULL;
     entry->range.start = stab->current.start;
     entry->range.end   = stab->current.start;
     putForScope( stab->scoping.used, entry );
@@ -293,12 +369,17 @@ stabCloseScope( State* state, STab* stab, uint pc ) {
     
     // Move all the `used` entries with the current scope
     // number to the `free` list so their `loc`s can be
-    // recycled.
+    // recycled, if recycling is enabled otherwise move
+    // them to the `stale` list.
     while( stab->scoping.used->scope == stab->current.scope ) {
         Entry* entry = stab->scoping.used;
         entry->range.end = pc;
         popForScope( stab->scoping.used );
-        putForScope( stab->scoping.free, entry );
+        
+        if( stab->recycle )
+            putForScope( stab->scoping.free, entry );
+        else
+            putForScope( stab->scoping.stale, entry );
     }
     
     // Restore the current scope info from the dummy entry
@@ -310,4 +391,26 @@ stabCloseScope( State* state, STab* stab, uint pc ) {
     stab->current.start = dummy->range.start;
     popForScope( dummy );
     stateFreeRaw( state, dummy, sizeof(Entry) );
+}
+
+
+void
+stabForEach( State* state, STab* stab, ProcEntryCb proc ) {
+    Entry* eIt;
+    
+    eIt = stab->scoping.used;
+    while( eIt ) {
+        proc( state, stab->udat, eIt->edat );
+        eIt = eIt->forScope.next;  
+    }
+    eIt = stab->scoping.free;
+    while( eIt ) {
+        proc( state, stab->udat, eIt->edat );
+        eIt = eIt->forScope.next;
+    }
+    eIt = stab->scoping.stale;
+    while( eIt ) {
+        proc( state, stab->udat, eIt->edat );
+        eIt = eIt->forScope.next;
+    }
 }

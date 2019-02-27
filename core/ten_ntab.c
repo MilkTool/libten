@@ -15,6 +15,7 @@ typedef struct NameNode {
 } NameNode;
 
 typedef struct NTab {
+    Finalizer finl;
     Scanner   scan;
     
     uint count;
@@ -29,11 +30,21 @@ typedef struct NTab {
 } NTab;
 
 static void
+ntabFinl( State* state, Finalizer* finl ) {
+    NTab* ntab = structFromFinl( NTab, finl );
+    
+    stateRemoveScanner( state, &ntab->scan );
+    
+    stateFreeRaw( state, ntab->map.buf, sizeof(NameNode*)*ntab->map.cap );
+    stateFreeRaw( state, ntab, sizeof(NTab));
+}
+
+static void
 ntabScan( State* state, Scanner* scan ) {
     if( !state->gcFull )
         return;
     
-    NTab* ntab = (NTab*)scan;
+    NTab* ntab = structFromScan( NTab, scan );
     for( uint i = 0 ; i < ntab->map.cap ; i++ ) {
         NameNode* node = ntab->map.buf[i];
         while( node ) {
@@ -62,7 +73,9 @@ ntabMake( State* state ) {
     ntab->map.cap = mcap;
     ntab->map.buf = map;
     ntab->scan.cb = ntabScan;
+    ntab->finl.cb = ntabFinl;
     stateInstallScanner( state, &ntab->scan );
+    stateInstallFinalizer( state, &ntab->finl );
     
     return ntab;
 }
@@ -72,10 +85,8 @@ growMap( State* state, NTab* ntab );
 
 void
 ntabFree( State* state, NTab* ntab ) {
-    stateRemoveScanner( state, &ntab->scan );
-    
-    stateFreeRaw( state, ntab->map.buf, sizeof(NameNode*)*ntab->map.cap );
-    stateFreeRaw( state, ntab, sizeof(NTab));
+    stateRemoveFinalizer( state, &ntab->finl );
+    ntabFinl( state, &ntab->finl );
 }
 
 uint

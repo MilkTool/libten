@@ -25,12 +25,16 @@ typedef struct {
     unsigned loc;
 } ten_Var;
 
-typedef void (*ten_FunCb)( ten_Core* core, ten_Tup* args, ten_Var* udat );
+typedef void
+(*ten_FunCb)( ten_Core* core, ten_Tup* args, ten_Tup* mems, void* dat );
 
 typedef enum {
+    ten_ERR_NONE,
     ten_ERR_MEMORY,
     ten_ERR_RECORD,
     ten_ERR_STRING,
+    ten_ERR_FIBER,
+    ten_ERR_CALL,
     ten_ERR_ASSERT
 } ten_ErrNum;
 

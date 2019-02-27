@@ -11,19 +11,15 @@ typedef struct {
 } LineInfo;
 
 typedef struct {
-    NTab* upvals;
-    STab* locals;
+    STab* lcls;
+    STab* upvs;
+    STab* lbls;
     
     SymT        func;
     SymT        file;
     uint        nLines;
     LineInfo*   lines;
 } DbgInfo;
-
-typedef struct {
-    Record* docs;
-    uint    next;
-} DocInfo;
 
 typedef struct {
     uint nConsts;
@@ -54,8 +50,8 @@ typedef enum {
 
 struct Function {
     FunType  type;
-    int      nParams;
-    DocInfo* doc;
+    uint     nParams;
+    Index*   vargIdx;
     union {
         VirFun vir;
         NatFun nat;
@@ -66,11 +62,14 @@ struct Function {
 #define funTrav( STATE, FUN ) (funTraverse( STATE, FUN ))
 #define funDest( STATE, FUN ) (funDestruct( STATE, FUN ))
 
-Function*
-funNewVir( State* state, int nParams, DocInfo* doc );
+void
+funInit( State* state );
 
 Function*
-funNewNat( State* state, int nParams, DocInfo* doc, ten_FunCb cb );
+funNewVir( State* state, uint nParams, Index* vargIdx );
+
+Function*
+funNewNat( State* state, uint nParams, Index* vargIdx, ten_FunCb cb );
 
 void
 funTraverse( State* state, Function* fun );

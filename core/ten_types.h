@@ -41,6 +41,9 @@ typedef struct Data     Data;
 typedef struct NTab NTab;
 typedef struct STab STab;
 
+// Code generator type.
+typedef struct Gen Gen;
+
 // Primitive types, just give them shorter names.
 typedef unsigned char      uchar;
 typedef unsigned short     ushort;
@@ -51,6 +54,11 @@ typedef long long          llong;
 
 // Type used for bytecode instructions.
 typedef unsigned short instr;
+#define IN_OPC_MAX (127)
+#define IN_OPR_MAX (511)
+#define inMake( OPC, OPR ) ((OPR) << 7 | (OPC))
+#define inGetOpc( IN )     ((IN) & 0x7F)
+#define inGetOpr( IN )     ((IN) >> 7)
 
 // These are the types we use to represent the primitive values.
 typedef void*    ObjT;
@@ -60,6 +68,7 @@ typedef double   DecT;
 typedef ullong   SymT;
 typedef ullong   PtrT;
 typedef ullong   TupT;
+typedef ullong   RefT;
 
 // Due to the way we encode short symbols directly into a value
 // as the OR of its characters... we'd get a lot of collision
@@ -182,6 +191,8 @@ typedef ullong   TupT;
         (TVal){.nan = NAN_BITS | (ullong)VAL_PTR << 48 | (PTR) }
     #define tvTup( TUP ) \
         (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (TUP) }
+    #define tvRef( REF ) \
+        (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (REF) }
     
     #define tvIsObj( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & SIGN_BIT))
@@ -201,6 +212,8 @@ typedef ullong   TupT;
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_PTR)
     #define tvIsTup( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_TUP)
+    #define tvIsRef( TVAL ) \
+        (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_REF)
     
     #define tvGetObj( TVAL ) \
         ((ObjT)((TVAL).nan & OBJ_BITS))
@@ -216,6 +229,8 @@ typedef ullong   TupT;
         ((PtrT)((TVAL).nan & VAL_BITS))
     #define tvGetTup( TVAL ) \
         ((TupT)((TVAL).nan & VAL_BITS))
+    #define tvGetRef( TVAL ) \
+        ((RefT)((TVAL).nan & VAL_BITS))
     
     #define tvEqual( TV1, TV2 ) \
         ((TV1).nan == (TV2).nan)
@@ -267,6 +282,8 @@ typedef ullong   TupT;
         (TVal){.tag = VAL_PTR, .u = {.val = (ullong)(SYM)}}
     #define tvTup( TUP ) \
         (TVal){.tag = VAL_TUP, .u = {.val = (ullong)(TUP)}}
+    #define tvRef( REF ) \
+        (TVal){.tag = VAL_REF, .u = {.val = (ullong)(REF)}}
     
     #define tvIsObj( TVAL ) \
         ((TVAL).tag == VAL_OBJ)
@@ -286,6 +303,8 @@ typedef ullong   TupT;
         ((TVAL).tag == VAL_PTR)
     #define tvIsTup( TVAL ) \
         ((TVAL).tag == VAL_TUP)
+    #define tvIsRef( TVAL ) \
+        ((TVAL).tag == VAL_REF)
     
     #define tvGetObj( TVAL ) \
         ((ObjT)(TVAL).u.val)
@@ -301,6 +320,8 @@ typedef ullong   TupT;
         ((PtrT)(TVAL).u.val)
     #define tvGetTup( TVAL ) \
         ((TupT)(TVAL).u.val)
+    #define tvGetRef( TVAL ) \
+        ((RefT)(TVAL).u.val)
     
     #define tvEqual( TV1, TV2 ) \
         ((TV1).tag == (TV2).tag && (TV1).u.val == (TV2).u.val)
@@ -338,12 +359,15 @@ typedef enum {
     VAL_LOG,
     VAL_INT,
     VAL_DEC,
-    VAL_TUP
+    VAL_TUP,
+    VAL_REF,
+    VAL_LAST
 } ValTag;
 
 // Type tags used to differentiate between different types
 // of heap objects.
 typedef enum {
+    OBJ_FIRST = VAL_LAST,
     OBJ_STR,
     OBJ_IDX,
     OBJ_REC,
@@ -351,7 +375,8 @@ typedef enum {
     OBJ_CLS,
     OBJ_FIB,
     OBJ_UPV,
-    OBJ_DAT
+    OBJ_DAT,
+    OBJ_LAST
 } ObjTag;
 
 
@@ -364,5 +389,7 @@ typedef struct {
     uint   offset;
     uint   size;
 } Tup;
+
+#define tupAt( TUP, LOC ) ( *(*(TUP).base + (TUP).offset + (LOC)) )
 
 #endif

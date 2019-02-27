@@ -5,12 +5,11 @@
 #include "ten_ptr.h"
 
 struct Upvalue {
-    TVal* val;
-    TVal  buf;
+    TVal val;
 };
 
 #define upvSize( STATE, UPV )  (sizeof(Upvalue))
-#define upvTrav( STATE, UPV )  tvMark( *(UPV)->val )
+#define upvTrav( STATE, UPV )  tvMark( (UPV)->val )
 #define upvDest( STATE, UPV )  {}
 #define upvClose( STATE, UPV )      \
     do {                            \
@@ -22,6 +21,6 @@ void
 upvInit( State* state );
 
 Upvalue*
-upvNew( State* state, TVal* val );
+upvNew( State* state, TVal val );
 
 #endif

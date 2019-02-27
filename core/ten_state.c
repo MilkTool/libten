@@ -12,6 +12,7 @@
 #include "ten_fun.h"
 #include "ten_cls.h"
 #include "ten_fib.h"
+#include "ten_upv.h"
 #include "ten_dat.h"
 #include "ten_ptr.h"
 
@@ -21,61 +22,9 @@
 void
 apiInit( State* state );
 void
-comInit( State* state );
-void
-genInit( State* state );
-void
-envInit( State* state );
-void
 fmtInit( State* state );
 void
-symInit( State* state );
-void
-strInit( State* state );
-void
-idxInit( State* state );
-void
-recInit( State* state );
-void
-funInit( State* state );
-void
-clsInit( State* state );
-void
-fibInit( State* state );
-void
-upvInit( State* state );
-void
-datInit( State* state );
-void
-ptrInit( State* state );
-
-void
-symStartCycle( State* state );
-void
-symFinishCycle( State* state );
-void
-ptrStartCycle( State* state );
-void
-ptrFinishCycle( State* state );
-
-#define strSize( STATE, STR ) 0
-#define strTrav( STATE, STR ) {}
-#define strDest( STATE, STR ) {}
-#define funSize( STATE, FUN ) 0
-#define funTrav( STATE, FUN ) {}
-#define funDest( STATE, FUN ) {}
-#define clsSize( STATE, CLS ) 0
-#define clsTrav( STATE, CLS ) {}
-#define clsDest( STATE, CLS ) {}
-#define fibSize( STATE, FIB ) 0
-#define fibTrav( STATE, FIB ) {}
-#define fibDest( STATE, FIB ) {}
-#define upvSize( STATE, UPV ) 0
-#define upvTrav( STATE, UPV ) {}
-#define upvDest( STATE, UPV ) {}
-#define datSize( STATE, DAT ) 0
-#define datTrav( STATE, DAT ) {}
-#define datDest( STATE, DAT ) {}
+comInit( State* state );
 
 static void*
 mallocRaw( State* state, size_t nsz );
@@ -147,8 +96,20 @@ stateErrFmt( State* state, ten_ErrNum err, char const* fmt, ... ) {
 }
 
 void
+stateErrProp( State* state ) {
+    // TODO
+}
+
+void
 stateErrVal( State* state, ten_ErrNum err, TVal val ) {
     // TODO
+}
+
+jmp_buf*
+stateSwapErrJmp( State* state, jmp_buf* jmp ) {
+    jmp_buf* old = state->errJmp;
+    state->errJmp = jmp;
+    return old;
 }
 
 void*
@@ -256,7 +217,7 @@ stateRemoveFinalizer( State* state, Finalizer* finalizer ) {
 }
 
 void
-statePushTrace( State* state, char const* file, uint line, uint col ) {
+statePushTrace( State* state, char const* file, uint line ) {
     // TODO
 }
 
@@ -293,8 +254,8 @@ stateMark( State* state, void* ptr ) {
         case OBJ_CLS: clsTrav( state, (Closure*)ptr );   break;
         case OBJ_FIB: fibTrav( state, (Fiber*)ptr );     break;
         case OBJ_UPV: upvTrav( state, (Upvalue*)ptr );   break;
-        case OBJ_DAT: datTrav( state, (Date*)ptr );      break;
-        default: tenAssertNeverReached();         break;
+        case OBJ_DAT: datTrav( state, (Data*)ptr );      break;
+        default: tenAssertNeverReached();                break;
     }
 }
 

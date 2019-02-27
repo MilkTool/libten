@@ -23,4 +23,16 @@
             (NODE)->next->link = (NODE)->link;          \
     } while( 0 )
 
+#define structFromScan( TYPE, SCAN ) \
+    (TYPE*)((void*)(SCAN) - (ullong)&((TYPE*)NULL)->scan)
+
+#define structFromFinl( TYPE, FINL ) \
+    (TYPE*)((void*)(FINL) - (ullong)&((TYPE*)NULL)->finl)
+
+
+#define identCat_( A, B ) A ## B
+#define identCat( A, B )  identCat_( A, B )
+
+#define isEmpty( DEF ) (identCat( DEF, 1 ) == 1)
+    
 #endif
