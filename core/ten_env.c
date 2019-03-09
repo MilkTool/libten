@@ -27,12 +27,19 @@ struct EnvState {
 
 void
 envFinl( State* state, Finalizer* finl ) {
-
+    EnvState* env = structFromFinl( EnvState, finl );
+    finlValBuf( state, &env->gVals );
+    finlValBuf( state, &env->stack );
+    stateFreeRaw( state, env, sizeof(EnvState) );
 }
 
 void
 envScan( State* state, Scanner* scan ) {
-
+    EnvState* env = structFromScan( EnvState, scan );
+    for( uint i = 0 ; i < env->stack.top ; i++ )
+        tvMark( env->stack.buf[i] );
+    for( uint i = 0 ; i < env->gVals.top ; i++ )
+        tvMark( env->gVals.buf[i] );
 }
 
 void

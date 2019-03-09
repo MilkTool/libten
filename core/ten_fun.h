@@ -7,7 +7,6 @@ typedef struct {
     uint     line;
     uint     start;
     uint     end;
-    Closure* bcb;
 } LineInfo;
 
 typedef struct {
@@ -17,6 +16,7 @@ typedef struct {
     
     SymT        func;
     SymT        file;
+    uint        start;
     uint        nLines;
     LineInfo*   lines;
 } DbgInfo;

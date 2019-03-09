@@ -2,6 +2,7 @@
 #include "ten_state.h"
 #include "ten_assert.h"
 #include "ten_tables.h"
+#include "ten_macros.h"
 #include "ten_sym.h"
 #include "ten_ptr.h"
 #include <string.h>
@@ -359,4 +360,56 @@ find( TVal* keys, uint cap, uint* steps, TVal key ) {
     }
     
     return UINT_MAX;
+}
+
+struct IdxIter {
+    Finalizer finl;
+    Scanner   scan;
+    Index*    idx;
+    uint      slot;
+};
+
+void
+idxIterScan( State* state, Scanner* scan ) {
+    IdxIter* iter = structFromScan( IdxIter, scan );
+    stateMark( state, iter->idx );
+}
+
+void
+idxIterFinl( State* state, Finalizer* finl ) {
+    IdxIter* iter = structFromFinl( IdxIter, finl );
+    stateRemoveScanner( state, &iter->scan );
+    stateFreeRaw( state, iter, sizeof(IdxIter) );
+}
+
+IdxIter*
+idxIterMake( State* state, Index* idx ) {
+    Part iterP;
+    IdxIter* iter = stateAllocRaw( state, &iterP, sizeof(IdxIter) );
+    iter->idx     = idx;
+    iter->slot    = 0;
+    iter->scan.cb = idxIterScan;
+    iter->finl.cb = idxIterFinl;
+    stateInstallScanner( state, &iter->scan );
+    stateInstallFinalizer( state, &iter->finl );
+    stateCommitRaw( state, &iterP );
+    return iter;
+}
+
+void
+idxIterFree( State* state, IdxIter* iter ) {
+    stateRemoveScanner( state, &iter->scan );
+    stateRemoveFinalizer( state, &iter->finl );
+    stateFreeRaw( state, iter, sizeof(IdxIter) );
+}
+
+TVal*
+idxIterNext( State* state, IdxIter* iter ) {
+    Index* idx = iter->idx;
+    while( iter->slot < idx->map.cap && tvIsUdf( idx->map.keys[iter->slot] ) )
+        iter->slot++;
+    if( iter->slot == idx->map.cap )
+        return NULL;
+    
+    return &idx->map.keys[iter->slot++];
 }

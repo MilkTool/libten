@@ -27,6 +27,8 @@ clsNew( State* state, Function* fun, Data* dat ) {
         &upvalsP,
         sizeof(Upvalue*)*fun->u.vir.nUpvals
     );
+    for( uint i = 0 ; i < fun->u.vir.nUpvals )
+        upvals[i] = NULL;
     cls->dat.upvals = upvals;
     
     stateCommitRaw( state, &upvalsP );

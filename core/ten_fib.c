@@ -604,8 +604,12 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_GET_GLOBAL: {
                 #include "inc/ops/GET_GLOBAL.inc"
             } break;
-            case OPC_GET_GLOBAL_BY_NAME: {
-                #include "inc/ops/GET_GLOBAL_BY_NAME.inc"
+            
+            case OPC_GET_FIELD: {
+                #include "inc/ops/GET_FIELD.inc"
+            } break;
+            case OPC_GET_FIELDS: {
+                #include "inc/ops/GET_FIELDS.inc"
             } break;
             
             case OPC_REF_UPVAL: {
@@ -637,11 +641,17 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_MAKE_TUP: {
                 #include "inc/ops/MAKE_TUP.inc"
             } break;
+            case OPC_MAKE_VTUP: {
+                #include "inc/ops/MAKE_VTUP.inc"
+            } break;
             case OPC_MAKE_CLS: {
                 #include "inc/ops/MAKE_CLS.inc"
             } break;
             case OPC_MAKE_REC: {
                 #include "inc/ops/MAKE_REC.inc"
+            } break;
+            case OPC_MAKE_VREC: {
+                #include "inc/ops/MAKE_VREC.inc"
             } break;
             
             case OPC_POP: {
@@ -730,8 +740,8 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_UDF_JUMP: {
                 #include "inc/ops/UDF_JUMP.inc"
             } break;
-            case OPC_ELSE_JUMP: {
-                #include "inc/ops/ELSE_JUMP.inc"
+            case OPC_ALT_JUMP: {
+                #include "inc/ops/ALT_JUMP.inc"
             } break;
             case OPC_JUMP: {
                 #include "inc/ops/JUMP.inc"

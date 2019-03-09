@@ -39,6 +39,11 @@ recSep( State* state, Record* rec ) {
     rec->idx = tpMake( 1, idx );
 }
 
+Index*
+recIndex( State* state, Record* rec ) {
+    return tpGetPtr( rec->idx );
+}
+
 void
 recDef( State* state, Record* rec, TVal key, TVal val ) {
     Index* idx  = tpGetPtr( rec->idx );

@@ -3,10 +3,9 @@
 // buffer which serves as the destination for all format calls, and
 // allows the string to be built up from multiple calls to the format
 // functions.  The format functions support all the standard patterns
-// with the addition of `%v` to inserting the stringified form of a
-// value, `%V` to inserting a value formatted with Ten's syntax,
-// `%t` to insert the type of a value, and `%T` to insert the type
-// for a tag.
+// with the addition of `%v` for the stringified form of a value,
+// `%q` for the stringified form of a value including the quotes on
+// strings and symbols, and `%t` for the type of a value.
 #ifndef ten_fmt_h
 #define ten_fmt_h
 #include "ten_types.h"
@@ -17,10 +16,10 @@
 void
 fmtInit( State* state );
 
-void
+char const*
 fmtA( State* state, bool append, char const* fmt, ... );
 
-void
+char const*
 fmtV( State* state, bool append, char const* fmt, va_list ap );
 
 size_t

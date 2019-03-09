@@ -51,9 +51,12 @@ struct Gen {
     uint curTemps;
     uint maxTemps;
     
+    int level;
+    
     bool        debug;
     SymT        func;
     SymT        file;
+    uint        start;
     LineInfo*   line;
     LineBuf     lines;
     
@@ -112,7 +115,7 @@ freeLbl( State* state, void* udat, void* edat ) {
 }
 
 Gen*
-genMake( State* state, Gen* parent, bool global, bool debug ) {
+genMake( State* state, Gen* parent, SymT* func, bool global, bool debug ) {
     Part genP;
     Gen* gen = stateAllocRaw( state, &genP, sizeof(Gen) );
     
@@ -128,13 +131,16 @@ genMake( State* state, Gen* parent, bool global, bool debug ) {
     gen->curTemps = 0;
     gen->maxTemps = 0;
     
+    gen->level = 0;
+    
     gen->nParams = 0;
     gen->vParams = false;
     
-    gen->debug = debug;
-    if( debug ) {
-        gen->func  = symGet( state, "<anon>", 6 );
-        gen->file  = symGet( state, "<input>", 7 );
+    gen->debug = parent? parent->debug : debug;
+    if( gen->debug ) {
+        gen->func  = func ? *func : symGet( state, "<anon>", 6 );
+        gen->file  = parent ? parent->file : symGet( state, "<input>", 7 );
+        gen->start = parent ? parent->line->line : 0;
         initLineBuf( state, &gen->lines );
         genSetLine( state, gen, 0 );
     }
@@ -236,7 +242,7 @@ genFinish( State* state, Gen* gen, bool constr ) {
         
         // The function goes into the parent's constant
         // pool and is stacked before the upvalue bindings.
-        GenConst const* fc = genAddConst( state, pgen, tvObj( fun ) );
+        GenConst* fc = genAddConst( state, pgen, tvObj( fun ) );
         genPutInstr( state, gen, inMake( OPC_GET_CONST, fc->which ) );
         
         // Following the function goes a list of references,
@@ -255,6 +261,7 @@ genFinish( State* state, Gen* gen, bool constr ) {
         dbg->lbls   = gen->lbls;
         dbg->func   = gen->func;
         dbg->file   = gen->file;
+        dbg->start  = gen->start;
         dbg->nLines = gen->lines.top;
         dbg->lines   = packLineBuf( state, &gen->lines );
         vfun->dbg = dbg;
@@ -292,17 +299,18 @@ genSetLine( State* state, Gen* gen, uint linenum ) {
     if( !gen->debug )
         return;
     
-    while( linenum <= gen->lines.top ) {
+    tenAssert( linenum >= gen->start );
+    uint i = linenum - gen->start;
+    while( i <= gen->lines.top ) {
         LineInfo* line = putLineBuf( state, &gen->lines );
-        line->line  = gen->lines.top - 1;
+        line->line  = gen->lines.top + gen->start - 1;
         line->start = gen->code.top;
         line->end   = line->start;
-        line->bcb   = NULL;
     }
-    gen->line = &gen->lines.buf[linenum];
+    gen->line = &gen->lines.buf[i];
 }
 
-GenConst const*
+GenConst*
 genAddConst( State* state, Gen* gen, TVal val ) {
     GenConst* c = putConstBuf( state, &gen->consts );
     c->which = gen->consts.top - 1;
@@ -328,7 +336,7 @@ addGlobal( State* state, Gen* gen, SymT name ) {
 
 static GenVar*
 addLocal( State* state, Gen* gen, SymT name ) {
-    if( gen->global )
+    if( gen->global && gen->level == 0 )
         return addGlobal( state, gen, name );
     
     GenVar* var = stabGetDat( state, gen->lcls, name, gen->code.top );
@@ -367,7 +375,7 @@ addUpval( State* state, Gen* gen, SymT name ) {
 }
 
 
-GenVar const*
+GenVar*
 genAddParam( State* state, Gen* gen, SymT name, bool vParam ) {
     tenAssert( !gen->vParams );
     tenAssert( !gen->global );
@@ -379,12 +387,12 @@ genAddParam( State* state, Gen* gen, SymT name, bool vParam ) {
     return addLocal( state, gen, name );
 }
 
-GenVar const*
+GenVar*
 genAddVar( State* state, Gen* gen, SymT name ) {
     return addLocal( state, gen, name );
 }
 
-GenVar const*
+GenVar*
 genGetVar( State* state, Gen* gen, SymT name ) {
     GenVar* var;
     
@@ -402,7 +410,7 @@ genGetVar( State* state, Gen* gen, SymT name ) {
     return addUpval( state, gen, name  );
 }
 
-GenLbl const*
+GenLbl*
 genAddLbl( State* state, Gen* gen, SymT name ) {
     Part lblP;
     GenLbl* lbl = stateAllocRaw( state, &lblP, sizeof(GenLbl) );
@@ -413,26 +421,39 @@ genAddLbl( State* state, Gen* gen, SymT name ) {
     return lbl;
 }
 
-GenLbl const*
+GenLbl*
 genGetLbl( State* state, Gen* gen, SymT name ) {
     return stabGetDat( state, gen->lbls, name, gen->code.top );
 }
 
 void
-genMovLbl( State* state, Gen* gen, GenLbl const* lbl, uint where ) {
+genMovLbl( State* state, Gen* gen, GenLbl* lbl, uint where ) {
     tenAssert( where <= gen->code.top );
-    ((GenLbl*)lbl)->where = where;
+    lbl->where = where;
 }
 
 void
 genOpenScope( State* state, Gen* gen ) {
+    gen->level++;
     stabOpenScope( state, gen->lcls, gen->code.top );
     stabOpenScope( state, gen->lbls, gen->code.top );
 }
 
 void
 genCloseScope( State* state, Gen* gen ) {
+    tenAssert( gen->level > 0 );
+    gen->level--;
     stabCloseScope( state, gen->lcls, gen->code.top );
+    stabCloseScope( state, gen->lbls, gen->code.top );
+}
+
+void
+genOpenLblScope( State* state, Gen* gen ) {
+    stabOpenScope( state, gen->lbls, gen->code.top );
+}
+
+void
+genCloseLblScope( State* state, Gen* gen ) {
     stabCloseScope( state, gen->lbls, gen->code.top );
 }
 

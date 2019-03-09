@@ -38,6 +38,9 @@ recNew( State* state, Index* idx );
 void
 recSep( State* state, Record* rec );
 
+Index*
+recIndex( State* state, Record* rec );
+
 void
 recDef( State* state, Record* rec, TVal key, TVal val );
 

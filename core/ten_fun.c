@@ -1,7 +1,10 @@
 #include "ten_fun.h"
+#include "ten_sym.h"
+#include "ten_ptr.h"
 #include "ten_state.h"
 #include "ten_ntab.h"
 #include "ten_stab.h"
+#include <string.h>
 
 void
 funInit( State* state ) {
@@ -17,7 +20,7 @@ funNewVir( State* state, uint nParams, Index* vargIdx ) {
     fun->nParams = nParams;
     fun->vargIdx = vargIdx;
     
-    memset( &fun->u.vir, sizeof(VirFun) );
+    memset( &fun->u.vir, 0, sizeof(VirFun) );
     
     stateCommitObj( state, &funP );
     return fun;
@@ -32,7 +35,7 @@ funNewNat( State* state, uint nParams, Index* vargIdx, ten_FunCb cb ) {
     fun->nParams = nParams;
     fun->vargIdx = vargIdx;
     
-    memset( &fun->u.nat, sizeof(NatFun) );
+    memset( &fun->u.nat, 0, sizeof(NatFun) );
     
     stateCommitObj( state, &funP );
     return fun;
@@ -41,7 +44,7 @@ funNewNat( State* state, uint nParams, Index* vargIdx, ten_FunCb cb ) {
 void
 funTraverse( State* state, Function* fun ) {
     if( fun->vargIdx )
-        stateTraverse( state, fun->vargIdx );
+        stateMark( state, fun->vargIdx );
     
     if( fun->type == FUN_NAT ) {
         if( state->gcFull ) {
@@ -56,15 +59,11 @@ funTraverse( State* state, Function* fun ) {
         for( uint i = 0 ; i < vir->nConsts ; i++ )
             tvMark( vir->consts[i] );
         
-        if( vir->dbg ) {
-            DbgInfo* dbg = vir->dbg;
-            if( state->gcFull ) {
-                symMark( state, dbg->func );
-                symMark( state, dbg->file );
-            }
-            for( uint i = 0 ; i < dbg->nLines ; i++ )
-                if( dbg->lines[i].bcb )
-                    stateMark( state, dbg->lines[i].bcb );
+        
+        DbgInfo* dbg = vir->dbg;
+        if( vir->dbg && state->gcFull ) {
+            symMark( state, dbg->func );
+            symMark( state, dbg->file );
         }
     }
 }
@@ -83,8 +82,8 @@ funDestruct( State* state, Function* fun ) {
         stateFreeRaw( state, vir->code,   sizeof(instr)*vir->len );
         if( vir->dbg ) {
             DbgInfo* dbg = vir->dbg;
-            ntabFree( state, dbg->upvals );
-            stabFree( state, dbg->locals );
+            stabFree( state, dbg->upvs );
+            stabFree( state, dbg->lcls );
             stateFreeRaw( state, dbg->lines, sizeof(LineInfo)*dbg->nLines );
         }
     }

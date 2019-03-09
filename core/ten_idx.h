@@ -123,4 +123,16 @@ idxTraverse( State* state, Index* idx );
 void
 idxDestruct( State* state, Index* idx );
 
+
+typedef struct IdxIter IdxIter;
+
+IdxIter*
+idxIterMake( State* state, Index* idx );
+
+void
+idxIterFree( State* state, IdxIter* iter );
+
+TVal*
+idxIterNext( State* state, IdxIter* iter );
+
 #endif

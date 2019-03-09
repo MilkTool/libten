@@ -9,6 +9,7 @@
 #include "ten_api.h"
 #include <setjmp.h>
 #include <stddef.h>
+#include <stdarg.h>
 
 // This represents the header for a garbage collected heap
 // object.  The object is transparant to the rest of the
@@ -274,10 +275,10 @@ stateFinl( State* state );
 // stack.  If there's a current running fiber (i.e `fib != NULL`)
 // then these calls will be forwarded to that fiber; otherwise
 // they'll be forwarded to the environment component.
-ten_Tup
+Tup
 statePush( State* state, uint n );
 
-ten_Tup
+Tup
 stateTop( State* state );
 
 void
@@ -287,7 +288,7 @@ statePop( State* state );
 // Throw an error.  The `stateErrStr()` should only be used for
 // critical errors where a String allocation would otherwise
 // fail; it expects `str` to be a static string, and will not
-// release or copy it.  In most cases `stateErrFmt()` is what
+// release or copy it.  In most cases `stateErrFmt*()` is what
 // we use, this uses the formatting component to generate a
 // String object as the error value based on the given pattern
 // and arguments.  The `stateErrVal()` specifies an error value
@@ -296,7 +297,10 @@ void
 stateErrStr( State* state, ten_ErrNum err, char const* str );
 
 void
-stateErrFmt( State* state, ten_ErrNum err, char const* fmt, ... );
+stateErrFmtA( State* state, ten_ErrNum err, char const* fmt, ... );
+
+void
+stateErrFmtV( State* state, ten_ErrNum err, char const* fmt, va_list ap );
 
 void
 stateErrVal( State* state, ten_ErrNum err, TVal val );

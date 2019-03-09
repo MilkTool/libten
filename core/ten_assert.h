@@ -10,7 +10,7 @@
             if( !(COND) ) {                                             \
                 statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
                                                                         \
-                stateErrFmt(                                            \
+                stateErrFmtA(                                           \
                     ASSERT_STATE, ten_ERR_ASSERT,                       \
                     "Assertion `"  #COND "` failed"                     \
                 );                                                      \
@@ -38,14 +38,14 @@
             ? (RES)                                                     \
             : (                                                         \
                 statePushTrace( ASSERT_STATE, __FILE__, __LINE__ ),     \
-                stateErrFmt( ASSERT_STATE, ten_ERR_ASSERT, FMT, ARGS ); \
+                stateErrFmtA( ASSERT_STATE, ten_ERR_ASSERT, FMT, ARGS );\
             )                                                           \
         )
         
     #define tenAssertNeverReached()                                 \
         do {                                                        \
             statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
-            stateErrFmt(                                            \
+            stateErrFmtA(                                           \
                 ASSERT_STATE, ten_ERR_ASSERT,                       \
                 "Control flow is broken somewhere"                  \
             );                                                      \

@@ -6,6 +6,14 @@
 #include <string.h>
 #include <limits.h>
 
+#define SYM_SHORT_LIM (4)
+#define SYM_SIZE_BYTE (sizeof(SymT)-1)
+
+typedef union {
+    SymT s;
+    char b[sizeof(SymT)];
+} SymBuf;
+
 typedef struct SymNode {
     struct SymNode*  next;
     struct SymNode** link;
@@ -16,14 +24,6 @@ typedef struct SymNode {
     size_t len;
     char*  buf;
 } SymNode;
-
-#define SYM_SHORT_LIM (4)
-#define SYM_SIZE_BYTE (sizeof(SymT)-1)
-
-typedef union {
-    SymT s;
-    char b[sizeof(SymT)];
-} SymBuf;
 
 struct SymState {
     Finalizer finl;

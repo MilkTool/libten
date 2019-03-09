@@ -13,9 +13,9 @@
 #include <stddef.h>
 
 typedef struct {
-    uint          which;
-    uint volatile where;
-    SymT          name;
+    uint which;
+    uint where;
+    SymT name;
 } GenLbl;
 
 typedef enum {
@@ -26,9 +26,9 @@ typedef enum {
 } VarType;
 
 typedef struct {
-    uint             which;
-    VarType volatile type;
-    SymT             name;
+    uint    which;
+    VarType type;
+    SymT    name;
 } GenVar;
 
 typedef struct {
@@ -40,7 +40,7 @@ void
 genInit( State* state );
 
 Gen*
-genMake( State* state, Gen* parent, bool global, bool debug );
+genMake( State* state, Gen* parent, SymT* func, bool global, bool debug );
 
 Function*
 genFinish( State* state, Gen* gen, bool constr );
@@ -56,34 +56,41 @@ void
 genSetLine( State* state, Gen* gen, uint linenum );
 
 
-GenConst const*
+GenConst*
 genAddConst( State* state, Gen* gen, TVal val );
 
 
-GenVar const*
+GenVar*
 genAddParam( State* state, Gen* gen, SymT name, bool vParam );
 
-GenVar const*
+GenVar*
 genAddVar( State* state, Gen* gen, SymT name );
 
-GenVar const*
+GenVar*
 genGetVar( State* state, Gen* gen, SymT name );
 
 
-GenLbl const*
+GenLbl*
 genAddLbl( State* state, Gen* gen, SymT name );
 
-GenLbl const*
+GenLbl*
 genGetLbl( State* state, Gen* gen, SymT name );
 
 void
-genMovLbl( State* state, Gen* gen, GenLbl const* lbl, uint where );
+genMovLbl( State* state, Gen* gen, GenLbl* lbl, uint where );
 
 void
 genOpenScope( State* state, Gen* gen );
 
 void
 genCloseScope( State* state, Gen* gen );
+
+
+void
+genOpenLblScope( State* state, Gen* gen );
+
+void
+genCloseLblScope( State* state, Gen* gen );
 
 
 void

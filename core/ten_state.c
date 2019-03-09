@@ -68,13 +68,13 @@ stateFinl( State* state ) {
     // TODO
 }
 
-ten_Tup
+Tup
 statePush( State* state, uint n ) {
     // TODO
     return (ten_Tup){ 0 };
 }
 
-ten_Tup
+Tup
 stateTop( State* state ) {
     // TODO
     return (ten_Tup){ 0 };
@@ -91,7 +91,12 @@ stateErrStr( State* state, ten_ErrNum err, char const* str ) {
 }
 
 void
-stateErrFmt( State* state, ten_ErrNum err, char const* fmt, ... ) {
+stateErrFmtA( State* state, ten_ErrNum err, char const* fmt, ... ) {
+    // TODO
+}
+
+void
+stateErrFmtV( State* state, ten_ErrNum err, char const* fmt, va_list ap ) {
     // TODO
 }
 

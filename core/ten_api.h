@@ -35,12 +35,21 @@ typedef enum {
     ten_ERR_STRING,
     ten_ERR_FIBER,
     ten_ERR_CALL,
-    ten_ERR_ASSERT
+    ten_ERR_ASSERT,
+    ten_ERR_SYNTAX,
+    ten_ERR_LIMIT,
+    ten_ERR_COMPILE
 } ten_ErrNum;
 
 typedef struct {
     int TODO;
 } ten_Trace;
+
+typedef struct ten_Source {
+    int  (*next)( struct ten_Source* src );
+    int  first;
+    uint line;
+} ten_Source;
 
 typedef struct ten_Config {
     void* udata;
