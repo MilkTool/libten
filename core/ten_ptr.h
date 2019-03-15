@@ -13,6 +13,11 @@ typedef struct {
 void
 ptrInit( State* state );
 
+#ifdef ten_TEST
+    void
+    ptrTest( State* state );
+#endif
+
 PtrT
 ptrGet( State* state, PtrInfo* info, void* addr );
 

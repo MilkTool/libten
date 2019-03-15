@@ -35,8 +35,18 @@ ntabFinl( State* state, Finalizer* finl ) {
     
     stateRemoveScanner( state, &ntab->scan );
     
+    for( uint i = 0 ; i < ntab->map.cap ; i++ ) {
+        NameNode* nIt = ntab->map.buf[i];
+        while( nIt ) {
+            NameNode* n = nIt;
+            nIt = nIt->next;
+            
+            stateFreeRaw( state, n, sizeof(NameNode) );
+        }
+    }
+    
     stateFreeRaw( state, ntab->map.buf, sizeof(NameNode*)*ntab->map.cap );
-    stateFreeRaw( state, ntab, sizeof(NTab));
+    stateFreeRaw( state, ntab, sizeof(NTab) );
 }
 
 static void
@@ -77,6 +87,8 @@ ntabMake( State* state ) {
     stateInstallScanner( state, &ntab->scan );
     stateInstallFinalizer( state, &ntab->finl );
     
+    stateCommitRaw( state, &ntabP );
+    stateCommitRaw( state, &mapP );
     return ntab;
 }
 

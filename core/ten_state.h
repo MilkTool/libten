@@ -21,17 +21,21 @@ typedef struct {
     // GC object in the pool, as well as the following
     // bits in its tag portion:
     //
-    // [rrrrrrrrrrr][m][tttt]
-    //       11      1   4
+    // [rrrrrrrrr][d][m][ttttt]
+    //      9      1  1    4
     //
-    // Where the [m] bit is the keep-alive mark used by the
-    // tracing GC and [t] bits are used to store the object
-    // type.  The [r] are reserved (a.k.a unused) for now.
+    // Where the [r] bits are reserved for future use, the
+    // [m] bit is used by the GC to 'mark' the object as
+    // being reachable, the [d] bit indicates if the object
+    // has already been destructed, and the [t] bits give the
+    // object's type tag.
     
-    #define OBJ_MARK_SHIFT (4)
+    #define OBJ_DEAD_SHIFT (6)
+    #define OBJ_MARK_SHIFT (5)
     #define OBJ_TAG_SHIFT  (0)
-    #define OBJ_MARK_BIT   (0x1 << OBJ_MARK_SHIFT)
-    #define OBJ_TAG_BITS   (0xF << OBJ_TAG_SHIFT)
+    #define OBJ_DEAD_BIT   (0x1  << OBJ_DEAD_SHIFT)
+    #define OBJ_MARK_BIT   (0x1  << OBJ_MARK_SHIFT)
+    #define OBJ_TAG_BITS   (0x1F << OBJ_TAG_SHIFT)
     TPtr next;
     
     // The object's type specific data follows.
@@ -42,7 +46,10 @@ typedef struct {
 #define OBJ_DAT_OFFSET ((size_t)&((Object*)0)->data)
 #define objGetDat( OBJ ) ((void*)(OBJ) + OBJ_DAT_OFFSET)
 #define datGetObj( DAT ) ((Object*)((void*)(DAT) - OBJ_DAT_OFFSET))
-#define datGetTag( DAT ) ((tpGetTag( datGetObj( DAT )->next ) >> OBJ_TAG_SHIFT) & OBJ_TAG_BITS)
+#define datGetTag( DAT ) \
+    ( ( tpGetTag( datGetObj( DAT )->next ) & OBJ_TAG_BITS ) >> OBJ_TAG_SHIFT )
+#define datIsDead( DAT ) \
+( ( tpGetTag( datGetObj( DAT )->next ) & OBJ_DEAD_BIT ) >> OBJ_DEAD_SHIFT )
 
 
 
@@ -69,17 +76,24 @@ typedef struct {
 // to be extended with any other data it needs to perform its task.
 //
 // Both of these types are typically allocated on the native stack
-// and linked into the kernel.  So if we forget to commit or otherwise
+// and linked into the state.  So if we forget to commit or otherwise
 // unlink them before the call frame they're allocated in is popped
 // the pointers can become corrupted; causing issues with the entire
 // list.  So in debug builds we prefix and postfix these with magic
-// numbers, which we validate regularly to check for corruption.
+// numbers, which we validate regularly to check for corruption, and
+// add some fields for keeping track of where the struct was installed
+// from.
 
 typedef struct Part {
-    #define PART_BEGIN_NUM \
-        ((uint)'P' << 24 | (uint)'B' << 16 | (uint)'M' << 8 | (uint)'N')
+    #define RAW_PART_BEGIN_NUM \
+        ((ulong)'R' << 24 | (ulong)'B' << 16 | (ulong)'M' << 8 | (ulong)'N')
+    #define OBJ_PART_BEGIN_NUM \
+        ((ulong)'O' << 24 | (ulong)'B' << 16 | (ulong)'M' << 8 | (ulong)'N')
     #ifdef ten_DEBUG
         uint beginNum;
+        
+        char const* file;
+        uint        line;
     #endif
     
     // Pointer to the next Part, and a pointer to the previous
@@ -98,8 +112,10 @@ typedef struct Part {
     // allocator and should not be changed.
     size_t sz;
     
-    #define PART_END_NUM \
-        ((uint)'P' << 24 | (uint)'E' << 16 | (uint)'M' << 8 | (uint)'N')
+    #define RAW_PART_END_NUM \
+        ((ulong)'R' << 24 | (ulong)'E' << 16 | (ulong)'M' << 8 | (ulong)'N')
+    #define OBJ_PART_END_NUM \
+        ((ulong)'O' << 24 | (ulong)'E' << 16 | (ulong)'M' << 8 | (ulong)'N')
     #ifdef ten_DEBUG
         uint endNum;
     #endif
@@ -108,9 +124,12 @@ typedef struct Part {
 
 typedef struct Defer {
     #define DEFER_BEGIN_NUM \
-        ((uint)'D' << 24 | (uint)'B' << 16 | (uint)'M' << 8 | (uint)'N')
+        ((ulong)'D' << 24 | (ulong)'B' << 16 | (ulong)'M' << 8 | (ulong)'N')
     #ifdef ten_DEBUG
         uint beginNum;
+        
+        char const* file;
+        uint        line;
     #endif
     
     // Pointer to the next Defer, and a pointer to the previous
@@ -126,7 +145,7 @@ typedef struct Defer {
     void (*cb)( State* state, struct Defer* self );
     
     #define DEFER_END_NUM \
-        ((uint)'D' << 24 | (uint)'E' << 16 | (uint)'M' << 8 | (uint)'N')
+        ((ulong)'D' << 24 | (ulong)'E' << 16 | (ulong)'M' << 8 | (ulong)'N')
     #ifdef ten_DEBUG
         uint endNum;
     #endif
@@ -173,11 +192,10 @@ struct State {
     ten_Config config;
     
     // Pointers to the states of all other components.
-    ApiState* apiState;
-    ComState* comState;
-    GenState* genState;
-    EnvState* envState;
     FmtState* fmtState;
+    GenState* genState;
+    ComState* comState;
+    EnvState* envState;
     SymState* symState;
     StrState* strState;
     IdxState* idxState;
@@ -188,6 +206,7 @@ struct State {
     UpvState* upvState;
     DatState* datState;
     PtrState* ptrState;
+    ApiState* apiState;
     
     // Error related stuff.  The `errJmp` points to the
     // current error handler, which will be jumped to
@@ -207,7 +226,7 @@ struct State {
     ten_Trace*  trace;
     
     // Current number of bytes allocated on the heap, and
-    // the number that needs to be reached to triggern the
+    // the number that needs to be reached to trigger the
     // next GC.
     size_t memUsed;
     size_t memLimit;
@@ -227,6 +246,10 @@ struct State {
     
     // List of GC objects.
     Object* objects;
+    
+    #ifdef ten_TEST
+        struct Test* test;
+    #endif
     
     // The current fiber, this is the GC root pointer and
     // is where we start GC reference traversal after
@@ -263,9 +286,14 @@ struct State {
     #endif
 };
 
-// Initialization and finalization.
+// Initialization, testing, and finalization.
 void
 stateInit( State* state, ten_Config const* config, jmp_buf* errJmp );
+
+#ifdef ten_TEST
+    void
+    stateTest( void );
+#endif
 
 void
 stateFinl( State* state );
@@ -325,8 +353,16 @@ stateSwapErrJmp( State* state, jmp_buf* jmp );
 // be called to finalize the allocation; this should be called
 // only once the allocated 'thing' is initialized and there's
 // no chance of a leak if an error occurs.
-void*
-stateAllocObj( State* state, Part* p, size_t sz, ObjTag tag );
+#ifdef ten_DEBUG
+    #define stateAllocObj( STATE, P, SZ, TAG ) \
+        _stateAllocObj( STATE, P, SZ, TAG, __FILE__, __LINE__ )
+    
+    void*
+    _stateAllocObj( State* state, Part* p, size_t sz, ObjTag tag, char const* file, uint line );
+#else
+    void*
+    stateAllocObj( State* state, Part* p, size_t sz, ObjTag tag );
+#endif
 
 void
 stateCommitObj( State* state, Part* p );
@@ -334,11 +370,25 @@ stateCommitObj( State* state, Part* p );
 void
 stateCancelObj( State* state, Part* p );
 
-void*
-stateAllocRaw( State* state, Part* p, size_t sz );
+#ifdef ten_DEBUG
+    #define stateAllocRaw( STATE, P, SZ ) \
+        _stateAllocRaw( STATE, P, SZ, __FILE__, __LINE__ )
+    void*
+    _stateAllocRaw( State* state, Part* p, size_t sz, char const* file, unsigned line );
+#else
+    void*
+    stateAllocRaw( State* state, Part* p, size_t sz );
+#endif
 
-void*
-stateResizeRaw( State* state, Part* p, size_t sz );
+#ifdef ten_DEBUG
+    #define stateResizeRaw( STATE, P, SZ ) \
+        _stateResizeRaw( STATE, P, SZ, __FILE__, __LINE__ )
+    void*
+    _stateResizeRaw( State* state, Part* p, size_t sz, char const* file, uint line );
+#else
+    void*
+    stateResizeRaw( State* state, Part* p, size_t sz );
+#endif
 
 void
 stateCommitRaw( State* state, Part* p );
@@ -354,8 +404,15 @@ stateFreeRaw( State* state, void* old, size_t osz );
 // an error occurs; but they can also be invoked manually
 // with `stateCommitDefer()` or removed from the list
 // with `stateCancelDefer()`.
-void
-stateInstallDefer( State* state, Defer* defer );
+#ifdef ten_DEBUG
+    #define stateInstallDefer( STATE, DEFER ) \
+        _stateInstallDefer( STATE, DEFER, __FILE__, __LINE__ )
+    void
+    _stateInstallDefer( State* state, Defer* defer, char const* file, uint line );
+#else
+    void
+    stateInstallDefer( State* state, Defer* defer );
+#endif
 
 void
 stateCommitDefer( State* state, Defer* defer );
@@ -384,9 +441,19 @@ stateRemoveFinalizer( State* state, Finalizer* finalizer );
 void
 statePushTrace( State* state, char const* file, uint line );
 
+// This clears the trace list but does not free it, instead
+// returning the list of trace nodes to the caller.  It's
+// used by fibers to internalize the error trace.
+ten_Trace*
+stateClaimTrace( State* state );
+
 // Clear the current `trace`, this frees all entries.
 void
 stateClearTrace( State* state );
+
+// Free an external trace claimed by a fiber.
+void
+stateFreeTrace( State* state, ten_Trace* trace );
 
 // Clear the current error value and trace.
 void
@@ -399,5 +466,13 @@ stateMark( State* state, void* ptr );
 // Force a GC cycle.
 void
 stateCollect( State* state );
+
+#ifdef ten_DEBUG
+    void
+    stateCheckState( State* state, char const* file, uint line );
+    #define CHECK_STATE stateCheckState( state, __FILE__, __LINE__ );
+#else
+    #define CHECK_STATE
+#endif
 
 #endif

@@ -107,8 +107,8 @@ typedef ullong   RefT;
 
     typedef ullong TPtr;
     
-    #define tpMake( TAG, PTR ) ((ullong)(TAG) << 58 | (ullong)(PTR))
-    #define tpGetTag( TPTR )   ((ushort)((TPTR) >> 58))
+    #define tpMake( TAG, PTR ) ((ullong)(TAG) << 48 | (ullong)(PTR))
+    #define tpGetTag( TPTR )   ((ushort)((TPTR) >> 48))
     #define tpGetPtr( TPTR )   ((void*)((TPTR) << 16 >> 16))
 
 #else
@@ -118,7 +118,7 @@ typedef ullong   RefT;
         ushort tag;
     } TPtr;
 
-    #define tpMake( TAG, PTR ) (TPtr){ (ushort)(TAG), (void*)(PTR) }
+    #define tpMake( TAG, PTR ) (TPtr){ .tag = (ushort)(TAG), .ptr = (void*)(PTR) }
     #define tpGetTag( TPTR )   ((TPTR).tag)
     #define tpGetPtr( TPTR )   ((TPTR).ptr)
     
@@ -192,7 +192,7 @@ typedef ullong   RefT;
     #define tvTup( TUP ) \
         (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (TUP) }
     #define tvRef( REF ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (REF) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_REF << 48 | (REF) }
     
     #define tvIsObj( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & SIGN_BIT))
@@ -205,7 +205,7 @@ typedef ullong   RefT;
     #define tvIsInt( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_INT)
     #define tvIsDec( TVAL ) \
-        (((TVAL).nan & (NAN_BITS | TAG_BITS)) > NAN_BITS)
+        (((TVAL).nan & (SIGN_BIT | NAN_BITS | TAG_BITS)) <= NAN_BITS)
     #define tvIsSym( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_SYM)
     #define tvIsPtr( TVAL ) \
@@ -311,7 +311,7 @@ typedef ullong   RefT;
     #define tvGetLog( TVAL ) \
         ((TVAL).u.val)
     #define tvGetInt( TVAL ) \
-        ((IntT)(TVAL).u.val))
+        ((IntT)(TVAL).u.val)
     #define tvGetDec( TVAL ) \
         ((TVAL).u.num)
     #define tvGetSym( TVAL ) \
@@ -367,8 +367,7 @@ typedef enum {
 // Type tags used to differentiate between different types
 // of heap objects.
 typedef enum {
-    OBJ_FIRST = VAL_LAST,
-    OBJ_STR,
+    OBJ_STR = VAL_LAST,
     OBJ_IDX,
     OBJ_REC,
     OBJ_FUN,
@@ -376,6 +375,9 @@ typedef enum {
     OBJ_FIB,
     OBJ_UPV,
     OBJ_DAT,
+    #ifdef ten_TEST
+        OBJ_TST,
+    #endif
     OBJ_LAST
 } ObjTag;
 

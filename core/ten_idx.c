@@ -26,6 +26,69 @@ idxInit( State* state ) {
     state->idxState = NULL;
 }
 
+#ifdef ten_TEST
+
+#include "ten_str.h"
+
+typedef struct {
+    Defer     defer;
+    Scanner   scan;
+    Index*    idx;
+    TVal      key;
+} IdxTest;
+
+static void
+idxTestScan( State* state, Scanner* scan ) {
+    IdxTest* test = structFromScan( IdxTest, scan );
+    tvMark( test->key );
+    stateMark( state, test->idx );
+}
+
+void
+idxTestDefer( State* state, Defer* defer ) {
+    IdxTest* test = (IdxTest*)defer;
+    stateRemoveScanner( state, &test->scan );
+}
+
+void
+idxTest( State* state ) {
+    IdxTest test = {
+        .defer = { .cb = idxTestDefer },
+        .scan  = { .cb = idxTestScan },
+        .idx   = idxNew( state ),
+        .key   = tvUdf()
+    };
+    stateInstallScanner( state, &test.scan );
+    stateInstallDefer( state, &test.defer );
+    
+    uint locs[1000];
+    for( uint i = 0 ; i < 1000 ; i++ ) {
+        test.key = tvInt( i );
+        locs[i] = idxAddByKey( state, test.idx, test.key );
+    }
+    
+    for( uint i = 0 ; i < 1000 ; i++ ) {
+        idxAddByLoc( state, test.idx, locs[i] );
+    }
+    
+    for( uint i = 0 ; i < 1000 ; i++ ) {
+        test.key = tvInt( i );
+        idxRemByKey( state, test.idx, test.key );
+    }
+    
+    for( uint i = 0 ; i < 1000 ; i++ ) {
+        idxRemByLoc( state, test.idx, locs[i] );
+    }
+    
+    test.key = tvObj( strNew( state, "TestStringKey", 13 ) );
+    idxAddByKey( state, test.idx, test.key );
+    idxRemByKey( state, test.idx, test.key );
+    
+    stateCommitDefer( state, &test.defer );
+}
+
+#endif
+
 Index*
 idxNew( State* state ) {
     Part idxP;
@@ -52,8 +115,8 @@ idxNew( State* state ) {
     
     idx->stepTarget = stepTarget( mcap );
     idx->stepLimit  = idx->stepTarget;
-    idx->objCount   = 0;
-    idx->map.row    = 1;
+    idx->nextLoc    = 0;
+    idx->map.row    = 0;
     idx->map.cap    = mcap;
     idx->map.keys   = keys;
     idx->map.locs   = locs;
@@ -76,7 +139,14 @@ idxSub( State* state, Index* idx, uint top ) {
     Part subP;
     Index* sub = stateAllocObj( state, &subP, sizeof(Index), OBJ_IDX );
     
-    uint mcap = fastGrowthMapCapTable[0];
+    uint mrow = 0;
+    while( fastGrowthMapCapTable[mrow] < 3*top && mrow < fastGrowthMapCapTableSize )
+        mrow++;
+    uint mcap;
+    if( mrow >= fastGrowthMapCapTableSize )
+        mcap = 3*top;
+    else
+        mcap = fastGrowthMapCapTable[mrow];
     
     Part keysP;
     TVal* keys = stateAllocRaw( state, &keysP, sizeof(TVal)*mcap );
@@ -92,11 +162,13 @@ idxSub( State* state, Index* idx, uint top ) {
     
     Part refsP;
     uint* refs = stateAllocRaw( state, &refsP, sizeof(uint)*rcap );
+    for( uint i = 0 ; i < top ; i++ )
+        refs[i] = 0;
     
     sub->stepTarget = stepTarget( mcap );
     sub->stepLimit  = sub->stepTarget;
-    sub->objCount   = 0;
-    sub->map.row    = 1;
+    sub->nextLoc    = top;
+    sub->map.row    = mrow;
     sub->map.cap    = mcap;
     sub->map.keys   = keys;
     sub->map.locs   = locs;
@@ -114,6 +186,7 @@ idxSub( State* state, Index* idx, uint top ) {
         tenAssert( s < mcap );
         
         keys[j] = idx->map.keys[i];
+        locs[j] = idx->map.locs[i];
         
         if( s > sub->stepLimit )
             sub->stepLimit = s;
@@ -178,7 +251,7 @@ idxAddByKey( State* state, Index* idx, TVal key ) {
     // result in stepLimit being greater than stepTarget; but
     // it'll work toward the target with each new definition
     // until it's reached.
-    if( idx->stepLimit > idx->stepTarget )
+    if( idx->stepLimit > idx->stepTarget || idx->nextLoc >= idx->map.cap )
         growMap( state, idx, true );
     
     return loc;
@@ -209,7 +282,7 @@ idxRemByKey( State* state, Index* idx, TVal key ) {
 
 void
 idxAddByLoc( State* state, Index* idx, uint loc ) {
-    tenAssert( idx->refs.buf[loc] < idx->nextLoc );
+    tenAssert( loc < idx->nextLoc );
     tenAssert( idx->refs.buf[loc] < UINT_MAX );
     
     idx->refs.buf[loc]++;
@@ -217,7 +290,7 @@ idxAddByLoc( State* state, Index* idx, uint loc ) {
 
 void
 idxRemByLoc( State* state, Index* idx, uint loc ) {
-    tenAssert( idx->refs.buf[loc] < idx->nextLoc );
+    tenAssert( loc < idx->nextLoc );
     tenAssert( idx->refs.buf[loc] > 0 );
     
     idx->refs.buf[loc]--;
@@ -251,8 +324,10 @@ stepTarget( uint cap ) {
     // we still have some lookup efficiency.
     uint log = 0;
     uint msk = UINT_MAX;
-    while( msk & cap )
+    while( msk & cap ) {
         msk <<= 1;
+        log++;
+    }
     
     return log;
 }
@@ -261,11 +336,11 @@ static void
 growMap( State* state, Index* idx, bool clean ) {
     uint mcap;
     if( idx->map.row < fastGrowthMapCapTableSize )
-        mcap = fastGrowthMapCapTable[idx->map.row++];
+        mcap = fastGrowthMapCapTable[++idx->map.row];
     else
         mcap = idx->map.cap * 2;
     
-    uint steps = idx->stepTarget;
+    uint steps = 0;
     
     Part keysP;
     TVal* keys = stateAllocRaw( state, &keysP, sizeof(TVal)*mcap );
@@ -325,10 +400,11 @@ growMap( State* state, Index* idx, bool clean ) {
     stateCommitRaw( state, &keysP );
     stateCommitRaw( state, &locsP );
     
-    idx->map.cap   = mcap;
-    idx->map.keys  = keys;
-    idx->map.locs  = locs;
-    idx->stepLimit = steps;
+    idx->map.cap    = mcap;
+    idx->map.keys   = keys;
+    idx->map.locs   = locs;
+    idx->stepLimit  = steps;
+    idx->stepTarget = stepTarget( mcap );
 }
 
 static void

@@ -23,11 +23,18 @@ struct EnvState {
     ValBuf gVals;
     
     ValBuf stack;
+    
+    #ifdef ten_TEST
+        SymT tsym;
+    #endif
 };
 
 void
 envFinl( State* state, Finalizer* finl ) {
     EnvState* env = structFromFinl( EnvState, finl );
+    
+    stateRemoveScanner( state, &env->scan );
+    
     finlValBuf( state, &env->gVals );
     finlValBuf( state, &env->stack );
     stateFreeRaw( state, env, sizeof(EnvState) );
@@ -40,6 +47,10 @@ envScan( State* state, Scanner* scan ) {
         tvMark( env->stack.buf[i] );
     for( uint i = 0 ; i < env->gVals.top ; i++ )
         tvMark( env->gVals.buf[i] );
+    
+    #ifdef ten_TEST
+        symMark( state, env->tsym );
+    #endif
 }
 
 void
@@ -49,14 +60,37 @@ envInit( State* state ) {
     env->gNames  = ntabMake( state );
     env->finl.cb = envFinl;
     env->scan.cb = envScan;
+    
+    #ifdef ten_TEST
+        env->tsym = symGet( state, "", 0 );
+    #endif
+    
     initValBuf( state, &env->gVals );
     initValBuf( state, &env->stack );
+    
+    CHECK_STATE;
     
     stateInstallFinalizer( state, &env->finl );
     stateInstallScanner( state, &env->scan );
     
+    stateCommitRaw( state, &envP );
     state->envState = env;
 }
+
+#ifdef ten_TEST
+void
+envTest( State* state ) {
+    EnvState* env = state->envState;
+    
+    env->tsym = symGet( state, "test1", 5 );
+    uint loc1 = envAddGlobal( state, env->tsym );
+    tenAssert( tvIsUdf( *envGetGlobalByName( state, env->tsym ) ) );
+    *envGetGlobalByName( state, env->tsym ) = tvDec( 1.1 );
+    tenAssert( tvEqual( *envGetGlobalByName( state, env->tsym ), tvDec( 1.1 ) ) );
+    
+    tenAssert( envGetGlobalByName( state, env->tsym ) == envGetGlobalByLoc( state, loc1 ) );
+}
+#endif
 
 Tup
 envPush( State* state, uint n ) {
@@ -68,6 +102,8 @@ envPush( State* state, uint n ) {
     if( n != 1 )
         *putValBuf( state, &env->stack ) = tvTup( n );
     
+    CHECK_STATE;
+    
     return (Tup){
         .base   = &env->stack.buf,
         .offset = offset,
@@ -76,7 +112,7 @@ envPush( State* state, uint n ) {
 }
 
 Tup
-envTop( State* state, uint n ) {
+envTop( State* state ) {
     EnvState* env = state->envState;
     tenAssert( env->stack.top > 0 );
     

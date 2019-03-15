@@ -65,6 +65,11 @@ struct Function {
 void
 funInit( State* state );
 
+#ifdef ten_TEST
+    void
+    funTest( State* state  );
+#endif
+
 Function*
 funNewVir( State* state, uint nParams, Index* vargIdx );
 

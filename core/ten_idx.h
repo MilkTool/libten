@@ -55,11 +55,6 @@ struct Index {
     uint stepTarget;
     uint stepLimit;
     
-    // We keep track of the number of heap objects used as
-    // keys in the Index; this allows us to avoid scanning
-    // the Index on object-only collection cycles.
-    uint objCount;
-    
     // This represents the map from keys to locators.  We use
     // a seperate array for each field associated with a slot
     // to maximize the density of the keys and improve cache
@@ -85,16 +80,17 @@ struct Index {
 };
 
 #define idxSize( STATE, IDX ) (sizeof(Index))
-#define idxTrav( STATE, IDX )                   \
-    do {                                        \
-        if( (STATE)->gcFull )                   \
-            idxTraverse( (STATE), (IDX) );      \
-    } while( 0 )
+#define idxTrav( STATE, IDX ) (idxTraverse( (STATE), (IDX) ))
 #define idxDest( STATE, IDX ) (idxDestruct( (STATE), (IDX) ))
 
 
 void
 idxInit( State* state );
+
+#ifdef ten_TEST
+    void
+    idxTest( State* state );
+#endif
 
 Index*
 idxNew( State* state );

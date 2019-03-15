@@ -3,33 +3,43 @@
 
 #define ASSERT_STATE state
 
-#ifndef ten_NDEBUG
+#ifdef ten_DEBUG
 
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "ten_fmt.h"
+    
     #define tenAssert( COND )                                           \
         do {                                                            \
             if( !(COND) ) {                                             \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
-                                                                        \
-                stateErrFmtA(                                           \
-                    ASSERT_STATE, ten_ERR_ASSERT,                       \
-                    "Assertion `"  #COND "` failed"                     \
+                fprintf(                                                \
+                    stderr, "Assertion failed[%s %u]: %s\n",            \
+                    __FILE__, (uint)__LINE__, #COND                     \
                 );                                                      \
+                abort();                                                \
             }                                                           \
         } while( 0 )
 
     #define strAssert( COND, STR )                                      \
         do {                                                            \
             if( !(COND) ) {                                             \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
-                stateErrStr( ASSERT_STATE, ten_ERR_ASSERT, -1 );        \
+                fprintf(                                                \
+                    stderr, "Assertion failed[%s %u]: %s\n",            \
+                    __FILE__, (uint)__LINE__, STR                       \
+                );                                                      \
+                abort();                                                \
             }                                                           \
         } while( 0 )
     
     #define fmtAssert( COND, FMT, ARGS... )                             \
         do {                                                            \
             if( !(COND) ) {                                             \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
-                stateErrFmt( ASSERT_STATE, ten_ERR_ASSERT, FMT, ARGS ); \
+                fmtA( state, false, FMT, ARGS );                        \
+                fprintf(                                                \
+                    stderr, "Assertion failed[%s %u]: %s\n",            \
+                    __FILE__, (uint)__LINE__, fmtBuf( state )           \
+                );                                                      \
+                abort();                                                \
             }                                                           \
         } while( 0 )
     
@@ -37,20 +47,27 @@
         ((COND)                                                         \
             ? (RES)                                                     \
             : (                                                         \
-                statePushTrace( ASSERT_STATE, __FILE__, __LINE__ ),     \
-                stateErrFmtA( ASSERT_STATE, ten_ERR_ASSERT, FMT, ARGS );\
+                fmtA( state, false, FMT, ARGS ),                        \
+                fprintf(                                                \
+                    stderr, "Assertion failed[%s %u]: %s\n",            \
+                    __FILE__, (uint)__LINE__, fmtBuf( state )           \
+                ),                                                      \
+                abort(),                                                \
+                (RES)                                                   \
             )                                                           \
         )
         
     #define tenAssertNeverReached()                                 \
         do {                                                        \
-            statePushTrace( ASSERT_STATE, __FILE__, __LINE__ );     \
-            stateErrFmtA(                                           \
-                ASSERT_STATE, ten_ERR_ASSERT,                       \
-                "Control flow is broken somewhere"                  \
+            fprintf(                                                \
+                stderr,                                             \
+                "Assertion failed[%s %u]: Broken control flow\n",   \
+                __FILE__, (uint)__LINE__                            \
             );                                                      \
+            abort();                                                \
         } while( 0 )
 #else
+    
     #define tenAssert( COND )
 
     #define strAssert( COND, STR )

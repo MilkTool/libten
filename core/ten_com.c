@@ -1907,6 +1907,10 @@ comInit( State* state ) {
     
     com->finl.cb = comFinl;
     com->scan.cb = comScan;
+    com->obj1    = NULL;
+    com->obj2    = NULL;
+    com->val1    = tvUdf();
+    com->val2    = tvUdf();
     
     initCharBuf( state, &com->lex.chars );
     

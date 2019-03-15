@@ -30,20 +30,25 @@ typedef void
 
 typedef enum {
     ten_ERR_NONE,
+    #ifdef ten_TEST
+        ten_ERR_TEST,
+    #endif
     ten_ERR_MEMORY,
     ten_ERR_RECORD,
     ten_ERR_STRING,
     ten_ERR_FIBER,
     ten_ERR_CALL,
-    ten_ERR_ASSERT,
     ten_ERR_SYNTAX,
     ten_ERR_LIMIT,
     ten_ERR_COMPILE
 } ten_ErrNum;
 
-typedef struct {
-    int TODO;
-} ten_Trace;
+typedef struct ten_Trace ten_Trace;
+struct ten_Trace {
+    char const* file;
+    unsigned    line;
+    ten_Trace*  next;
+};
 
 typedef struct ten_Source {
     int  (*next)( struct ten_Source* src );
@@ -55,7 +60,7 @@ typedef struct ten_Config {
     void* udata;
     void* (*frealloc)( void* udata,  void* old, size_t osz, size_t nsz );
     
-    double memLimitGrowth;
+    double memGrowth;
 } ten_Config;
 
 ten_Core*

@@ -23,6 +23,11 @@ struct Data {
 void
 datInit( State* state );
 
+#ifdef ten_TEST
+    void
+    datTest( State* state );
+#endif
+
 Data*
 datNew( State* state, DatInfo* info );
 

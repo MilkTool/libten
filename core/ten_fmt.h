@@ -16,6 +16,9 @@
 void
 fmtInit( State* state );
 
+void
+fmtTest( State* state );
+
 char const*
 fmtA( State* state, bool append, char const* fmt, ... );
 

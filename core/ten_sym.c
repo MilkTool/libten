@@ -7,11 +7,11 @@
 #include <limits.h>
 
 #define SYM_SHORT_LIM (4)
-#define SYM_SIZE_BYTE (sizeof(SymT)-1)
+#define SYM_SIZE_BYTE (5)
 
 typedef union {
     SymT s;
-    char b[sizeof(SymT)];
+    char b[6];
 } SymBuf;
 
 typedef struct SymNode {
@@ -55,6 +55,18 @@ growMap( State* state );
 static void
 symFinl( State* state, Finalizer* finl ) {
     SymState* symState = (SymState*)finl;
+    
+    for( uint i = 0 ; i < symState->nodes.cap ; i++ ) {
+        SymNode* nIt = symState->nodes.buf[i];
+        while( nIt ) {
+            SymNode* n = nIt;
+            nIt = nIt->next;
+            
+            if( n->buf )
+                stateFreeRaw( state, n->buf, n->len + 1 );
+            stateFreeRaw( state, n, sizeof(SymNode) );
+        }
+    }
     
     stateFreeRaw(
         state,
@@ -105,6 +117,21 @@ symInit( State* state ) {
     state->symState = symState;
 }
 
+#ifdef ten_TEST
+void
+symTest( State* state ) {
+    char const  raw1[] = "Hello, World!";
+    SymT        sym1   = symGet( state, raw1, sizeof( raw1 ) );
+    tenAssert( !strcmp( raw1, symBuf( state, sym1 ) ) );
+    tenAssert( sym1 == tvGetSym( tvSym( sym1 ) ) );
+    
+    char const raw2[] = "Two";
+    SymT       sym2   = symGet( state, raw2, sizeof( raw2 ) );
+    tenAssert( !strcmp( raw2, symBuf( state, sym2 ) ) );
+    tenAssert( sym2 == tvGetSym( tvSym( sym2 ) ) );
+}
+#endif
+
 SymT
 symGet( State* state, char const* buf, size_t len ) {
     SymState* symState = state->symState;
@@ -112,11 +139,11 @@ symGet( State* state, char const* buf, size_t len ) {
     // Encode short symbols directly in the int value.
     if( len <= SYM_SHORT_LIM ) {
         SymBuf u;
+        u.s = 0;
         u.b[SYM_SIZE_BYTE] = len + 1;
         
         for( uint i = 0 ; i < len ; i++ )
             u.b[i] = buf[i];
-        u.b[len] = '\0';
         return u.s;
     }
     
@@ -240,7 +267,7 @@ symFinishCycle( State* state ) {
     
     for( uint i = 0 ; i < symState->next ; i++ ) {
         SymNode* node = symState->nodes.buf[i];
-        if( !node )
+        if( !node || !node->buf )
             continue;
         if( node->mark ) {
             node->mark = false;

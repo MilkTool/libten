@@ -2,13 +2,14 @@
 // rest of the implementation.
 #ifndef ten_tables_h
 #define ten_tables_h
+#include <stddef.h>
 #include "ten_types.h"
 
 // These are tables of prime numbers to be used for sizing
 // the buffers of lookup tables.
-uint const* const fastGrowthMapCapTable;
-size_t const      fastGrowthMapCapTableSize;
-uint const* const slowGrowthMapCapTable;
-size_t const      slowGrowthMapCapTableSize;
+extern uint const   fastGrowthMapCapTable[];
+extern size_t const fastGrowthMapCapTableSize;
+extern uint const   slowGrowthMapCapTable[];
+extern size_t const slowGrowthMapCapTableSize;
 
 #endif

@@ -47,6 +47,25 @@ fmtInit( State* state ) {
     *putCharBuf( state, &fmt->buf ) = '\0';
 }
 
+void
+fmtTest( State* state ) {
+    char const* t1 = fmtA( state, false, "Test %i: %v", 1, tvInt( 1 ) );
+    tenAssert( !strcmp( t1, "Test 1: 1" ) );
+    
+    SymT s2 = symGet( state, "2", 1 );
+    char const* t2 = fmtA( state, false, "Test %s: %v", "2", tvSym( s2 ) );
+    tenAssert( !strcmp( t2, "Test 2: 2" ) );
+    
+    String* s3 = strNew( state, "3", 1 );
+    char const* t3 = fmtA( state, false, "Test 3: %q", tvObj( s3 ) );
+    tenAssert( !strcmp( t3, "Test 3: \"3\"" ) );
+    
+    fmtA( state, false, "Hello," );
+    fmtA( state, true, " " );
+    fmtA( state, true, "World!" );
+    tenAssert( !strcmp( fmtBuf( state ), "Hello, World!" ) );
+}
+
 char const*
 fmtA( State* state, bool append, char const* fmt, ... ) {
     va_list ap;
@@ -69,7 +88,7 @@ fmtStdV( State* state, char const* fmt, va_list ap ) {
     tenAssert( len >= 0 );
     
     ensureCharBuf( state, &fmtState->buf, len + 1 );
-    len = vsnprintf( fmtState->buf.buf, fmtState->buf.cap, fmt, ap );
+    len = vsnprintf( fmtState->buf.buf + fmtState->buf.top, fmtState->buf.cap, fmt, ap );
     tenAssert( len >= 0 );
     fmtState->buf.top += len;
 }
@@ -202,19 +221,17 @@ fmtSym( State* state, SymT sym, bool q ) {
     bool alt = false;
     if( q ) {
         for( uint i = 0 ; i < len ; i++ )
-            alt = alt || (buf[i] == '\'');
+            alt = alt || (buf[i] == '\'') || (buf[i] == '\n');
         if( alt )
             fmtRaw( state, "'|" );
         else
             fmtRaw( state, "'" );
     }
     
-    if( !q ) {
-        ensureCharBuf( state, &fmtState->buf, len + 1 );
-        char* dst = &fmtState->buf.buf[fmtState->buf.top];
-        memcpy( dst, buf, len );
-        fmtState->buf.top += len;
-    }
+    ensureCharBuf( state, &fmtState->buf, len + 1 );
+    char* dst = &fmtState->buf.buf[fmtState->buf.top];
+    memcpy( dst, buf, len );
+    fmtState->buf.top += len;
     
     if( q ) {
         if( alt )
@@ -234,19 +251,17 @@ fmtStr( State* state, String* str, bool q ) {
     bool alt = false;
     if( q ) {
         for( uint i = 0 ; i < len ; i++ )
-            alt = alt || (buf[i] == '"');
+            alt = alt || (buf[i] == '"') || (buf[i] == '\n');
         if( alt )
             fmtRaw( state, "\"|" );
         else
             fmtRaw( state, "\"" );
     }
     
-    if( !q ) {
-        ensureCharBuf( state, &fmtState->buf, len + 1 );
-        char* dst = &fmtState->buf.buf[fmtState->buf.top];
-        memcpy( dst, buf, len );
-        fmtState->buf.top += len;
-    }
+    ensureCharBuf( state, &fmtState->buf, len + 1 );
+    char* dst = &fmtState->buf.buf[fmtState->buf.top];
+    memcpy( dst, buf, len );
+    fmtState->buf.top += len;
     
     if( q ) {
         if( alt )
@@ -415,7 +430,7 @@ fmtV( State* state, bool append, char const* fmt, va_list ap ) {
         
         // Find the next custom pattern.
         size_t i = 0;
-        while( c[i] && ( c[i] != '%' || c[i+1] != 'v' || c[i+1] != 't' ) )
+        while( c[i] && ( c[i] != '%' || ( c[i+1] != 'v' && c[i+1] != 'q' && c[i+1] != 't' ) ) )
             i++;
         if( c[i] == '\0' ) {
             fmtStdV( state, c, ap );

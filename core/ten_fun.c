@@ -4,12 +4,23 @@
 #include "ten_state.h"
 #include "ten_ntab.h"
 #include "ten_stab.h"
+#include "ten_assert.h"
 #include <string.h>
 
 void
 funInit( State* state ) {
     state->funState = NULL;
 }
+
+#ifdef ten_TEST
+void
+funTest( State* state ) {
+    for( uint i = 0 ; i < 100 ; i++ ) {
+        tenAssert( funNewVir( state, 0, NULL ) );
+        tenAssert( funNewNat( state, 0, NULL, NULL ) );
+    }
+}
+#endif
 
 Function*
 funNewVir( State* state, uint nParams, Index* vargIdx ) {

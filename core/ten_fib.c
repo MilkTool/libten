@@ -128,18 +128,32 @@ fibTop( State* state, Fiber* fib ) {
     };
 }
 
+void
+fibPop( State* state, Fiber* fib ) {
+    tenAssert( fib->rPtr->sp > fib->tmpStack.tmps );
+    
+    if( tvIsTup( fib->rPtr->sp[-1] ) ) {
+        uint size = tvGetTup( fib->rPtr->sp[-1] );
+        
+        tenAssert( fib->rPtr->sp - size >= fib->tmpStack.tmps );
+        fib->rPtr->sp -= size;
+    }
+    tenAssert( fib->rPtr->sp > fib->tmpStack.tmps );
+    fib->rPtr->sp--;
+}
+
 
 
 Tup
 fibCont( State* state, Fiber* fib, Tup* args ) {
     if( fib->state == FIB_RUNNING )
-        stateErrFmt( state, ten_ERR_FIBER, "Continued running fiber" );
+        stateErrFmtA( state, ten_ERR_FIBER, "Continued running fiber" );
     if( fib->state == FIB_WAITING )
-        stateErrFmt( state, ten_ERR_FIBER, "Continued waiting fiber" );
+        stateErrFmtA( state, ten_ERR_FIBER, "Continued waiting fiber" );
     if( fib->state == FIB_FINISHED )
-        stateErrFmt( state, ten_ERR_FIBER, "Continued finished fiber" );
+        stateErrFmtA( state, ten_ERR_FIBER, "Continued finished fiber" );
     if( fib->state == FIB_FAILED )
-        stateErrFmt( state, ten_ERR_FIBER, "Continued failed fiber" );
+        stateErrFmtA( state, ten_ERR_FIBER, "Continued failed fiber" );
     
     
     // Put the parent fiber (the current one at this point)
@@ -180,7 +194,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         // Critical errors are re-thrown, these will be caught
         // by each parent fiber, allowing them to cleanup, but
         // will ultimately propegate back to the user.
-        if( err == ten_ERR_MEMORY || err == ten_ERR_ASSERT )
+        if( err == ten_ERR_MEMORY )
             stateErrProp( state );
         
         // Once a fiber has failed it can never be continued
@@ -233,6 +247,17 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     // handler.
     fib->state = FIB_FINISHED;
     longjmp( *fib->yieldJmp, 1 );
+}
+
+
+void
+fibTraverse( State* state, Fiber* fib ) {
+    // TODO
+}
+
+void
+fibDestruct( State* state, Fiber* fib ) {
+    // TODO
 }
 
 static void
@@ -444,11 +469,14 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_DEF_TUP: {
                 #include "inc/ops/DEF_TUP.inc"
             } break;
-            case OPC_DEF_VAR: {
-                #include "inc/ops/DEF_VAR.inc"
+            case OPC_DEF_VTUP: {
+                #include "inc/ops/DEF_VTUP.inc"
             } break;
             case OPC_DEF_REC: {
                 #include "inc/ops/DEF_REC.inc"
+            } break;
+            case OPC_DEF_VREC: {
+                #include "inc/ops/DEF_VREC.inc"
             } break;
             case OPC_SET_ONE: {
                 #include "inc/ops/SET_ONE.inc"
@@ -456,11 +484,14 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_SET_TUP: {
                 #include "inc/ops/SET_TUP.inc"
             } break;
-            case OPC_SET_VAR: {
-                #include "inc/ops/SET_VAR.inc"
+            case OPC_SET_VTUP: {
+                #include "inc/ops/SET_VTUP.inc"
             } break;
             case OPC_SET_REC: {
                 #include "inc/ops/SET_REC.inc"
+            } break;
+            case OPC_SET_VREC: {
+                #include "inc/ops/SET_VREC.inc"
             } break;
             
 
@@ -470,11 +501,14 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_REC_DEF_TUP: {
                 #include "inc/ops/REC_DEF_TUP.inc"
             } break;
-            case OPC_REC_DEF_VAR: {
-                #include "inc/ops/REC_DEF_VAR.inc"
+            case OPC_REC_DEF_VTUP: {
+                #include "inc/ops/REC_DEF_VTUP.inc"
             } break;
             case OPC_REC_DEF_REC: {
                 #include "inc/ops/REC_DEF_REC.inc"
+            } break;
+            case OPC_REC_DEF_VREC: {
+                #include "inc/ops/REC_DEF_VREC.inc"
             } break;
             case OPC_REC_SET_ONE: {
                 #include "inc/ops/REC_SET_ONE.inc"
@@ -482,11 +516,14 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_REC_SET_TUP: {
                 #include "inc/ops/REC_SET_TUP.inc"
             } break;
-            case OPC_REC_SET_VAR: {
-                #include "inc/ops/REC_SET_VAR.inc"
+            case OPC_REC_SET_VTUP: {
+                #include "inc/ops/REC_SET_VTUP.inc"
             } break;
             case OPC_REC_SET_REC: {
                 #include "inc/ops/REC_SET_REC.inc"
+            } break;
+            case OPC_REC_SET_VREC: {
+                #include "inc/ops/REC_SET_VREC.inc"
             } break;
             
             case OPC_GET_CONST: {
@@ -747,11 +784,8 @@ doLoop( State* state, Fiber* fib ) {
                 #include "inc/ops/JUMP.inc"
             } break;
             
-            case OPC_NORM_CALL: {
-                #include "inc/ops/NORM_CALL.inc"
-            } break;
-            case OPC_TAIL_CALL: {
-                #include "inc/ops/TAIL_CALL.inc"
+            case OPC_CALL: {
+                #include "inc/ops/CALL.inc"
             } break;
             case OPC_RETURN: {
                 #include "inc/ops/RETURN.inc"
@@ -802,7 +836,7 @@ freeStack( State* state, Fiber* fib ) {
 
 static void
 errUdfAsArg( State* state, Function* fun, uint arg ) {
-    stateErrFmt(
+    stateErrFmtA(
         state, ten_ERR_CALL,
         "Passed `udf` for argument %u",
         arg
@@ -817,7 +851,7 @@ errTooFewArgs( State* state, Function* fun, uint argc ) {
     else
         func = symBuf( state, fun->u.nat.name );
     
-    stateErrFmt(
+    stateErrFmtA(
         state, ten_ERR_CALL,
         "Too many arguments to `%s`",
         func
@@ -832,7 +866,7 @@ errTooManyArgs( State* state, Function* fun, uint argc ) {
     else
         func = symBuf( state, fun->u.nat.name );
     
-    stateErrFmt(
+    stateErrFmtA(
         state, ten_ERR_CALL,
         "Too few arguments to `%s`",
         func

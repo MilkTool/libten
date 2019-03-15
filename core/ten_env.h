@@ -5,9 +5,14 @@
 #define ten_env_h
 #include "ten_types.h"
 
-// Initialize the component.
+// Initialize and test the component.
 void
 envInit( State* state );
+
+#ifdef ten_TEST
+    void
+    envTest( State* state );
+#endif
 
 
 // Push and pop values to/from the stack.
@@ -15,7 +20,7 @@ Tup
 envPush( State* state, uint n );
 
 Tup
-envTop( State* state, uint n );
+envTop( State* state );
 
 void
 envPop( State* state );

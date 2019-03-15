@@ -42,6 +42,10 @@ static void
 ptrFinl( State* state, Finalizer* finl ) {
     PtrState* ptrState = (PtrState*)finl;
     
+    for( uint i = 0 ; i < ptrState->nodes.cap ; i++ ) {
+        if( ptrState->nodes.buf[i] )
+            stateFreeRaw( state, ptrState->nodes.buf[i], sizeof(PtrNode) );
+    }
     stateFreeRaw(
         state,
         ptrState->map.buf,
@@ -92,6 +96,21 @@ ptrInit( State* state ) {
     state->ptrState = ptrState;
 }
 
+
+#ifdef ten_TEST
+#include "ten_sym.h"
+static PtrInfo testInfo;
+
+void
+ptrTest( State* state ) {
+    testInfo.type  = symGet( state, "Ptr:Test", 4 );
+    testInfo.destr = NULL;
+    
+    for( uint i = 0 ; i < 100 ; i++ )
+        ptrGet( state, &testInfo, NULL );
+}
+#endif
+
 PtrT
 ptrGet( State* state, PtrInfo* info, void* addr ) {
     PtrState* ptrState = state->ptrState;
@@ -102,7 +121,7 @@ ptrGet( State* state, PtrInfo* info, void* addr ) {
     // Search existing nodes for the address.
     PtrNode* node = ptrState->map.buf[s];
     while( node ) {
-        if( node->addr == addr )
+        if( node->info == info && node->addr == addr )
             return node->loc;
         node = node->next;
     }
@@ -197,6 +216,8 @@ ptrFinishCycle( State* state ) {
             node->mark = false;
             continue;
         }
+        if( node->info->destr )
+            node->info->destr( (ten_Core*)state, node->addr );
         
         remNode( node );
         node->addr = NULL;
