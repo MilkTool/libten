@@ -57,15 +57,12 @@ symFinl( State* state, Finalizer* finl ) {
     SymState* symState = (SymState*)finl;
     
     for( uint i = 0 ; i < symState->nodes.cap ; i++ ) {
-        SymNode* nIt = symState->nodes.buf[i];
-        while( nIt ) {
-            SymNode* n = nIt;
-            nIt = nIt->next;
-            
-            if( n->buf )
-                stateFreeRaw( state, n->buf, n->len + 1 );
-            stateFreeRaw( state, n, sizeof(SymNode) );
-        }
+        SymNode* n = symState->nodes.buf[i];
+        if( !n )
+            continue;
+        if( n->buf )
+            stateFreeRaw( state, n->buf, n->len + 1 );
+        stateFreeRaw( state, n, sizeof(SymNode) );
     }
     
     stateFreeRaw(

@@ -3,10 +3,13 @@
 #include "ten_ptr.h"
 #include "ten_rec.h"
 #include "ten_dat.h"
+#include "ten_gen.h"
 #include "ten_opcodes.h"
 #include "ten_assert.h"
+#include "ten_macros.h"
 #include "ten_cls.h"
 #include "ten_fun.h"
+#include "ten_math.h"
 #include <string.h>
 #include <limits.h>
 
@@ -52,6 +55,131 @@ fibInit( State* state ) {
     state->fibState = NULL;
 }
 
+#ifdef ten_TEST
+typedef struct {
+    Defer     defer;
+    Scanner   scan;
+    Gen*      gen;
+    Function* fun;
+    Closure*  cls;
+    Fiber*    fib;
+} FibTest;
+
+static void
+fibTestScan( State* state, Scanner* scan ) {
+    FibTest* test = structFromScan( FibTest, scan );
+    if( test->fun )
+        stateMark( state, test->fun );
+    if( test->cls )
+        stateMark( state, test->cls );
+    if( test->fib )
+        stateMark( state, test->fib );
+}
+
+void
+fibTestDefer( State* state, Defer* defer ) {
+    FibTest* test = (FibTest*)defer;
+    stateRemoveScanner( state, &test->scan );
+    if( test->gen )
+        genFree( state, test->gen );
+}
+
+void
+fibTest( State* state ) {
+    FibTest test = {
+        .defer = { .cb = fibTestDefer },
+        .scan  = { .cb = fibTestScan }
+    };
+    stateInstallScanner( state, &test.scan );
+    stateInstallDefer( state, &test.defer );
+    
+    Gen* gen = genMake( state, NULL, NULL, false, true );
+    test.gen = gen;
+    
+    GenVar*   v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
+    GenVar*   v2 = genAddVar( state, gen, symGet( state, "v2", 2 ) );
+    GenVar*   v3 = genAddVar( state, gen, symGet( state, "v3", 2 ) );
+    GenConst* c1 = genAddConst( state, gen, tvInt( 1 ) );
+    GenConst* c2 = genAddConst( state, gen, tvInt( 2 ) );
+    GenConst* c3 = genAddConst( state, gen, tvInt( 3 ) );
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
+    // Stack: 1
+    
+    genPutInstr( state, gen, inMake( OPC_NOT, 0 ) );
+    // Stack: 4294967294
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
+    // Stack 2 4294967294
+    
+    genPutInstr( state, gen, inMake( OPC_NEG, 0 ) );
+    // Stack: -2 4294967294
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
+    // Stack: 3 -2 4294967294
+    
+    genPutInstr( state, gen, inMake( OPC_FIX, 0 ) );
+    // Stack: 3 -2 4294967294
+    
+    genPutInstr( state, gen, inMake( OPC_MUL, 0 ) );
+    // Stack: -6 4294967294
+    
+    genPutInstr( state, gen, inMake( OPC_DIV, 0 ) );
+    // Stack: −715827882
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
+    // Stack: 2 −715827882
+    
+    genPutInstr( state, gen, inMake( OPC_MOD, 0 ) );
+    // Stack: 0
+
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
+    // Stack: 1 0
+    
+    genPutInstr( state, gen, inMake( OPC_ADD, 0 ) );
+    // Stack: 1
+
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
+    // Stack: 2 1
+    
+    genPutInstr( state, gen, inMake( OPC_SUB, 0 ) );
+    // Stack: -1
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
+    // Stack: 3 -1
+    
+    genPutInstr( state, gen, inMake( OPC_LSL, 0 ) );
+    // Stack: -8
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
+    // Stack: 1 -8
+    
+    genPutInstr( state, gen, inMake( OPC_LSR, 0 ) );
+    // Stack: 2147483643
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
+    // Stack: 3 2147483643
+    
+    genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+    
+    
+    Function* fun = genFinish( state, gen, false );
+    test.fun = fun;
+    
+    Closure* cls = clsNew( state, fun, NULL );
+    test.cls = cls;
+    
+    Fiber* fib = fibNew( state, cls );
+    test.fib = fib;
+    
+    test.gen = NULL;
+    stateCommitDefer( state, &test.defer );
+}
+#endif
+
+static void
+onError( State* state, Defer* defer );
+
 
 Fiber*
 fibNew( State* state, Closure* cls ) {
@@ -77,9 +205,10 @@ fibNew( State* state, Closure* cls ) {
     fib->entry         = cls;
     fib->parent        = NULL;
     fib->errNum        = ten_ERR_NONE;
-    fib->errTrace      = NULL;
     fib->errVal        = tvUdf();
     fib->errStr        = NULL;
+    fib->trace         = NULL;
+    fib->errDefer.cb   = onError;
     fib->yieldJmp      = NULL;
     
     memset( &fib->rBuf, 0, sizeof(Regs) );
@@ -196,11 +325,6 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         // will ultimately propegate back to the user.
         if( err == ten_ERR_MEMORY )
             stateErrProp( state );
-        
-        // Once a fiber has failed it can never be continued
-        // again, so has no need for a stack.  So we'd might
-        // as well free up the resources.
-        freeStack( state, fib );
     }
     
     
@@ -220,6 +344,9 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
             state->fiber = parent;
             fib->parent = NULL;
         }
+        
+        // Cancel the fiber's error handling defer.
+        stateCancelDefer( state, &fib->errDefer );
         
         // The top tuple on the stack contains the yielded
         // values, so that's what we return.
@@ -252,12 +379,37 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
 
 void
 fibTraverse( State* state, Fiber* fib ) {
-    // TODO
+    NatAR* nIt = fib->nats;
+    while( nIt ) {
+        stateMark( state, nIt->ar.cls );
+        nIt = nIt->prev;
+    }
+    
+    for( uint i = 0 ; i < fib->arStack.top ; i++ ) {
+        stateMark( state, fib->arStack.ars[i].ar.cls );
+        
+        NatAR* nIt = fib->arStack.ars[i].nats;
+        while( nIt ) {
+            stateMark( state, nIt->ar.cls );
+            nIt = nIt->prev;
+        }
+    }
+    
+    for( TVal* v = fib->tmpStack.tmps ; v < fib->rPtr->sp ; v++ )
+        tvMark( *v );
+    
+    if( fib->entry )
+        stateMark( state, fib->entry );
+    if( fib->parent )
+        stateMark( state, fib->parent );
+    
+    tvMark( fib->errVal );
 }
 
 void
 fibDestruct( State* state, Fiber* fib ) {
-    // TODO
+    if( fib->state != FIB_FINISHED && fib->state != FIB_FAILED )
+        freeStack( state, fib );
 }
 
 static void
@@ -792,6 +944,7 @@ doLoop( State* state, Fiber* fib ) {
             } break;
         }
     }
+    end:
     
     // Restore old register set.
     *rPtr = regs;
@@ -833,6 +986,23 @@ freeStack( State* state, Fiber* fib ) {
 }
 
 
+static void
+onError( State* state, Defer* defer ) {
+    Fiber* fib = (void*)defer - (ullong)&((Fiber*)NULL)->errDefer;
+    
+    // Set the fiber's error values from the state.
+    fib->errNum = state->errNum;
+    fib->errVal = state->errVal;
+    fib->errStr = state->errStr;
+    fib->trace  = stateClaimTrace( state );
+    stateClearError( state );
+    
+    // Set fiber to a failed state. Since a failed fiber
+    // will never be continued it has no need for a stack,
+    // so free the stacks also.
+    fib->state = FIB_FAILED;
+    freeStack( state, fib );
+}
 
 static void
 errUdfAsArg( State* state, Function* fun, uint arg ) {

@@ -96,6 +96,7 @@ funDestruct( State* state, Function* fun ) {
             stabFree( state, dbg->upvs );
             stabFree( state, dbg->lcls );
             stateFreeRaw( state, dbg->lines, sizeof(LineInfo)*dbg->nLines );
+            stateFreeRaw( state, dbg, sizeof(DbgInfo) );
         }
     }
 }

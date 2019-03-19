@@ -48,6 +48,8 @@ struct ComState {
         // The next character, read from the input source.
         int nChar;
         
+        uint line;
+        
         // Temporary buffer where we put characters
         // of the token that's currently being parsed
         // in case they need to be converted to a value.
@@ -65,20 +67,25 @@ struct ComState {
     void* obj2;
     TVal  val1;
     TVal  val2;
+    
+    // Symbol for special 'this' identifier.
+    SymT this;
 };
 
 ////// Errors /////
 static void
 errLex( State* state, char const* fmt, ... ) {
+    genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
-    statePushTrace( state, state->comState->p.file, state->comState->p.src->line );
+    statePushTrace( state, state->comState->p.file, state->comState->lex.line );
     stateErrFmtV( state, ten_ERR_SYNTAX, fmt, ap );
     va_end( ap );
 }
 
 static void
 errPar( State* state, char const* fmt, ... ) {
+    genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
     statePushTrace( state, state->comState->p.file, state->comState->tok.line );
@@ -89,18 +96,29 @@ errPar( State* state, char const* fmt, ... ) {
 
 static void
 errLimit( State* state, char const* fmt, ... ) {
+    genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
-    statePushTrace( state, state->comState->p.file, state->comState->p.src->line );
+    statePushTrace( state, state->comState->p.file, state->comState->lex.line );
     stateErrFmtV( state, ten_ERR_LIMIT, fmt, ap );
     va_end( ap );
 }
 
 static void
-errCom( State* state, char const* fmt, ... ) {
+errUser( State* state, char const* fmt, ... ) {
+    genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
-    statePushTrace( state, state->comState->p.file, state->comState->p.src->line );
+    stateErrFmtV( state, ten_ERR_USER, fmt, ap );
+    va_end( ap );
+}
+
+static void
+errCom( State* state, char const* fmt, ... ) {
+    genFree( state, state->comState->gen );
+    va_list ap;
+    va_start( ap, fmt );
+    statePushTrace( state, state->comState->p.file, state->comState->tok.line );
     stateErrFmtV( state, ten_ERR_COMPILE, fmt, ap );
     va_end( ap );
 }
@@ -111,7 +129,7 @@ static void
 advance( State* state ) {
     ComState* com = state->comState;
     if( com->lex.nChar == '\n' )
-        com->p.src->line++;
+        com->lex.line++;
     com->lex.nChar = com->p.src->next( com->p.src );
 }
 
@@ -175,7 +193,7 @@ lexWord( State* state ) {
     resetChars( state );    
     
     ComState* com  = state->comState;
-    uint      line = com->p.src->line;
+    uint      line = com->lex.line;
     if( !maybeType( state, true, isalpha ) )
         return false;
     
@@ -267,7 +285,7 @@ lexNum( State* state ) {
     resetChars( state );
     
     ComState* com  = state->comState;
-    uint      line = com->p.src->line;
+    uint      line = com->lex.line;
     if( !maybeType( state, true, isdigit ) )
         return false;
     
@@ -307,7 +325,7 @@ lexSym( State* state ) {
     resetChars( state );
     
     ComState* com  = state->comState;
-    uint      line = com->p.src->line;
+    uint      line = com->lex.line;
     
     if( !maybeChar( state, false, '\'' ) )
         return false;
@@ -337,7 +355,7 @@ lexStr( State* state ) {
     resetChars( state );
     
     ComState* com  = state->comState;
-    uint      line = com->p.src->line;
+    uint      line = com->lex.line;
     
     if( !maybeChar( state, false, '"' ) )
         return false;
@@ -386,7 +404,7 @@ static bool
 lexOper( State* state ) {
     
     ComState* com  = state->comState;
-    uint      line = com->p.src->line;
+    uint      line = com->lex.line;
     
     TokType type;
     if( maybeChar( state, false, '@' ) )
@@ -491,7 +509,7 @@ static bool
 lexOther( State* state ) {
     
     ComState* com  = state->comState;
-    uint      line = com->p.src->line;
+    uint      line = com->lex.line;
     
     TokType type;
     if( maybeChar( state, false, ':' ) )
@@ -537,20 +555,25 @@ lexOther( State* state ) {
 static void
 lex( State* state ) {
     ComState* com = state->comState;
-
+    
+    takeAll( maybeType( state, false, isblank ) );
+    
     if( lexComment( state ) ) {
         lex( state );
         genSetLine( state, com->gen, com->tok.line );
         return;
     }
     
-    lexWord( state )      ||
+    bool has =
+        lexWord( state )  ||
         lexNum( state )   ||
         lexSym( state )   ||
         lexStr( state )   ||
         lexOper( state )  ||
         lexOther( state );
-    
+    if( !has )
+        errLex( state, "Unexpected character %c", (char)com->lex.nChar );
+        
     genSetLine( state, com->gen, com->tok.line );
 }
 
@@ -730,6 +753,8 @@ genRef( State* state, GenVar* var ) {
 static GenVar*
 genVar( State* state, SymT ident, bool def ) {
     ComState* com = state->comState;
+    if( ident == com->this )
+        errCom( state, "Special identifier 'this' cannot be used as variable name" );
     
     GenVar* var;
     if( def )
@@ -1384,6 +1409,8 @@ parBinaryOper(
     
     OpCode opc = matchOpCode( state, opers );
     while( opc != OPC_LAST ) {
+        parDelim( state );
+        
         sub( state, udat );
         genInstr( state, opc, 0 );
         opc = matchOpCode( state, opers );
@@ -1398,10 +1425,25 @@ parUnaryOper(
     ParseCb     sub
 ) {
     OpCode opc = matchOpCode( state, opers );
+    if( opc != OPC_LAST )
+        parDelim( state );
+    
     sub( state, udat );
     if( opc != OPC_LAST ) {
         genInstr( state, opc, 0 );
     }
+}
+
+static bool
+parUnary( State* state, void* udat );
+
+static bool
+parExponent( State* state, void* udat ) {
+    OperCode powOper = { '^', OPC_POW };
+    
+    OperCode* opers[] = { &powOper, NULL };
+    parBinaryOper( state, opers, udat, parCall );
+    return true;
 }
 
 static bool
@@ -1411,7 +1453,7 @@ parUnary( State* state, void* udat ) {
     OperCode negOper = { '-', OPC_NEG };
     
     OperCode* opers[] = { &notOper, &fixOper, &negOper, NULL };
-    parUnaryOper( state, opers, udat, parCall );
+    parUnaryOper( state, opers, udat, parExponent );
     return true;
 }
 
@@ -1428,8 +1470,8 @@ parProduct( State* state, void* udat ) {
 
 static bool
 parSummation( State* state, void* udat ) {
-    OperCode addOper = { '*', OPC_ADD };
-    OperCode subOper = { '/', OPC_SUB };
+    OperCode addOper = { '+', OPC_ADD };
+    OperCode subOper = { '-', OPC_SUB };
     
     OperCode* opers[] = { &subOper, &addOper, NULL };
     parBinaryOper( state, opers, udat, parProduct );
@@ -1496,21 +1538,24 @@ parConditional( State* state, bool tail ) {
         NULL
     };
     
-    SymT    exitSym = symGet( state, "$e", 2 );
-    GenLbl* exitLbl = genLbl( state, exitSym );
-    
     OperDat dat = { .tail = tail };
     parCompare(  state, &dat );
     
     OpCode opc = matchOpCode( state, opers );
-    while( opc != OPC_LAST ) {
-        genInstr( state, opc, exitLbl->which );
-        parCompare( state, &dat );
+    
+    if( opc != OPC_LAST ) {
+        SymT    exitSym = symGet( state, "$e", 2 );
+        GenLbl* exitLbl = genLbl( state, exitSym );
         
-        opc = matchOpCode( state, opers );
+        while( opc != OPC_LAST ) {
+            genInstr( state, opc, exitLbl->which );
+            parCompare( state, &dat );
+            
+            opc = matchOpCode( state, opers );
+        }
+        uint place = genGetPlace( state, com->gen );
+        genMovLbl( state, com->gen, exitLbl, place );
     }
-    uint place = genGetPlace( state, com->gen );
-    genMovLbl( state, com->gen, exitLbl, place );
 }
 
 typedef struct {
@@ -1897,6 +1942,8 @@ comScan( State* state, Scanner* scan ) {
     
     tvMark( com->val1 );
     tvMark( com->val2 );
+    if( state->gcFull )
+        symMark( state, com->this );
 }
 
 void
@@ -1911,6 +1958,7 @@ comInit( State* state ) {
     com->obj2    = NULL;
     com->val1    = tvUdf();
     com->val2    = tvUdf();
+    com->this    = symGet( state, "this", 4 );
     
     initCharBuf( state, &com->lex.chars );
     
@@ -1922,26 +1970,98 @@ comInit( State* state ) {
     state->comState = com;
 }
 
+#ifdef ten_TEST
+typedef struct {
+    ten_Source  src;
+    char const* str;
+    size_t      loc;
+} Source;
+
+int
+srcNext( Source* src ) {
+    if( src->str[src->loc] == '\0' )
+        return -1;
+    return src->str[src->loc++];
+}
+
+void
+srcInit( Source* src, char const* code ) {
+    src->src.next  = (void*)srcNext;
+    src->str = code;
+    src->loc = 0;
+}
+
+void
+comTest( State* state ) {
+    Source src1; srcInit( &src1, "a + b, a - b" );
+    ComParams p1 = {
+        .file   = "test.ten",
+        .params = NULL,
+        .debug  = true,
+        .global = true,
+        .script = true,
+        .src    = &src1.src
+    };
+    comCompile( state, &p1 );
+    
+    
+    Source src2; srcInit( &src2, "a + b" );
+    ComParams p2 = {
+        .file   = "test.ten",
+        .params = (char const*[]){ "a", "b", NULL },
+        .debug  = true,
+        .global = false,
+        .script = false,
+        .src    = &src2.src
+    };
+    comCompile( state, &p2 );
+}
+#endif
+
 Function*
 comCompile( State* state, ComParams* params ) {
     ComState* com = state->comState;
     
     com->p = *params;
-    if( params->src->first < 0 )
-        com->lex.nChar = params->src->next( params->src );
-    else
-        com->lex.nChar = params->src->first;
+    com->obj1    = NULL;
+    com->obj2    = NULL;
+    com->val1    = tvUdf();
+    com->val2    = tvUdf();
     
     com->gen = genMake( state, NULL, NULL, params->global, params->debug );
+    
+    com->lex.nChar = params->src->next( params->src );
+    com->lex.line  = 1;
     lex( state );
     
+    bool vpar = false;
+    if( params->params ) {
+        for( uint i = 0 ; params->params[i] != NULL ; i++ ) {
+            if( vpar )
+                errUser( state, "Extra entries after variadic parameter" );
+            
+            char const* str = params->params[i];
+            size_t      len = strlen( str );
+            
+            SymT sym  = symGet( state, str, len );
+            com->val1 = tvSym( sym );
+            if( len > 3 && !strcmp( str + len - 3, "..." ) ) {
+                vpar = true;
+            }
+            genAddParam( state, com->gen, sym, vpar );
+        }
+    }
+    
     if( params->script ) {
-        while( com->tok.type != TOK_END )
+        parDelim( state );
+        while( com->tok.type != TOK_END ) {
             parExpr( state, false );
+            if( com->tok.type != TOK_END && !parDelim( state ) )
+                errPar( state, "Expected delimiter or EOF" );
+        }
     }
     else {
         parExpr( state, false );
     }
-    
     return genFinish( state, com->gen, false );
 }

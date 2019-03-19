@@ -107,9 +107,6 @@ struct STab {
     uint nextScope;
     uint nextLoc;
     
-    // Cache pointing to last entry accessed.
-    Entry* last;
-    
     // Should slots be recycled?
     bool recycle;
     
@@ -131,8 +128,8 @@ stabFinl( State* state, Finalizer* finl ) {
         Entry* e = eIt;
         eIt = eIt->forScope.next;
         
-        if( eIt->edat && stab->free )
-            stab->free( state, stab->udat, eIt->edat );
+        if( e->edat && stab->free )
+            stab->free( state, stab->udat, e->edat );
         
         stateFreeRaw( state, e, sizeof(Entry) );    
     }
@@ -141,8 +138,8 @@ stabFinl( State* state, Finalizer* finl ) {
         Entry* e = eIt;
         eIt = eIt->forScope.next;
         
-        if( eIt->edat && stab->free )
-            stab->free( state, stab->udat, eIt->edat );
+        if( e->edat && stab->free )
+            stab->free( state, stab->udat, e->edat );
         
         stateFreeRaw( state, e, sizeof(Entry) );
     }
@@ -151,8 +148,8 @@ stabFinl( State* state, Finalizer* finl ) {
         Entry* e = eIt;
         eIt = eIt->forScope.next;
         
-        if( eIt->edat && stab->free )
-            stab->free( state, stab->udat, eIt->edat );
+        if( e->edat && stab->free )
+            stab->free( state, stab->udat, e->edat );
         
         stateFreeRaw( state, e, sizeof(Entry) );
     }
@@ -170,6 +167,8 @@ stabMake( State* state, bool recycle, void* udat, FreeEntryCb free ) {
     uint ecap = 7;
     Part entriesP;
     Entry** entries = stateAllocRaw( state, &entriesP, sizeof(Entry*)*ecap );
+    for( uint i = 0 ; i < ecap ; i++ )
+        entries[i] = NULL;
     
     stab->ntab          = ntabMake( state );
     stab->entries.cap   = ecap;
@@ -210,10 +209,6 @@ stabNumSlots( State* state, STab* stab ) {
 
 uint
 stabAdd( State* state, STab* stab, SymT sym, void* edat ) {
-    Entry* e = stab->last;
-    if( e && e->name == sym && e->scope == stab->current.scope )
-        return e->loc;
-    
     // Allocate a slot for the entry if one doesn't exist.
     uint i = ntabAdd( state, stab->ntab, sym );
     if( i >= stab->entries.cap ) {
@@ -223,6 +218,9 @@ stabAdd( State* state, STab* stab, SymT sym, void* edat ) {
         };
         uint ecap = stab->entries.cap * 2;
         Entry** entries = stateResizeRaw( state, &entriesP, ecap );
+        for( uint i = stab->entries.cap ; i++ ; i < ecap )
+            entries[i] = NULL;
+        
         stab->entries.cap = ecap;
         stab->entries.buf = entries;
         stateCommitRaw( state, &entriesP );
@@ -234,7 +232,6 @@ stabAdd( State* state, STab* stab, SymT sym, void* edat ) {
         if( eIt->scope == stab->current.scope ) {
             if( eIt->edat && stab->free )
                 stab->free( state, stab->udat, eIt->edat );
-            stab->last = eIt;
             eIt->edat = edat;
             return eIt->loc;
         }
@@ -273,20 +270,14 @@ stabAdd( State* state, STab* stab, SymT sym, void* edat ) {
 
 static Entry*
 getEntry( State* state, STab* stab, SymT sym, uint pc ) {
-    Entry* e = stab->last;
-    if( e && e->name == sym && e->range.start <= pc && pc < e->range.end )
-        return e;
-    
     uint i = ntabGet( state, stab->ntab, sym );
     if( i == UINT_MAX )
         return NULL;
     
     Entry* eIt = stab->entries.buf[i];
     while( eIt ) {
-        if( eIt->range.start <= pc && pc < eIt->range.end ) {
-            stab->last = eIt;
+        if( eIt->range.start <= pc && pc < eIt->range.end )
             return eIt;
-        }
         
         eIt = eIt->forName.next;
     }
@@ -385,11 +376,11 @@ stabCloseScope( State* state, STab* stab, uint pc ) {
     // Restore the current scope info from the dummy entry
     // on the `used` list.
     Entry* dummy = stab->scoping.used;
+    popForScope( stab->scoping.used );
     tenAssert( dummy != NULL );
     tenAssert( dummy->loc == UINT_MAX );
     stab->current.scope = dummy->scope;
     stab->current.start = dummy->range.start;
-    popForScope( dummy );
     stateFreeRaw( state, dummy, sizeof(Entry) );
 }
 
@@ -400,7 +391,8 @@ stabForEach( State* state, STab* stab, ProcEntryCb proc ) {
     
     eIt = stab->scoping.used;
     while( eIt ) {
-        proc( state, stab->udat, eIt->edat );
+        if( eIt->loc != UINT_MAX )
+            proc( state, stab->udat, eIt->edat );
         eIt = eIt->forScope.next;  
     }
     eIt = stab->scoping.free;

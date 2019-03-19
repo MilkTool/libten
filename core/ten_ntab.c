@@ -103,7 +103,7 @@ ntabFree( State* state, NTab* ntab ) {
 
 uint
 ntabAdd( State* state, NTab* ntab, SymT name ) {
-    uint s = name & ntab->map.cap;
+    uint s = name % ntab->map.cap;
     NameNode* node = ntab->map.buf[s];
     while( node ) {
         if( node->name == name )
@@ -129,7 +129,7 @@ ntabAdd( State* state, NTab* ntab, SymT name ) {
 
 uint
 ntabGet( State* state, NTab* ntab, SymT name ) {
-    uint s = name & ntab->map.cap;
+    uint s = name % ntab->map.cap;
     NameNode* node = ntab->map.buf[s];
     while( node ) {
         if( node->name == name )
@@ -154,13 +154,15 @@ growMap( State* state, NTab* ntab ) {
         map[i] = NULL;
     
     for( uint i = 0 ; i < ntab->map.cap ; i++ ) {
-        NameNode* node = ntab->map.buf[i];
-        if( !node )
-            continue;
-        
-        uint s = node->name % mcap;
-        remNode( node );
-        addNode( &map[s], node );
+        NameNode* nIt = ntab->map.buf[i];
+        while( nIt ) {
+            NameNode* node = nIt;
+            nIt = nIt->next;
+            
+            uint s = node->name % mcap;
+            remNode( node );
+            addNode( &map[s], node );
+        }
     }
     
     stateFreeRaw( state, ntab->map.buf, sizeof(NameNode*)*ntab->map.cap );

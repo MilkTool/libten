@@ -112,6 +112,7 @@ OP( NEG, SE( 0, 0 ) )
 OP( NOT, SE( 0, 0 ) )
 OP( FIX, SE( 0, 0 ) )
 
+OP( POW, SE( 0, -1 ) )
 OP( MUL, SE( 0, -1 ) )
 OP( DIV, SE( 0, -1 ) )
 OP( MOD, SE( 0, -1 ) )

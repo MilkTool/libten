@@ -84,9 +84,9 @@ struct Fiber {
     
     // Error information.
     ten_ErrNum  errNum;
-    ten_Trace*  errTrace;
     TVal        errVal;
     char const* errStr;
+    ten_Trace*  trace;
     
     // This is a defer that'll be registered at the start of
     // each continuation.  If an error occurs while the fiber
@@ -105,6 +105,11 @@ struct Fiber {
 
 void
 fibInit( State* state );
+
+#ifdef ten_TEST
+    void
+    fibTest( State* state );
+#endif
 
 Fiber*
 fibNew( State* state, Closure* entry );

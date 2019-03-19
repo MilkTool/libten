@@ -29,6 +29,12 @@
 #undef BUF_NAME
 #undef BUF_TYPE
 
+struct GenState {
+    Finalizer finl;
+    Scanner   scan;
+    SymT      this;
+};
+
 
 struct Gen {
     Finalizer finl;
@@ -68,9 +74,94 @@ struct Gen {
 };
 
 void
-genInit( State* state ) {
-    state->genState = NULL;
+genStateScan( State* state, Scanner* scan ) {
+    GenState* genState = structFromScan( GenState, scan );
+    if( state->gcFull )
+        symMark( state, genState->this );
 }
+
+void
+genStateFinl( State* state, Finalizer* finl ) {
+    GenState* genState = structFromFinl( GenState, finl );
+    stateRemoveScanner( state, &genState->scan );
+}
+
+void
+genInit( State* state ) {
+    Part genP;
+    GenState* genState = stateAllocRaw( state, &genP, sizeof(GenState) );
+    genState->this = symGet( state, "this", 4 );
+    genState->finl.cb = genStateFinl;
+    genState->scan.cb = genStateScan;
+    stateInstallFinalizer( state, &genState->finl );
+    stateInstallScanner( state, &genState->scan );
+    stateCommitRaw( state, &genP );
+    
+    state->genState = genState;
+}
+
+#ifdef ten_TEST
+void
+genTest( State* state ) {
+    Gen* gen;
+    
+    gen = genMake( state, NULL, NULL, true, true );
+    genSetFile( state, gen, symGet( state, "f1", 2 ) );
+    genSetFunc( state, gen, symGet( state, "t1", 2 ) );
+    genSetLine( state, gen, 2 );
+    
+    tenAssert( gen->file  == symGet( state, "f1", 2 ) );
+    tenAssert( gen->func  == symGet( state, "t1", 2 ) );
+    tenAssert( gen->start == 1 );
+    tenAssert( gen->line->line == 2 );
+    
+    GenVar* v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
+    tenAssert( v1->type == VAR_GLOBAL );
+    
+    GenConst* c1 = genAddConst( state, gen, tvInt( 1 ) );
+    GenConst* c2 = genAddConst( state, gen, tvInt( 2 ) );
+    GenConst* c3 = genAddConst( state, gen, tvInt( 3 ) );
+    
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
+    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
+    genPutInstr( state, gen, inMake( OPC_ADD, 0 ) );
+    tenAssert( gen->maxTemps == 2 );
+    
+    {
+        genOpenScope( state, gen );
+        GenVar* v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
+        tenAssert( v1->type == VAR_LOCAL );
+        tenAssert( v1 == genGetVar( state, gen, symGet( state, "v1", 2 ) ) );
+        
+        GenVar* v2 = genGetVar( state, gen, symGet( state, "v2", 2 ) );
+        tenAssert( v2 == genGetVar( state, gen, symGet( state, "v2", 2 ) ) );
+        tenAssert( v2->type == VAR_GLOBAL );
+        
+        genSetLine( state, gen, 5 );
+        {
+            SymT fun = symGet( state, "t2", 2 );
+            Gen* sub = genMake( state, gen, &fun , false, false );
+            tenAssert( sub->file == symGet( state, "f1", 2 ) );
+            tenAssert( sub->func == symGet( state, "t2", 2 ) );
+            tenAssert( sub->start == 5 );
+            tenAssert( sub->debug == true );
+            tenAssert( sub->global == false );
+            tenAssert( sub->parent == gen );
+            
+            GenVar* v1 = genGetVar( state, sub, symGet( state, "v1", 2 ) );
+            tenAssert( v1->type == VAR_UPVAL );
+            
+            genFinish( state, sub, true );
+        }
+        tenAssert( v1->type == VAR_CLOSED );
+        
+        genCloseScope( state, gen );
+    }
+    
+    
+    genFinish( state, gen, false );
+}
+#endif
 
 static void
 genFinl( State* state, Finalizer* finl ) {
@@ -114,6 +205,9 @@ freeLbl( State* state, void* udat, void* edat ) {
     stateFreeRaw( state, edat, sizeof(GenLbl) );
 }
 
+static GenVar*
+addLocal( State* state, Gen* gen, SymT ident );
+
 Gen*
 genMake( State* state, Gen* parent, SymT* func, bool global, bool debug ) {
     Part genP;
@@ -140,9 +234,9 @@ genMake( State* state, Gen* parent, SymT* func, bool global, bool debug ) {
     if( gen->debug ) {
         gen->func  = func ? *func : symGet( state, "<anon>", 6 );
         gen->file  = parent ? parent->file : symGet( state, "<input>", 7 );
-        gen->start = parent ? parent->line->line : 0;
+        gen->start = parent ? parent->line->line : 1;
         initLineBuf( state, &gen->lines );
-        genSetLine( state, gen, 0 );
+        genSetLine( state, gen, gen->start );
     }
     
     gen->misc1 = NULL;
@@ -154,7 +248,19 @@ genMake( State* state, Gen* parent, SymT* func, bool global, bool debug ) {
     stateInstallScanner( state, &gen->scan );
     gen->finl.cb = genFinl;
     stateInstallFinalizer( state, &gen->finl );
+    
+    GenVar* this = addLocal( state, gen, state->genState->this );
+    tenAssert( this->which == 0 );
+    
+    stateCommitRaw( state, &genP );
+    
     return gen;
+}
+
+void
+genFree( State* state, Gen* gen ) {
+    stateRemoveFinalizer( state, &gen->finl );
+    genFinl( state, &gen->finl );
 }
 
 static void
@@ -168,29 +274,27 @@ setLabel( State* state, void* udat, void* edat ) {
 }
 
 static void
-setUpvalRef( State* state, void* udat, void* edat ) {
+genUpvalRef( State* state, void* udat, void* edat ) {
     Gen*    gen = udat;
     GenVar* upv = edat;
-    
-    instr*  refs = gen->misc1;
     
     Gen*    pgen = gen->parent;
     GenVar* pvar = (GenVar*)genGetVar( state, pgen, upv->name );
     if( pvar->type == VAR_LOCAL ) {
         pvar->type = VAR_CLOSED;
-        refs[upv->which] = inMake( OPC_REF_LOCAL, pvar->which );
+        genPutInstr( state, pgen, inMake( OPC_REF_LOCAL, pvar->which ) );
     }
     else
     if( pvar->type == VAR_CLOSED ) {
-        refs[upv->which] = inMake( OPC_REF_CLOSED, pvar->which );
+        genPutInstr( state, pgen, inMake( OPC_REF_CLOSED, pvar->which ) );
     }
     else
     if( pvar->type == VAR_UPVAL ) {
-        refs[upv->which] = inMake( OPC_REF_UPVAL, pvar->which );
+        genPutInstr( state, pgen, inMake( OPC_REF_UPVAL, pvar->which ) );
     }
     else
     if( pvar->type == VAR_GLOBAL ) {
-        refs[upv->which] = inMake( OPC_REF_GLOBAL, pvar->which );
+        genPutInstr( state, pgen, inMake( OPC_REF_GLOBAL, pvar->which ) );
     }
 }
 
@@ -243,13 +347,14 @@ genFinish( State* state, Gen* gen, bool constr ) {
         // The function goes into the parent's constant
         // pool and is stacked before the upvalue bindings.
         GenConst* fc = genAddConst( state, pgen, tvObj( fun ) );
-        genPutInstr( state, gen, inMake( OPC_GET_CONST, fc->which ) );
+        genPutInstr( state, pgen, inMake( OPC_GET_CONST, fc->which ) );
         
         // Following the function goes a list of references,
         // one for each upvalue of the child function.
-        instr refs[vfun->nUpvals];
-        gen->misc1 = refs;
-        stabForEach( state, gen->upvs, setUpvalRef );
+        stabForEach( state, gen->upvs, genUpvalRef );
+        
+        // And the closure constructor instruction.
+        genPutInstr( state, pgen, inMake( OPC_MAKE_CLS, 0 ) );
     }
     
     stabFree( state, gen->glbs );
@@ -273,8 +378,12 @@ genFinish( State* state, Gen* gen, bool constr ) {
         stabFree( state, gen->lbls );
     }
     
+    stateCommitRaw( state, &constsP );
+    stateCommitRaw( state, &labelsP );
+    
     stateRemoveScanner( state, &gen->scan );
     stateRemoveFinalizer( state, &gen->finl );
+    stateFreeRaw( state, gen, sizeof(Gen) );
     return fun;
 }
 
@@ -300,14 +409,13 @@ genSetLine( State* state, Gen* gen, uint linenum ) {
         return;
     
     tenAssert( linenum >= gen->start );
-    uint i = linenum - gen->start;
-    while( i <= gen->lines.top ) {
+    while( gen->start + gen->lines.top <= linenum ) {
         LineInfo* line = putLineBuf( state, &gen->lines );
-        line->line  = gen->lines.top + gen->start - 1;
+        line->line  = gen->start + gen->lines.top - 1;
         line->start = gen->code.top;
-        line->end   = line->start;
+        line->end   = gen->code.top;
     }
-    gen->line = &gen->lines.buf[i];
+    gen->line = gen->lines.buf + gen->lines.top - 1;
 }
 
 GenConst*
@@ -336,9 +444,6 @@ addGlobal( State* state, Gen* gen, SymT name ) {
 
 static GenVar*
 addLocal( State* state, Gen* gen, SymT name ) {
-    if( gen->global && gen->level == 0 )
-        return addGlobal( state, gen, name );
-    
     GenVar* var = stabGetDat( state, gen->lcls, name, gen->code.top );
     if( var ) {
         if( var->type == VAR_CLOSED )
@@ -357,9 +462,6 @@ addLocal( State* state, Gen* gen, SymT name ) {
 
 static GenVar*
 addUpval( State* state, Gen* gen, SymT name ) {
-    if( gen->global )
-        return addGlobal( state, gen, name );
-    
     GenVar* var = stabGetDat( state, gen->upvs, name, gen->code.top );
     if( var )
         return var;
@@ -389,7 +491,10 @@ genAddParam( State* state, Gen* gen, SymT name, bool vParam ) {
 
 GenVar*
 genAddVar( State* state, Gen* gen, SymT name ) {
-    return addLocal( state, gen, name );
+    if( gen->global && gen->level == 0 )
+        return addGlobal( state, gen, name );
+    else
+        return addLocal( state, gen, name );
 }
 
 GenVar*
@@ -407,7 +512,10 @@ genGetVar( State* state, Gen* gen, SymT name ) {
     if( var )
         return var;
     
-    return addUpval( state, gen, name  );
+    if( gen->global )
+        return addGlobal( state, gen, name );
+    else
+        return addUpval( state, gen, name );
 }
 
 GenLbl*
@@ -418,6 +526,7 @@ genAddLbl( State* state, Gen* gen, SymT name ) {
     lbl->which = loc;
     lbl->where = gen->code.top;
     lbl->name  = name;
+    stateCommitRaw( state, &lblP );
     return lbl;
 }
 
@@ -457,9 +566,31 @@ genCloseLblScope( State* state, Gen* gen ) {
     stabCloseScope( state, gen->lbls, gen->code.top );
 }
 
+
+// An array of the stack effects for each instruction.
+#define SE( MUL, OFF ) MUL, OFF
+#define OP( NAME, SE ) { SE },
+typedef struct {
+    long mul;
+    long off;
+} StackEffect;
+
+static StackEffect effects[] = {
+    #include "inc/ops.inc"
+};
+
 void
 genPutInstr( State* state, Gen* gen, instr in ) {
     *putCodeBuf( state, &gen->code ) = in;
+    if( gen->debug )
+        gen->line->end = gen->code.top;
+    
+    OpCode opc = inGetOpc( in );
+    ushort opr = inGetOpr( in );
+    StackEffect* se = &effects[opc];
+    gen->curTemps += se->mul*opr + se->off;
+    if( gen->curTemps > gen->maxTemps )
+        gen->maxTemps = gen->curTemps;
 }
 
 uint

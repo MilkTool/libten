@@ -40,7 +40,10 @@ typedef enum {
     ten_ERR_CALL,
     ten_ERR_SYNTAX,
     ten_ERR_LIMIT,
-    ten_ERR_COMPILE
+    ten_ERR_COMPILE,
+    ten_ERR_USER,
+    ten_ERR_TYPE,
+    ten_ERR_ARITH
 } ten_ErrNum;
 
 typedef struct ten_Trace ten_Trace;
@@ -52,8 +55,6 @@ struct ten_Trace {
 
 typedef struct ten_Source {
     int  (*next)( struct ten_Source* src );
-    int  first;
-    uint line;
 } ten_Source;
 
 typedef struct ten_Config {

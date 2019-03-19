@@ -28,12 +28,6 @@ apiInit( State* state ) {}
 
 void
 apiTest( State* state ) {}
-void
-genTest( State* state ) {}
-void
-comTest( State* state ) {}
-void
-fibTest( State* state ) {}
 
 static void*
 mallocRaw( State* state, size_t nsz );
@@ -155,12 +149,59 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         td->called = true;
     }
     
+    typedef struct TestAlloc {
+        struct TestAlloc*  next;
+        struct TestAlloc** link;
+        size_t size;
+        char   mem[];
+    } TestAlloc;
+    
+    TestAlloc* allocs = NULL;
+    
+    /*
+    size_t
+    allocated( void ) {
+        size_t allocated = 0;
+        
+        TestAlloc* aIt = allocs;
+        while( aIt ) {
+            allocated += aIt->size;
+            aIt = aIt->next;
+        }
+        
+        return allocated;
+    }
+    */
+    
+    void*
+    testFreealloc( void* udat, void* old, size_t osz, size_t nsz ) {
+        //tenAssert( allocated() == ((State*)udat)->memUsed );
+        tenAssert( old != NULL || osz == 0 );
+        
+        TestAlloc* oAlloc = NULL;
+        if( old ) {
+            oAlloc = old - sizeof(TestAlloc);
+            tenAssert( oAlloc->size == osz );
+            remNode( oAlloc );
+        }
+        
+        if( nsz == 0 ) {
+            free( oAlloc );
+            return NULL;
+        }
+        
+        TestAlloc* nAlloc = realloc( oAlloc, sizeof(TestAlloc) + nsz );
+        addNode( &allocs, nAlloc );
+        nAlloc->size = nsz;
+        return nAlloc->mem;
+    }
+    
     void
     stateTest( void ) {
-        ten_Config config = { 0 };
-        
         State  sbuf;
         State* state = &sbuf;
+        
+        ten_Config config = { .frealloc = testFreealloc, .udata = &sbuf };
         
         bool fmtPassed = false;
         jmp_buf errJmp;
@@ -309,7 +350,6 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         
         statePop( state );
         tenAssert( stateTop( state ).size == 3 );
-        
         
         stateFinl( state );
     }
@@ -755,7 +795,7 @@ adjustMemLimit( State* state, size_t extra ) {
     tenAssert( state->config.memGrowth <= 2.0 );
     
     double mul = state->config.memGrowth + 1.0;
-    state->memLimit = (double)state->memUsed * mul;
+    state->memLimit = (double)(state->memUsed + extra) * mul;
 }
 
 static void
