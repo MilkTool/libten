@@ -1,5 +1,6 @@
 TVal arg1 = regs.sp[-2];
 TVal arg2 = regs.sp[-1];
+regs.sp--;
 if( tvIsDec( arg1 ) && tvIsDec( arg2 ) ) {
     DecT denom = tvGetDec( arg2 );
     if( denom == 0.0 )
@@ -8,7 +9,7 @@ if( tvIsDec( arg1 ) && tvIsDec( arg2 ) ) {
             "Division by zero"
         );
     
-    *(--regs.sp) = tvDec( tvGetDec( arg1 ) / denom );
+    regs.sp[-1] = tvDec( tvGetDec( arg1 ) / denom );
 }
 else
 if( tvIsInt( arg1 ) && tvIsInt( arg2 ) ) {
@@ -19,7 +20,7 @@ if( tvIsInt( arg1 ) && tvIsInt( arg2 ) ) {
             "Division by zero"
         );
     
-    *(--regs.sp) = tvInt( tvGetInt( arg1 ) / denom );
+    regs.sp[-1] = tvInt( tvGetInt( arg1 ) / denom );
 }
 else {
     stateErrFmtA(

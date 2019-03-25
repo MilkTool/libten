@@ -43,7 +43,9 @@ typedef enum {
     ten_ERR_COMPILE,
     ten_ERR_USER,
     ten_ERR_TYPE,
-    ten_ERR_ARITH
+    ten_ERR_ARITH,
+    ten_ERR_ASSIGN,
+    ten_ERR_TUPLE
 } ten_ErrNum;
 
 typedef struct ten_Trace ten_Trace;

@@ -308,6 +308,8 @@ genFinish( State* state, Gen* gen, bool constr ) {
     gen->obj1 = vargIdx;
     
     Function* fun  = funNewVir( state, gen->nParams, vargIdx );
+    fun->nParams = gen->nParams;
+    
     VirFun*   vfun = &fun->u.vir;
     gen->obj2 = fun;
     
@@ -335,7 +337,7 @@ genFinish( State* state, Gen* gen, bool constr ) {
     vfun->labels  = labels;
     
     vfun->nUpvals = stabNumSlots( state, gen->upvs );
-    vfun->nLocals = stabNumSlots( state, gen->lcls );
+    vfun->nLocals = stabNumSlots( state, gen->lcls ) - gen->nParams - 1;
     vfun->nTemps  = gen->maxTemps;
     
     // If `constr == true` then we add code to construct

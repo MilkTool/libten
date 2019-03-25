@@ -479,13 +479,16 @@ idxIterFree( State* state, IdxIter* iter ) {
     stateFreeRaw( state, iter, sizeof(IdxIter) );
 }
 
-TVal*
-idxIterNext( State* state, IdxIter* iter ) {
+bool
+idxIterNext( State* state, IdxIter* iter, TVal* key, uint* loc ) {
     Index* idx = iter->idx;
     while( iter->slot < idx->map.cap && tvIsUdf( idx->map.keys[iter->slot] ) )
         iter->slot++;
     if( iter->slot == idx->map.cap )
-        return NULL;
+        return false;
     
-    return &idx->map.keys[iter->slot++];
+    *key = idx->map.keys[iter->slot];
+    *loc = idx->map.locs[iter->slot];
+    iter->slot++;
+    return true;
 }

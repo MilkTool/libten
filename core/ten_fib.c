@@ -3,7 +3,10 @@
 #include "ten_ptr.h"
 #include "ten_rec.h"
 #include "ten_dat.h"
+#include "ten_upv.h"
 #include "ten_gen.h"
+#include "ten_env.h"
+#include "ten_idx.h"
 #include "ten_opcodes.h"
 #include "ten_assert.h"
 #include "ten_macros.h"
@@ -12,16 +15,6 @@
 #include "ten_math.h"
 #include <string.h>
 #include <limits.h>
-
-typedef enum {
-    REF_GLOBAL,
-    REF_UPVAL,
-    REF_LOCAL,
-    REF_CLOSED
-} RefType;
-
-#define refType( REF )          ((REF) & 0x3)
-#define refMake( TYPE, LOC )    ((RefT)(LOG) << 2 | (TYPE))
 
 static void
 ensureStack( State* state, Fiber* fib, uint n );
@@ -36,10 +29,19 @@ static void
 contNext( State* state, Fiber* fib, Tup* args );
 
 static void
-doCall( State* state, Fiber* fib );
+doCall( State* state, Fiber* fib, bool tail );
+
+static void
+doTailCall( State* state, Fiber* fib );
 
 static void
 doLoop( State* state, Fiber* fib );
+
+static void
+pushAR( State* state, Fiber* fib, NatAR* nat );
+
+static void
+popAR( State* state, Fiber* fib );
 
 static void
 errUdfAsArg( State* state, Function* fun, uint arg );
@@ -107,28 +109,28 @@ fibTest( State* state ) {
     // Stack: 1
     
     genPutInstr( state, gen, inMake( OPC_NOT, 0 ) );
-    // Stack: 4294967294
+    // Stack: -2
     
     genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
-    // Stack 2 4294967294
+    // Stack 2 -2
     
     genPutInstr( state, gen, inMake( OPC_NEG, 0 ) );
-    // Stack: -2 4294967294
+    // Stack: -2 -2
     
     genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
-    // Stack: 3 -2 4294967294
+    // Stack: 3 -2 -2
     
     genPutInstr( state, gen, inMake( OPC_FIX, 0 ) );
-    // Stack: 3 -2 4294967294
+    // Stack: 3 -2 -2
     
     genPutInstr( state, gen, inMake( OPC_MUL, 0 ) );
-    // Stack: -6 4294967294
+    // Stack: -6 -2
     
     genPutInstr( state, gen, inMake( OPC_DIV, 0 ) );
-    // Stack: −715827882
+    // Stack: 0
     
     genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
-    // Stack: 2 −715827882
+    // Stack: 2 0
     
     genPutInstr( state, gen, inMake( OPC_MOD, 0 ) );
     // Stack: 0
@@ -155,10 +157,7 @@ fibTest( State* state ) {
     // Stack: 1 -8
     
     genPutInstr( state, gen, inMake( OPC_LSR, 0 ) );
-    // Stack: 2147483643
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
-    // Stack: 3 2147483643
+    // Stack: 2147483644
     
     genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
     
@@ -171,6 +170,11 @@ fibTest( State* state ) {
     
     Fiber* fib = fibNew( state, cls );
     test.fib = fib;
+    
+    
+    Tup args = statePush( state, 0 );
+    Tup rets = fibCont( state, fib, &args );
+    tenAssert( tvGetInt( tupAt( rets, 0 ) ) == 2147483644 );
     
     test.gen = NULL;
     stateCommitDefer( state, &test.defer );
@@ -212,6 +216,7 @@ fibNew( State* state, Closure* cls ) {
     fib->yieldJmp      = NULL;
     
     memset( &fib->rBuf, 0, sizeof(Regs) );
+    fib->rPtr->sp = fib->tmpStack.tmps;
     
     stateCommitRaw( state, &arP );
     stateCommitRaw( state, &tmpsP );
@@ -429,7 +434,7 @@ contFirst( State* state, Fiber* fib, Tup* args ) {
     
     // That's all for initialization, the call routine
     // will take care of the rest.
-    doCall( state, fib );
+    doCall( state, fib, false );
 }
 
 static void
@@ -451,9 +456,8 @@ contNext( State* state, Fiber* fib, Tup* args ) {
     doLoop( state, fib );
 }
 
-
 static void
-doCall( State* state, Fiber* fib ) {
+doCall( State* state, Fiber* fib, bool tail ) {
     tenAssert( fib->state == FIB_RUNNING );
     tenAssert( fib->rPtr->sp > fib->tmpStack.tmps + 1 );
     
@@ -463,25 +467,25 @@ doCall( State* state, Fiber* fib ) {
     // and where they start.
     TVal* args = &regs->sp[-1];
     uint  argc = 1;
-    TVal* argv = args;
+    TVal* argv = args - 1;
     if( tvIsTup( *args ) ) {
         argc = tvGetTup( *args );
         argv -= argc;
-        tenAssert( argc < fib->tmpStack.tmps - args );
+        tenAssert( argc < args - fib->tmpStack.tmps );
         
         // Pop the tuple header, it's no longer needed.
         regs->sp--;
     }
     
-    // Closure should be on the stack just below the arguments.
-    tenAssert( tvIsObj( argv[-1] ) );
-    tenAssert( datGetTag( tvGetObj( argv[-1] ) ) == OBJ_CLS );
+    // First value in argv is the closure being called.
+    tenAssert( tvIsObj( argv[0] ) );
+    tenAssert( datGetTag( tvGetObj( argv[0] ) ) == OBJ_CLS );
     
-    Closure* cls = tvGetObj( argv[-1] );
+    Closure* cls = tvGetObj( argv[0] );
     uint parc = cls->fun->nParams;
     
     // Check the arguments for `udf`.
-    for( uint i = 0 ; i < argc ; i++ )
+    for( uint i = 1 ; i <= argc ; i++ )
         if( tvIsUdf( argv[i] ) )
             errUdfAsArg( state, cls->fun, i );
     
@@ -503,40 +507,34 @@ doCall( State* state, Fiber* fib ) {
         Record* rec = recNew( state, cls->fun->vargIdx );
         *(fib->rPtr->sp++) = tvObj( rec );
         
-        uint diff = argc - parc;
+        uint  diff  = argc - parc;
+        TVal* extra = &argv[1 + parc];
         for( uint i = 0 ; i < diff ; i++ ) {
             TVal key = tvInt( i );
-            recDef( state, rec, key, argv[parc+i] );
+            recDef( state, rec, key, extra[i] );
         }
         
         // Record is set as the last argument, after the
         // place of the last non-variatic parameter.
-        argv[parc] = tvObj( rec );
+        extra[0] = tvObj( rec );
         argc = parc + 1;
         
         // Adjust the stack pointer to again point to the
         // slot just after the arguments.
-        regs->sp = regs->sp - diff + 1;
+        regs->sp = extra + 1;
     }
     
-    // At this point we need to allocate room for the function
-    // on the stack.  But this may reallocate the stack itself,
-    // rendering our pointers invalid.  So we back up the base
-    // of this call frame (that's the location of the closure)
-    // as an offset from the stack pointer.
-    uint base = argv - 1 - fib->tmpStack.tmps;
-    uint nLocals = 0;
-    uint nTemps  = 0;
-    if( cls->fun->type == FUN_VIR ) {
-        nLocals = cls->fun->u.vir.nLocals;
-        nTemps  = cls->fun->u.vir.nTemps;
-        ensureStack( state, fib, nLocals + nTemps );
+    // For a tail call we copy the arguments and the closure
+    // itself down the stack to replace the previous call's
+    // frame.
+    if( tail ) {
+        for( uint i = 0 ; i <= argc ; i++ )
+            regs->lcl[i] = argv[i];
+        argv = regs->lcl;
     }
-    
-    // Finally initialize the registers and execute the bytecode
-    // or call the user callback if the function is a native one.
-    regs->sp += nLocals;
-    regs->cls = cls;
+    else {
+        regs->lcl = argv;
+    }
     
     // This is used below to make sure the function call left
     // a return value on the stack.
@@ -544,19 +542,22 @@ doCall( State* state, Fiber* fib ) {
         uint oTop = regs->sp - fib->tmpStack.tmps;
     #endif
     
+    regs->cls = cls;
     if( cls->fun->type == FUN_VIR ) {
-        regs->ip   = cls->fun->u.vir.code;
-        regs->lcl  = fib->tmpStack.tmps + base;
+        VirFun* fun = & cls->fun->u.vir;
+        ensureStack( state, fib, fun->nLocals + fun->nTemps );
+        
+        regs->sp += fun->nLocals;
+        regs->ip = cls->fun->u.vir.code;
         doLoop( state, fib );
     }
     else {
-        regs->ip   = NULL;
-        regs->lcl  = NULL;
+        regs->ip = NULL;
         
         // Initialize an argument tuple for the callback.
         Tup aTup = {
             .base   = &fib->tmpStack.tmps,
-            .offset = base,
+            .offset = regs->lcl - fib->tmpStack.tmps,
             .size   = argc
         };
         
@@ -584,12 +585,12 @@ doCall( State* state, Fiber* fib ) {
     // the top of the stack, we need to copy them down
     // to the start of the call frame.
     uint  retc = 1;
-    TVal* retv = &regs->sp[-1];
+    TVal* retv = regs->sp - 1;
     if( tvIsTup( *retv ) ) {
         retc += tvGetTup( *retv );
         retv -= retc - 1;
     }
-    TVal* dstv = fib->tmpStack.tmps + base;
+    TVal* dstv = regs->lcl;
     for( uint i = 0 ; i < retc ; i++ )
         dstv[i] = retv[i];
     regs->sp = dstv + retc;
@@ -614,35 +615,44 @@ doLoop( State* state, Fiber* fib ) {
     // it can be shown to offset a performance advantage.
     while( true ) {
         instr in = *(regs.ip++);
-        switch( inGetOpr( in ) ) {
+        switch( inGetOpc( in ) ) {
             case OPC_DEF_ONE: {
                 #include "inc/ops/DEF_ONE.inc"
             } break;
             case OPC_DEF_TUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/DEF_TUP.inc"
             } break;
             case OPC_DEF_VTUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/DEF_VTUP.inc"
             } break;
             case OPC_DEF_REC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/DEF_REC.inc"
             } break;
             case OPC_DEF_VREC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/DEF_VREC.inc"
             } break;
             case OPC_SET_ONE: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/SET_ONE.inc"
             } break;
             case OPC_SET_TUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/SET_TUP.inc"
             } break;
             case OPC_SET_VTUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/SET_VTUP.inc"
             } break;
             case OPC_SET_REC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/SET_REC.inc"
             } break;
             case OPC_SET_VREC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/SET_VREC.inc"
             } break;
             
@@ -679,118 +689,155 @@ doLoop( State* state, Fiber* fib ) {
             } break;
             
             case OPC_GET_CONST: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST0: {
-                #include "inc/ops/GET_CONST0.inc"
+                ushort const opr = 0;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST1: {
-                #include "inc/ops/GET_CONST1.inc"
+                ushort const opr = 1;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST2: {
-                #include "inc/ops/GET_CONST2.inc"
+                ushort const opr = 2;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST3: {
-                #include "inc/ops/GET_CONST3.inc"
+                ushort const opr = 3;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST4: {
-                #include "inc/ops/GET_CONST4.inc"
+                ushort const opr = 4;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST5: {
-                #include "inc/ops/GET_CONST5.inc"
+                ushort const opr = 5;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST6: {
-                #include "inc/ops/GET_CONST6.inc"
+                ushort const opr = 6;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             case OPC_GET_CONST7: {
-                #include "inc/ops/GET_CONST7.inc"
+                ushort const opr = 7;
+                #include "inc/ops/GET_CONST.inc"
             } break;
             
             case OPC_GET_UPVAL: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL0: {
-                #include "inc/ops/GET_UPVAL0.inc"
+                ushort const opr = 0;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL1: {
-                #include "inc/ops/GET_UPVAL1.inc"
+                ushort const opr = 1;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL2: {
-                #include "inc/ops/GET_UPVAL2.inc"
+                ushort const opr = 2;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL3: {
-                #include "inc/ops/GET_UPVAL3.inc"
+                ushort const opr = 3;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL4: {
-                #include "inc/ops/GET_UPVAL4.inc"
+                ushort const opr = 4;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL5: {
-                #include "inc/ops/GET_UPVAL5.inc"
+                ushort const opr = 5;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL6: {
-                #include "inc/ops/GET_UPVAL6.inc"
+                ushort const opr = 6;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             case OPC_GET_UPVAL7: {
-                #include "inc/ops/GET_UPVAL7.inc"
+                ushort const opr = 7;
+                #include "inc/ops/GET_UPVAL.inc"
             } break;
             
             case OPC_GET_LOCAL: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL0: {
-                #include "inc/ops/GET_LOCAL0.inc"
+                ushort const opr = 0;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL1: {
-                #include "inc/ops/GET_LOCAL1.inc"
+                ushort const opr = 1;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL2: {
-                #include "inc/ops/GET_LOCAL2.inc"
+                ushort const opr = 2;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL3: {
-                #include "inc/ops/GET_LOCAL3.inc"
+                ushort const opr = 3;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL4: {
-                #include "inc/ops/GET_LOCAL4.inc"
+                ushort const opr = 4;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL5: {
-                #include "inc/ops/GET_LOCAL5.inc"
+                ushort const opr = 5;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL6: {
-                #include "inc/ops/GET_LOCAL6.inc"
+                ushort const opr = 6;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             case OPC_GET_LOCAL7: {
-                #include "inc/ops/GET_LOCAL7.inc"
+                ushort const opr = 7;
+                #include "inc/ops/GET_LOCAL.inc"
             } break;
             
             case OPC_GET_CLOSED: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED0: {
-                #include "inc/ops/GET_CLOSED0.inc"
+                ushort const opr = 0;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED1: {
-                #include "inc/ops/GET_CLOSED1.inc"
+                ushort const opr = 1;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED2: {
-                #include "inc/ops/GET_CLOSED2.inc"
+                ushort const opr = 2;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED3: {
-                #include "inc/ops/GET_CLOSED3.inc"
+                ushort const opr = 3;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED4: {
-                #include "inc/ops/GET_CLOSED4.inc"
+                ushort const opr = 4;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED5: {
-                #include "inc/ops/GET_CLOSED5.inc"
+                ushort const opr = 5;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED6: {
-                #include "inc/ops/GET_CLOSED6.inc"
+                ushort const opr = 6;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             case OPC_GET_CLOSED7: {
-                #include "inc/ops/GET_CLOSED7.inc"
+                ushort const opr = 7;
+                #include "inc/ops/GET_CLOSED.inc"
             } break;
             
             case OPC_GET_GLOBAL: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/GET_GLOBAL.inc"
             } break;
             
@@ -802,15 +849,19 @@ doLoop( State* state, Fiber* fib ) {
             } break;
             
             case OPC_REF_UPVAL: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REF_UPVAL.inc"
             } break;
             case OPC_REF_LOCAL: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REF_LOCAL.inc"
             } break;
             case OPC_REF_CLOSED: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REF_CLOSED.inc"
             } break;
             case OPC_REF_GLOBAL: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REF_GLOBAL.inc"
             } break;
             
@@ -821,22 +872,27 @@ doLoop( State* state, Fiber* fib ) {
                 #include "inc/ops/LOAD_UDF.inc"
             } break;
             case OPC_LOAD_LOG: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/LOAD_LOG.inc"
             } break;
             case OPC_LOAD_INT: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/LOAD_INT.inc"
             } break;
             
             case OPC_MAKE_TUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/MAKE_TUP.inc"
             } break;
             case OPC_MAKE_VTUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/MAKE_VTUP.inc"
             } break;
             case OPC_MAKE_CLS: {
                 #include "inc/ops/MAKE_CLS.inc"
             } break;
             case OPC_MAKE_REC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/MAKE_REC.inc"
             } break;
             case OPC_MAKE_VREC: {
@@ -846,10 +902,6 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_POP: {
                 #include "inc/ops/POP.inc"
             } break;
-            case OPC_DUP: {
-                #include "inc/ops/DUP.inc"
-            } break;
-            
             
             case OPC_NEG: {
                 #include "inc/ops/NEG.inc"
@@ -861,6 +913,9 @@ doLoop( State* state, Fiber* fib ) {
                 #include "inc/ops/FIX.inc"
             } break;
             
+            case OPC_POW: {
+                #include "inc/ops/POW.inc"
+            } break;
             case OPC_MUL: {
                 #include "inc/ops/MUL.inc"
             } break;
@@ -921,18 +976,23 @@ doLoop( State* state, Fiber* fib ) {
             } break;
             
             case OPC_AND_JUMP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/AND_JUMP.inc"
             } break;
             case OPC_OR_JUMP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/OR_JUMP.inc"
             } break;
             case OPC_UDF_JUMP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/UDF_JUMP.inc"
             } break;
             case OPC_ALT_JUMP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/ALT_JUMP.inc"
             } break;
             case OPC_JUMP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/JUMP.inc"
             } break;
             
@@ -942,6 +1002,9 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_RETURN: {
                 #include "inc/ops/RETURN.inc"
             } break;
+            default: {
+                tenAssertNeverReached();
+            } break;
         }
     }
     end:
@@ -949,6 +1012,72 @@ doLoop( State* state, Fiber* fib ) {
     // Restore old register set.
     *rPtr = regs;
     fib->rPtr = rPtr;
+}
+
+static void
+pushAR( State* state, Fiber* fib, NatAR* nat ) {
+    AR* ar;
+    if( nat ) {
+        ar = &nat->ar;
+        
+        NatAR** nats;
+        if( fib->arStack.top > 0 )
+            nats = &fib->arStack.ars[fib->arStack.top-1].nats;
+        else
+            nats = &fib->nats;
+        
+        nat->prev = *nats;
+        *nats = nat;
+    }
+    else {
+        if( fib->arStack.top >= fib->arStack.cap ) {
+            Part arP = {
+                .ptr = fib->arStack.ars,
+                .sz  = sizeof(VirAR)*fib->arStack.cap
+            };
+            uint ncap = fib->arStack.cap*2;
+            fib->arStack.ars = stateResizeRaw( state, &arP, sizeof(VirAR)*ncap );
+            fib->arStack.cap = ncap;
+        }
+        
+        VirAR* vir = &fib->arStack.ars[fib->arStack.top++];
+        vir->nats = NULL;
+        ar = &vir->ar;
+    }
+    
+    ar->cls   = fib->rPtr->cls;
+    ar->rAddr = fib->rPtr->ip;
+    ar->oLcls = fib->rPtr->lcl - fib->tmpStack.tmps;
+}
+
+static void
+popAR( State* state, Fiber* fib ) {
+    AR* ar;
+    if( fib->nats ) {
+        NatAR* nat = fib->nats;
+        fib->nats = nat->prev;
+        
+        ar = &nat->ar;
+    }
+    else
+    if( fib->arStack.top >= fib->arStack.cap ) {
+        NatAR** nats = &fib->arStack.ars[fib->arStack.top-1].nats;
+        NatAR* nat = *nats;
+        if( *nats ) {
+            *nats = nat->prev;
+            ar = &nat->ar;
+        }
+        else {
+            ar = &fib->arStack.ars[fib->arStack.top-1].ar;
+        }
+    }
+    else {
+        tenAssertNeverReached();
+    }
+    
+    fib->rPtr->cls = ar->cls;
+    fib->rPtr->ip  = ar->rAddr;
+    fib->rPtr->lcl = fib->tmpStack.tmps + ar->oLcls;
 }
 
 static void
@@ -965,7 +1094,7 @@ ensureStack( State* state, Fiber* fib, uint n ) {
     uint cap = fib->tmpStack.cap * 2;
     Part tmpsP = {
         .ptr = fib->tmpStack.tmps,
-        .sz  = sizeof(TVal*)*cap
+        .sz  = sizeof(TVal)*fib->tmpStack.cap
     };
     fib->tmpStack.tmps = stateResizeRaw( state, &tmpsP, sizeof(TVal)*cap );
     

@@ -588,11 +588,62 @@ genConst( State* state, TVal val ) {
     ComState* com = state->comState;
     
     com->val1 = val;
+    if( tvIsUdf( val ) ) {
+        genInstr( state, OPC_LOAD_UDF, 0 );
+        return;
+    }
+    else
+    if( tvIsNil( val ) ) {
+        genInstr( state , OPC_LOAD_NIL, 0 );
+        return;
+    }
+    else
+    if( tvIsLog( val ) ) {
+        genInstr( state, OPC_LOAD_LOG, tvGetLog( val ) );
+        return;
+    }
+    else
+    if( tvIsInt( val ) ) {
+        IntT i = tvGetInt( val );
+        if( i <= IN_OPR_MAX ) {
+            genInstr( state, OPC_LOAD_INT, i );
+            return;
+        }
+    }
+    
     GenConst* c = genAddConst( state, com->gen, val );
     if( c->which > IN_OPR_MAX )
         errLimit( state, "constant count" );
     
-    genPutInstr( state, com->gen, inMake( OPC_GET_CONST, c->which ) );
+    switch( c->which ) {
+        case 0:
+            genInstr( state, OPC_GET_CONST0, 0 );
+        break;
+        case 1:
+            genInstr( state, OPC_GET_CONST1, 0 );
+        break;
+        case 2:
+            genInstr( state, OPC_GET_CONST2, 0 );
+        break;
+        case 3:
+            genInstr( state, OPC_GET_CONST3, 0 );
+        break;
+        case 4:
+            genInstr( state, OPC_GET_CONST4, 0 );
+        break;
+        case 5:
+            genInstr( state, OPC_GET_CONST5, 0 );
+        break;
+        case 6:
+            genInstr( state, OPC_GET_CONST6, 0 );
+        break;
+        case 7:
+            genInstr( state, OPC_GET_CONST7, 0 );
+        break;
+        default:
+            genInstr( state, OPC_GET_CONST, c->which );
+        break;
+    }
 }
 
 static void

@@ -128,7 +128,7 @@ idxIterMake( State* state, Index* idx );
 void
 idxIterFree( State* state, IdxIter* iter );
 
-TVal*
-idxIterNext( State* state, IdxIter* iter );
+bool
+idxIterNext( State* state, IdxIter* iter, TVal* key, uint* loc );
 
 #endif

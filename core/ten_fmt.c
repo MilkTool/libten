@@ -276,14 +276,11 @@ fmtVal( State* state, TVal val, bool q );
 
 static TVal
 nextKey( State* state, IdxIter* iter, uint seqEnd ) {
-    TVal* key = idxIterNext( state, iter );
-    while( key && tvIsInt( *key ) && tvGetInt( *key ) < seqEnd )
-        key = idxIterNext( state, iter );
-    
-    if( key )
-        return *key;
-    else
-        return tvUdf();
+    TVal  key = tvUdf();
+    uint  loc;
+    while( idxIterNext( state, iter, &key, &loc ) && tvIsInt( key ) && tvGetInt( key ) < seqEnd )
+        ;
+    return key;
 }
 
 static bool

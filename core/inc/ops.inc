@@ -100,7 +100,7 @@ OP( LOAD_LOG, SE( 0, 1 ) )
 OP( LOAD_INT, SE( 0, 1 ) )
 
 OP( MAKE_TUP, SE( 0, 1 ) )
-OP( MAKE_VTUP, SE( 0, 0 ) )
+OP( MAKE_VTUP, SE( 0, TUP_MAX ) )
 OP( MAKE_CLS, SE( 0, 1 ) )
 OP( MAKE_REC, SE( -2, 0 ) )
 OP( MAKE_VREC, SE( -2, -1 ) )

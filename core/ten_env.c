@@ -166,7 +166,8 @@ envGetGlobalByName( State* state, SymT name ) {
 TVal*
 envGetGlobalByLoc( State* state, uint loc ) {
     EnvState* env = state->envState;
-    tenAssert( loc < env->gVals.top );
-    
-    return &env->gVals.buf[loc];
+    if( loc >= env->gVals.top )
+        return NULL;
+    else
+        return &env->gVals.buf[loc];
 }

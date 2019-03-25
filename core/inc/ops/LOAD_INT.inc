@@ -1,0 +1,1 @@
+*(regs.sp++) = tvInt( opr );

@@ -11,11 +11,6 @@ struct Upvalue {
 #define upvSize( STATE, UPV )  (sizeof(Upvalue))
 #define upvTrav( STATE, UPV )  tvMark( (UPV)->val )
 #define upvDest( STATE, UPV )  {}
-#define upvClose( STATE, UPV )      \
-    do {                            \
-        (UPV)->buf = *(UPV)->val;   \
-        (UPV)->val = &(UPV)->buf;   \
-    } while( 0 )
 
 void
 upvInit( State* state );

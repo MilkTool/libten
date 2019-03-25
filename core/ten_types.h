@@ -8,6 +8,7 @@
 
 #ifndef ten_types_h
 #define ten_types_h
+#include <stdint.h>
 
 // State structures for each VM component, and for the VM as a whole.
 typedef struct State    State;
@@ -63,12 +64,98 @@ typedef unsigned short instr;
 // These are the types we use to represent the primitive values.
 typedef void*    ObjT;
 typedef _Bool    LogT;
-typedef long     IntT;
+typedef int32_t  IntT;
 typedef double   DecT;
 typedef ullong   SymT;
 typedef ullong   PtrT;
 typedef ullong   TupT;
 typedef ullong   RefT;
+
+typedef enum {
+    REF_GLOBAL,
+    REF_UPVAL,
+    REF_LOCAL,
+    REF_CLOSED
+} RefTag;
+
+#define REF_MAX (0xFFFFFFFFFC)
+#define refMake( TAG, LOC ) ((RefT)(LOC) << 2 | (TAG))
+#define refGetTag( REF )    ((REF) & 0x3)
+#define refGetLoc( REF )    ((REF) >> 2)
+
+#define refSet( REF, VAL )                                                  \
+do {                                                                        \
+    RefT tag = refGetTag( REF );                                            \
+    RefT loc = refGetLoc( REF );                                            \
+                                                                            \
+    switch( tag ) {                                                         \
+        case REF_GLOBAL: {                                                  \
+            TVal* ptr = envGetGlobalByLoc( state, loc );                    \
+            tenAssert( ptr );                                               \
+            if( tvIsUdf( *ptr ) )                                           \
+                stateErrFmtA(                                               \
+                    state, ten_ERR_ASSIGN,                                  \
+                    "Mutation of undefined variable"                        \
+                );                                                          \
+            *ptr = (VAL);                                                   \
+        } break;                                                            \
+        case REF_UPVAL: {                                                   \
+            tenAssert( loc < regs.cls->fun->u.vir.nUpvals );                \
+            Upvalue** upvals  = regs.cls->dat.upvals;                       \
+            if( !upvals[loc] || tvIsUdf( upvals[loc]->val ) )               \
+                stateErrFmtA(                                               \
+                    state, ten_ERR_ASSIGN,                                  \
+                    "Mutation of undefined varaible"                        \
+                );                                                          \
+            upvals[loc]->val = (VAL);                                       \
+        } break;                                                            \
+        case REF_LOCAL: {                                                   \
+            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            if( tvIsUdf( regs.lcl[loc] ) )                                  \
+                stateErrFmtA(                                               \
+                    state, ten_ERR_ASSIGN,                                  \
+                    "Mutation of undefined varaible"                        \
+                );                                                          \
+            regs.lcl[loc] = (VAL);                                          \
+        } break;                                                            \
+        case REF_CLOSED: {                                                  \
+            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert( tvIsObj( regs.lcl[loc] ) );                          \
+            tenAssert( datGetTag( tvGetObj( regs.lcl[loc] ) ) == OBJ_UPV ); \
+            ((Upvalue*)tvGetObj( regs.lcl[loc] ))->val = (VAL);             \
+        } break;                                                            \
+        default:                                                            \
+            tenAssertNeverReached();                                        \
+        break;                                                              \
+    }                                                                       \
+} while( 0 )
+
+#define refDef( REF, VAL )                                                  \
+do {                                                                        \
+    RefT tag = refGetTag( REF );                                            \
+    RefT loc = refGetLoc( REF );                                            \
+                                                                            \
+    switch( tag ) {                                                         \
+        case REF_GLOBAL: {                                                  \
+            TVal* ptr = envGetGlobalByLoc( state, loc );                    \
+            tenAssert( ptr );                                               \
+            *ptr = (VAL);                                                   \
+        } break;                                                            \
+        case REF_UPVAL: {                                                   \
+            tenAssertNeverReached();                                        \
+        } break;                                                            \
+        case REF_LOCAL: {                                                   \
+            regs.lcl[loc] = (VAL);                                          \
+        } break;                                                            \
+        case REF_CLOSED: {                                                  \
+            regs.lcl[loc] = (VAL);                                          \
+        } break;                                                            \
+        default:                                                            \
+            tenAssertNeverReached();                                        \
+        break;                                                              \
+    }                                                                       \
+} while( 0 )
+
 
 // Due to the way we encode short symbols directly into a value
 // as the OR of its characters... we'd get a lot of collision
@@ -275,15 +362,15 @@ typedef ullong   RefT;
     #define tvDec( DEC ) \
         (TVal){.tag = VAL_DEC, .u = {.num = (DEC)}}
     #define tvInt( INT ) \
-        (TVal){.tag = VAL_INT, .u = {.val = (ullong)(INT)}}
+        (TVal){.tag = VAL_INT, .u = {.val = (IntT)(INT) }}
     #define tvSym( SYM ) \
-        (TVal){.tag = VAL_SYM, .u = {.val = (ullong)(SYM)}}
+        (TVal){.tag = VAL_SYM, .u = {.val = (SymT)(SYM)}}
     #define tvPtr( SYM ) \
-        (TVal){.tag = VAL_PTR, .u = {.val = (ullong)(SYM)}}
+        (TVal){.tag = VAL_PTR, .u = {.val = (PtrT)(SYM)}}
     #define tvTup( TUP ) \
-        (TVal){.tag = VAL_TUP, .u = {.val = (ullong)(TUP)}}
+        (TVal){.tag = VAL_TUP, .u = {.val = (TupT)(TUP)}}
     #define tvRef( REF ) \
-        (TVal){.tag = VAL_REF, .u = {.val = (ullong)(REF)}}
+        (TVal){.tag = VAL_REF, .u = {.val = (RefT)(REF)}}
     
     #define tvIsObj( TVAL ) \
         ((TVAL).tag == VAL_OBJ)
@@ -386,6 +473,7 @@ typedef enum {
 // of values in a way that's GC safe and allows the value array
 // to be reallocated.  So we store a pointer to the array's base,
 // an offset to the start of the array, and the size of the array.
+#define TUP_MAX (32)
 typedef struct {
     TVal** base;
     uint   offset;
