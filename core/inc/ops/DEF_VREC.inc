@@ -1,4 +1,4 @@
-if( !tvIsObj( regs.sp[-1] ) || !datGetTag( tvGetObj( regs.sp[-1] ) ) )
+if( !tvIsObj( regs.sp[-1] ) || datGetTag( tvGetObj( regs.sp[-1] ) ) != OBJ_REC )
     stateErrFmtA(
         state, ten_ERR_ASSIGN,
         "Record assignment from non-Rec value"
@@ -16,7 +16,7 @@ RefT vRef = tvGetRef( vVar );
 Index* recIdx  = tpGetPtr( rec->idx );
 TVal*  recVals = tpGetPtr( rec->vals );
 uint   recCap  = tpGetTag( rec->vals );
-bool   recMrk[recCap]; memset( recSet, 0, sizeof(bool)*recCap );
+bool   recMrk[recCap]; memset( recMrk, 0, sizeof(bool)*recCap );
 
 TVal (*pairs)[2] = (TVal (*)[2])(regs.sp - 3 - 2*opr);
 for( uint i = 0 ; i < opr ; i++ ) {
@@ -51,4 +51,5 @@ while( idxIterNext( state, iter, &key, &loc ) ) {
         recDef( state, vRec, key, val );
 }
 
-regs.sp -= 3 + 2*opr;
+regs.sp -= 2 + 2*opr;
+regs.sp[-1] = tvUdf();

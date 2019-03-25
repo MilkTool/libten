@@ -1,4 +1,4 @@
-if( !tvIsObj( regs.sp[-1] ) || !datGetTag( tvGetObj( regs.sp[-1] ) ) )
+if( !tvIsObj( regs.sp[-1] ) || datGetTag( tvGetObj( regs.sp[-1] ) ) != OBJ_REC )
     stateErrFmtA(
         state, ten_ERR_ASSIGN,
         "Record assignment from non-Rec value"
@@ -51,4 +51,5 @@ while( idxIterNext( state, iter, &key, &loc ) ) {
         recDef( state, vRec, key, val );
 }
 
-regs.sp -= 3 + 2*opr;
+regs.sp -= 2 + 2*opr;
+regs.sp[-1] = tvUdf();

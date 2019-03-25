@@ -1,8 +1,9 @@
 uint  cnt = 1;
-TVal* vals = --regs.sp;
+TVal* vals = regs.sp - 1;
 if( tvIsTup( vals[0] ) ) {
     cnt  += tvGetTup( vals[0] );
     vals -= cnt;
+    regs.sp--;
 }
 if( cnt < opr )
     stateErrFmtA(
@@ -36,4 +37,5 @@ for( uint i = opr ; i < cnt ; i++ ) {
     recDef( state, vRec, key, val );
 }
 
-regs.sp -= 1 + cnt + opr;
+regs.sp -= cnt + opr;
+regs.sp[-1] = tvUdf();

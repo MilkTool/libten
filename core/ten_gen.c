@@ -356,7 +356,7 @@ genFinish( State* state, Gen* gen, bool constr ) {
         stabForEach( state, gen->upvs, genUpvalRef );
         
         // And the closure constructor instruction.
-        genPutInstr( state, pgen, inMake( OPC_MAKE_CLS, 0 ) );
+        genPutInstr( state, pgen, inMake( OPC_MAKE_CLS, vfun->nUpvals ) );
     }
     
     stabFree( state, gen->glbs );

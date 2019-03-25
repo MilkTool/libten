@@ -4,4 +4,5 @@ tenAssert( tvIsRef( var ) );
 
 RefT  ref = tvGetRef( var );
 refDef( ref, val );
-regs.sp -= 2;
+regs.sp -= 1;
+regs.sp[-1] = tvUdf();

@@ -661,30 +661,38 @@ doLoop( State* state, Fiber* fib ) {
                 #include "inc/ops/REC_DEF_ONE.inc"
             } break;
             case OPC_REC_DEF_TUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_DEF_TUP.inc"
             } break;
             case OPC_REC_DEF_VTUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_DEF_VTUP.inc"
             } break;
             case OPC_REC_DEF_REC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_DEF_REC.inc"
             } break;
             case OPC_REC_DEF_VREC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_DEF_VREC.inc"
             } break;
             case OPC_REC_SET_ONE: {
                 #include "inc/ops/REC_SET_ONE.inc"
             } break;
             case OPC_REC_SET_TUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_SET_TUP.inc"
             } break;
             case OPC_REC_SET_VTUP: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_SET_VTUP.inc"
             } break;
             case OPC_REC_SET_REC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_SET_REC.inc"
             } break;
             case OPC_REC_SET_VREC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/REC_SET_VREC.inc"
             } break;
             
@@ -889,6 +897,7 @@ doLoop( State* state, Fiber* fib ) {
                 #include "inc/ops/MAKE_VTUP.inc"
             } break;
             case OPC_MAKE_CLS: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/MAKE_CLS.inc"
             } break;
             case OPC_MAKE_REC: {
@@ -896,6 +905,7 @@ doLoop( State* state, Fiber* fib ) {
                 #include "inc/ops/MAKE_REC.inc"
             } break;
             case OPC_MAKE_VREC: {
+                ushort const opr = inGetOpr( in );
                 #include "inc/ops/MAKE_VREC.inc"
             } break;
             

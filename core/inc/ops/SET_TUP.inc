@@ -22,3 +22,4 @@ for( uint i = 0 ; i < cnt ; i++ ) {
 }
 
 regs.sp -= 2*cnt;
+*(regs.sp++) = tvUdf();
