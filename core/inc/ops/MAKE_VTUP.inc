@@ -1,5 +1,5 @@
 TVal* vals = regs.sp - opr;
-if( opr )
+if( opr > TUP_MAX )
     stateErrFmtA(
         state, ten_ERR_TUPLE,
         "Tuple exceeds max size"
@@ -18,11 +18,13 @@ tenAssert( datGetTag( tvGetObj( regs.sp[-1] ) ) == OBJ_REC );
 Record* rec  = tvGetObj( regs.sp[-1] );
 
 uint cnt = 0;
-do {
+TVal val = recGet( state, rec, tvInt( cnt ) );
+while( !tvIsUdf( val ) ) {
     regs.sp++;
     regs.sp[-1] = regs.sp[-2];
-    regs.sp[-2] = recGet( state, rec, tvInt( cnt ) );
+    regs.sp[-2] = val;
     cnt++;
-} while( !tvIsUdf( regs.sp[-2] ) );
+    val = recGet( state, rec, tvInt( cnt ) );
+}
 
 regs.sp[-1] = tvTup( cnt + opr );

@@ -56,12 +56,18 @@ static void
 symFinl( State* state, Finalizer* finl ) {
     SymState* symState = (SymState*)finl;
     
-    for( uint i = 0 ; i < symState->nodes.cap ; i++ ) {
+    for( uint i = 0 ; i < symState->next ; i++ ) {
         SymNode* n = symState->nodes.buf[i];
         if( !n )
             continue;
-        if( n->buf )
-            stateFreeRaw( state, n->buf, n->len + 1 );
+        stateFreeRaw( state, n->buf, n->len + 1 );
+        stateFreeRaw( state, n, sizeof(SymNode) );
+    }
+    
+    SymNode* nIt = symState->recycled;
+    while( nIt ) {
+        SymNode* n = nIt;
+        nIt = nIt->next;
         stateFreeRaw( state, n, sizeof(SymNode) );
     }
     
@@ -272,6 +278,8 @@ symFinishCycle( State* state ) {
         }
         
         remNode( node );
+        symState->nodes.buf[i] = NULL;
+        
         stateFreeRaw( state, node->buf, node->len + 1 );
         node->len = 0;
         node->buf = NULL;
@@ -307,14 +315,14 @@ growMap( State* state ) {
         map[i] = NULL;
     
     for( uint i = 0 ; i < symState->map.cap ; i++ ) {
-        SymNode* node = symState->map.buf[i];
-        if( !node )
-            continue;
-        
-        uint s = node->hash % mcap;
-        
-        remNode( node );
-        addNode( &map[s], node );
+        SymNode* nIt = symState->map.buf[i];
+        while( nIt ) {
+            SymNode* node = nIt;
+            nIt = nIt->next;
+            
+            uint s = node->hash % mcap;
+            addNode( &map[s], node );
+        }
     }
     
     stateFreeRaw( state, symState->map.buf, sizeof(SymNode*)*symState->map.cap );

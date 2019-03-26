@@ -11,11 +11,6 @@
 #include "ten_assert.h"
 
 // Dynamic buffers.
-#define BUF_TYPE GenConst
-#define BUF_NAME ConstBuf
-    #include "inc/buf.inc"
-#undef BUF_NAME
-#undef BUF_TYPE
 
 #define BUF_TYPE instr
 #define BUF_NAME CodeBuf
@@ -47,8 +42,8 @@ struct Gen {
     STab*  upvs;
     STab*  lcls;
     STab*  lbls;
+    STab*  cons;
     
-    ConstBuf consts;
     CodeBuf  code;
     
     uint nParams;
@@ -84,6 +79,7 @@ void
 genStateFinl( State* state, Finalizer* finl ) {
     GenState* genState = structFromFinl( GenState, finl );
     stateRemoveScanner( state, &genState->scan );
+    stateFreeRaw( state, genState, sizeof(GenState) );
 }
 
 void
@@ -169,12 +165,19 @@ genFinl( State* state, Finalizer* finl ) {
     
     stateRemoveScanner( state, &gen->scan );
     
-    finlConstBuf( state, &gen->consts );
     finlCodeBuf( state, &gen->code );
     if( gen->debug )
         finlLineBuf( state, &gen->lines );
     stateFreeRaw( state, gen, sizeof(Gen) );
     
+}
+
+
+static void
+markConst( State* state, void* udat, void* edat ) {
+    Gen*      gen = udat;
+    GenConst* con = edat;
+    tvMark( con->val );
 }
 
 static void
@@ -191,8 +194,7 @@ genScan( State* state, Scanner* scan ) {
     if( gen->obj2 )
         stateMark( state, gen->obj2 );
     
-    for( uint i = 0 ; i < gen->consts.top ; i++ )
-        tvMark( gen->consts.buf[i].val );
+    stabForEach( state, gen->cons, markConst );
 }
 
 static void
@@ -203,6 +205,11 @@ freeVar( State* state, void* udat, void* edat ) {
 static void
 freeLbl( State* state, void* udat, void* edat ) {
     stateFreeRaw( state, edat, sizeof(GenLbl) );
+}
+
+static void
+freeCons( State* state, void* udat, void* edat ) {
+    stateFreeRaw( state, edat, sizeof(GenConst) );
 }
 
 static GenVar*
@@ -219,7 +226,7 @@ genMake( State* state, Gen* parent, SymT* func, bool global, bool debug ) {
     gen->upvs   = stabMake( state, true, gen, freeVar );
     gen->lcls   = stabMake( state, true, gen, freeVar );
     gen->lbls   = stabMake( state, false, gen, freeLbl );
-    initConstBuf( state, &gen->consts );
+    gen->cons   = stabMake( state, false, gen, freeCons );
     initCodeBuf( state, &gen->code );
     
     gen->curTemps = 0;
@@ -260,7 +267,21 @@ genMake( State* state, Gen* parent, SymT* func, bool global, bool debug ) {
 void
 genFree( State* state, Gen* gen ) {
     stateRemoveFinalizer( state, &gen->finl );
+    stabFree( state, gen->glbs );
+    stabFree( state, gen->upvs );
+    stabFree( state, gen->lcls );
+    stabFree( state, gen->lbls );
+    stabFree( state, gen->cons );
     genFinl( state, &gen->finl );
+}
+
+static void
+setConst( State* state, void* udat, void* edat ) {
+    Gen*      gen = udat;
+    GenConst* con = edat;
+    
+    TVal* consts = gen->misc1;
+    consts[con->which] = con->val;
 }
 
 static void
@@ -319,11 +340,10 @@ genFinish( State* state, Gen* gen, bool constr ) {
     vfun->code = code;
     
     Part constsP;
-    uint nConsts = gen->consts.top;
+    uint nConsts = stabNumSlots( state, gen->cons );
     TVal* consts = stateAllocRaw( state, &constsP, sizeof(TVal)*nConsts );
-    for( uint i = 0 ; i < nConsts ; i++ )
-        consts[i] = gen->consts.buf[i].val;
-    finlConstBuf( state, &gen->consts );
+    gen->misc1 = consts;
+    stabForEach( state, gen->cons, setConst );
     vfun->nConsts = nConsts;
     vfun->consts  = consts;
     
@@ -360,6 +380,7 @@ genFinish( State* state, Gen* gen, bool constr ) {
     }
     
     stabFree( state, gen->glbs );
+    stabFree( state, gen->cons );
     if( gen->debug ) {
         Part dbgP;
         DbgInfo* dbg = stateAllocRaw( state, &dbgP, sizeof(DbgInfo) );
@@ -422,9 +443,18 @@ genSetLine( State* state, Gen* gen, uint linenum ) {
 
 GenConst*
 genAddConst( State* state, Gen* gen, TVal val ) {
-    GenConst* c = putConstBuf( state, &gen->consts );
-    c->which = gen->consts.top - 1;
+    Part cP;
+    GenConst* c = stateAllocRaw( state, &cP, sizeof(GenConst) );
+    
+    char buf[sizeof(ullong) + sizeof(uchar)];
+    *(ullong*)&buf[0]             = tvGetVal( val );
+    *(uchar*)&buf[sizeof(ullong)] = tvGetTag( val );
+    
+    SymT s = symGet( state, buf, sizeof(buf) );
+    
+    c->which = stabAdd( state, gen->cons, s, c );
     c->val   = val;
+    stateCommitRaw( state, &cP );
     return c;
 }
 

@@ -1934,6 +1934,9 @@ parAssign( State* state ) {
     // Add the assignment instruction.
     genPutInstr( state, com->gen, in );
     
+    // Pop the `udf` returned by the assignment instruction.
+    genInstr( state, OPC_POP, 0 );
+    
     return true;
 }
 

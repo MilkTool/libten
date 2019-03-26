@@ -302,6 +302,10 @@ do {                                                                        \
     #define tvIsRef( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_REF)
     
+    #define tvGetTag( TVAL ) \
+        ((TVAL).nan & TAG_BITS) >> 48)
+    #define tvGetVal( TVAL ) \
+        ((ullong)((TVAL).nan & VAL_BITS))
     #define tvGetObj( TVAL ) \
         ((ObjT)((TVAL).nan & OBJ_BITS))
     #define tvGetLog( TVAL ) \
@@ -393,6 +397,10 @@ do {                                                                        \
     #define tvIsRef( TVAL ) \
         ((TVAL).tag == VAL_REF)
     
+    #define tvGetTag( TVAL ) \
+        ((TVAL).tag)
+    #define tvGetVal( TVAL ) \
+        ((TVAL).u.val)
     #define tvGetObj( TVAL ) \
         ((ObjT)(TVAL).u.val)
     #define tvGetLog( TVAL ) \

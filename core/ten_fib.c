@@ -20,9 +20,6 @@ static void
 ensureStack( State* state, Fiber* fib, uint n );
 
 static void
-freeStack( State* state, Fiber* fib );
-
-static void
 contFirst( State* state, Fiber* fib, Tup* args );
 
 static void
@@ -65,6 +62,8 @@ typedef struct {
     Function* fun;
     Closure*  cls;
     Fiber*    fib;
+    TVal      val1;
+    TVal      val2;
 } FibTest;
 
 static void
@@ -76,6 +75,8 @@ fibTestScan( State* state, Scanner* scan ) {
         stateMark( state, test->cls );
     if( test->fib )
         stateMark( state, test->fib );
+    tvMark( test->val1 );
+    tvMark( test->val2 );
 }
 
 void
@@ -90,93 +91,342 @@ void
 fibTest( State* state ) {
     FibTest test = {
         .defer = { .cb = fibTestDefer },
-        .scan  = { .cb = fibTestScan }
+        .scan  = { .cb = fibTestScan },
+        .val1  = tvUdf(),
+        .val2  = tvUdf()
     };
     stateInstallScanner( state, &test.scan );
     stateInstallDefer( state, &test.defer );
     
-    Gen* gen = genMake( state, NULL, NULL, false, true );
-    test.gen = gen;
-    
-    GenVar*   v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
-    GenVar*   v2 = genAddVar( state, gen, symGet( state, "v2", 2 ) );
-    GenVar*   v3 = genAddVar( state, gen, symGet( state, "v3", 2 ) );
-    GenConst* c1 = genAddConst( state, gen, tvInt( 1 ) );
-    GenConst* c2 = genAddConst( state, gen, tvInt( 2 ) );
-    GenConst* c3 = genAddConst( state, gen, tvInt( 3 ) );
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
-    // Stack: 1
-    
-    genPutInstr( state, gen, inMake( OPC_NOT, 0 ) );
-    // Stack: -2
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
-    // Stack 2 -2
-    
-    genPutInstr( state, gen, inMake( OPC_NEG, 0 ) );
-    // Stack: -2 -2
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
-    // Stack: 3 -2 -2
-    
-    genPutInstr( state, gen, inMake( OPC_FIX, 0 ) );
-    // Stack: 3 -2 -2
-    
-    genPutInstr( state, gen, inMake( OPC_MUL, 0 ) );
-    // Stack: -6 -2
-    
-    genPutInstr( state, gen, inMake( OPC_DIV, 0 ) );
-    // Stack: 0
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
-    // Stack: 2 0
-    
-    genPutInstr( state, gen, inMake( OPC_MOD, 0 ) );
-    // Stack: 0
+    {
+        Gen* gen = genMake( state, NULL, NULL, false, true );
+        test.gen = gen;
+        
+        GenVar*   v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
+        GenVar*   v2 = genAddVar( state, gen, symGet( state, "v2", 2 ) );
+        GenVar*   v3 = genAddVar( state, gen, symGet( state, "v3", 2 ) );
+        GenConst* c1 = genAddConst( state, gen, tvInt( 1 ) );
+        GenConst* c2 = genAddConst( state, gen, tvInt( 2 ) );
+        GenConst* c3 = genAddConst( state, gen, tvInt( 3 ) );
+        
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
+        // Stack: 1
+        
+        genPutInstr( state, gen, inMake( OPC_NOT, 0 ) );
+        // Stack: -2
+        
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
+        // Stack 2 -2
+        
+        genPutInstr( state, gen, inMake( OPC_NEG, 0 ) );
+        // Stack: -2 -2
+        
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
+        // Stack: 3 -2 -2
+        
+        genPutInstr( state, gen, inMake( OPC_FIX, 0 ) );
+        // Stack: 3 -2 -2
+        
+        genPutInstr( state, gen, inMake( OPC_MUL, 0 ) );
+        // Stack: -6 -2
+        
+        genPutInstr( state, gen, inMake( OPC_DIV, 0 ) );
+        // Stack: 0
+        
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
+        // Stack: 2 0
+        
+        genPutInstr( state, gen, inMake( OPC_MOD, 0 ) );
+        // Stack: 0
 
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
-    // Stack: 1 0
-    
-    genPutInstr( state, gen, inMake( OPC_ADD, 0 ) );
-    // Stack: 1
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
+        // Stack: 1 0
+        
+        genPutInstr( state, gen, inMake( OPC_ADD, 0 ) );
+        // Stack: 1
 
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
-    // Stack: 2 1
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
+        // Stack: 2 1
+        
+        genPutInstr( state, gen, inMake( OPC_SUB, 0 ) );
+        // Stack: -1
+        
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
+        // Stack: 3 -1
+        
+        genPutInstr( state, gen, inMake( OPC_LSL, 0 ) );
+        // Stack: -8
+        
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
+        // Stack: 1 -8
+        
+        genPutInstr( state, gen, inMake( OPC_LSR, 0 ) );
+        // Stack: 2147483644
+        
+        genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+        
+        Function* fun = genFinish( state, gen, false );
+        test.fun = fun;
+        test.gen = NULL;
+        
+        Closure* cls = clsNew( state, fun, NULL );
+        test.cls = cls;
+        
+        Fiber* fib = fibNew( state, cls );
+        test.fib = fib;
+        
+        Tup args = statePush( state, 0 );
+        Tup rets = fibCont( state, fib, &args );
+        tenAssert( tvGetInt( tupAt( rets, 0 ) ) == 2147483644 );
+    }
+    {
+        Gen* gen = genMake( state, NULL, NULL, false, true );
+        test.gen = gen;
+        
+        test.val1 = tvObj( idxNew( state ) );
+        test.val2 = tvObj( idxNew( state ) );
+        
+        TVal k1 = tvSym( symGet( state, "k1", 2 ) );
+        TVal k2 = tvSym( symGet( state, "k2", 2 ) );
+        TVal k3 = tvSym( symGet( state, "k3", 2 ) );
+        TVal k4 = tvSym( symGet( state, "k4", 2 ) );
+        TVal v1 = tvInt( 1 );
+        TVal v2 = tvInt( 2 );
+        TVal v3 = tvInt( 3 );
+        TVal v4 = tvInt( 4 );
+        
+        GenConst* ci1 = genAddConst( state, gen, test.val1 );
+        GenConst* ci2 = genAddConst( state, gen, test.val2 );
+        GenConst* ck1 = genAddConst( state, gen, k1 );
+        GenConst* ck2 = genAddConst( state, gen, k2 );
+        GenConst* ck3 = genAddConst( state, gen, k3 );
+        GenConst* ck4 = genAddConst( state, gen, k4 );
+        GenConst* cv1 = genAddConst( state, gen, v1 );
+        GenConst* cv2 = genAddConst( state, gen, v2 );
+        GenConst* cv3 = genAddConst( state, gen, v3 );
+        GenConst* cv4 = genAddConst( state, gen, v4 );
+        
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, ci1->which ) );
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, ck1->which ) );
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, cv1->which ) );
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, ck2->which ) );
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, cv2->which ) );
+            genPutInstr( state, gen, inMake( OPC_GET_CONST, ci2->which ) );
+            genPutInstr( state, gen, inMake( OPC_GET_CONST, ck3->which ) );
+            genPutInstr( state, gen, inMake( OPC_GET_CONST, cv3->which ) );
+            genPutInstr( state, gen, inMake( OPC_GET_CONST, ck4->which ) );
+            genPutInstr( state, gen, inMake( OPC_GET_CONST, cv4->which ) );
+            genPutInstr( state, gen, inMake( OPC_MAKE_REC, 2 ) );
+        genPutInstr( state, gen, inMake( OPC_MAKE_VREC, 2 ) );
+        
+        genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+        
+        Function* fun = genFinish( state, gen, false );
+        test.fun = fun;
+        test.gen = NULL;
+        
+        Closure* cls = clsNew( state, fun, NULL );
+        test.cls = cls;
+        
+        Fiber* fib = fibNew( state, cls );
+        test.fib = fib;
+        
+        Tup args = statePush( state, 0 );
+        Tup rets = fibCont( state, fib, &args );
+        
+        TVal ret = tupAt( rets, 0 );
+        tenAssert( tvIsObj( ret ) && datGetTag( tvGetObj( ret ) ) == OBJ_REC );
+        Record* rec = tvGetObj( ret );
+        tenAssert( tvEqual( recGet( state, rec, k1 ), v1 ) );
+        tenAssert( tvEqual( recGet( state, rec, k2 ), v2 ) );
+        tenAssert( tvEqual( recGet( state, rec, k3 ), v3 ) );
+        tenAssert( tvEqual( recGet( state, rec, k4 ), v4 ) );
+    }
+    {
+        Gen* gen = genMake( state, NULL, NULL, false, true );
+        test.gen = gen;
+        
+        test.val1 = tvObj( idxNew( state ) );
+        
+        GenConst* ci = genAddConst( state, gen, test.val1 );
+        
+        genPutInstr( state, gen, inMake( OPC_LOAD_INT, 1 ) );
+        genPutInstr( state, gen, inMake( OPC_LOAD_INT, 2 ) );
+        genPutInstr( state, gen, inMake( OPC_LOAD_INT, 3 ) );
+            genPutInstr( state, gen, inMake( OPC_GET_CONST, ci->which ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 0 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 4 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 1 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 5 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 2 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 6 ) );
+            genPutInstr( state, gen, inMake( OPC_MAKE_REC, 3 ) );
+        genPutInstr( state, gen, inMake( OPC_MAKE_VTUP, 3 ) );
+        
+        genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+        
+        Function* fun = genFinish( state, gen, false );
+        test.fun = fun;
+        test.gen = NULL;
+        
+        Closure* cls = clsNew( state, fun, NULL );
+        test.cls = cls;
+        
+        Fiber* fib = fibNew( state, cls );
+        test.fib = fib;
+        
+        Tup args = statePush( state, 0 );
+        Tup rets = fibCont( state, fib, &args );
+        tenAssert( rets.size == 6 );
+        tenAssert( tvEqual( tupAt( rets, 0 ), tvInt( 1 ) ) );
+        tenAssert( tvEqual( tupAt( rets, 1 ), tvInt( 2 ) ) );
+        tenAssert( tvEqual( tupAt( rets, 2 ), tvInt( 3 ) ) );
+        tenAssert( tvEqual( tupAt( rets, 3 ), tvInt( 4 ) ) );
+        tenAssert( tvEqual( tupAt( rets, 4 ), tvInt( 5 ) ) );
+        tenAssert( tvEqual( tupAt( rets, 5 ), tvInt( 6 ) ) );
+    }
+    {
+        Gen* gen = genMake( state, NULL, NULL, false, true );
+        test.gen = gen;
+        
+        GenVar* v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
+        tenAssert( v1->type == VAR_LOCAL );
+        
+        genPutInstr( state, gen, inMake( OPC_REF_LOCAL, v1->which ) );
+        genPutInstr( state, gen, inMake( OPC_LOAD_INT, 123 ) );
+        genPutInstr( state, gen, inMake( OPC_DEF_ONE, 0 ) );
+        genPutInstr( state, gen, inMake( OPC_POP, 0 ) );
+        genPutInstr( state, gen, inMake( OPC_GET_LOCAL, v1->which ) );
+        
+        genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+        
+        Function* fun = genFinish( state, gen, false );
+        test.fun = fun;
+        test.gen = NULL;
+        
+        Closure* cls = clsNew( state, fun, NULL );
+        test.cls = cls;
+        
+        Fiber* fib = fibNew( state, cls );
+        test.fib = fib;
+        
+        Tup args = statePush( state, 0 );
+        Tup rets = fibCont( state, fib, &args );
+        tenAssert( rets.size == 1 );
+        tenAssert( tvEqual( tupAt( rets, 0 ), tvInt( 123 ) ) );
+    }
+    {
+        Gen* gen = genMake( state, NULL, NULL, false, true );
+        test.gen = gen;
+        
+        test.val1 = tvObj( idxNew( state ) );
+        
+        GenConst* ci = genAddConst( state, gen, test.val1 );
+        GenVar* v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
+        tenAssert( v1->type == VAR_LOCAL );
+        
+        genPutInstr( state, gen, inMake( OPC_REF_LOCAL, v1->which ) );
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, ci->which ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 1 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 2 ) );
+            genPutInstr( state, gen, inMake( OPC_MAKE_TUP, 2 ) );
+        genPutInstr( state, gen, inMake( OPC_DEF_VTUP, 0 ) );
+        genPutInstr( state, gen, inMake( OPC_POP, 0 ) );
+        genPutInstr( state, gen, inMake( OPC_GET_LOCAL, v1->which ) );
+        
+        genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+        
+        Function* fun = genFinish( state, gen, false );
+        test.fun = fun;
+        test.gen = NULL;
+        
+        Closure* cls = clsNew( state, fun, NULL );
+        test.cls = cls;
+        
+        Fiber* fib = fibNew( state, cls );
+        test.fib = fib;
+        
+        Tup args = statePush( state, 0 );
+        Tup rets = fibCont( state, fib, &args );
+        TVal ret = tupAt( rets, 0 );
+        tenAssert( tvIsObj( ret ) && datGetTag( tvGetObj( ret ) ) == OBJ_REC );
+        Record* rec = tvGetObj( ret );
+        tenAssert( tvEqual( recGet( state, rec, tvInt( 0 ) ), tvInt( 1 ) ) );
+        tenAssert( tvEqual( recGet( state, rec, tvInt( 1 ) ), tvInt( 2 ) ) );
+    }
+    {
+        Gen* gen = genMake( state, NULL, NULL, false, true );
+        test.gen = gen;
+        
+        test.val1 = tvObj( idxNew( state ) );
+        
+        GenConst* ci = genAddConst( state, gen, test.val1 );
+        GenVar* v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
+        tenAssert( v1->type == VAR_LOCAL );
+        
+        genPutInstr( state, gen, inMake( OPC_REF_LOCAL, v1->which ) );
+        genPutInstr( state, gen, inMake( OPC_GET_CONST, ci->which ) );
+            genPutInstr( state, gen, inMake( OPC_GET_CONST, ci->which ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 0 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 1 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 1 ) );
+            genPutInstr( state, gen, inMake( OPC_LOAD_INT, 2 ) );
+            genPutInstr( state, gen, inMake( OPC_MAKE_REC, 2 ) );
+        genPutInstr( state, gen, inMake( OPC_DEF_VREC, 0 ) );
+        genPutInstr( state, gen, inMake( OPC_POP, 0 ) );
+        genPutInstr( state, gen, inMake( OPC_GET_LOCAL, v1->which ) );
+        
+        genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+        
+        Function* fun = genFinish( state, gen, false );
+        test.fun = fun;
+        test.gen = NULL;
+        
+        Closure* cls = clsNew( state, fun, NULL );
+        test.cls = cls;
+        
+        Fiber* fib = fibNew( state, cls );
+        test.fib = fib;
+        
+        Tup args = statePush( state, 0 );
+        Tup rets = fibCont( state, fib, &args );
+        TVal ret = tupAt( rets, 0 );
+        tenAssert( tvIsObj( ret ) && datGetTag( tvGetObj( ret ) ) == OBJ_REC );
+        Record* rec = tvGetObj( ret );
+        tenAssert( tvEqual( recGet( state, rec, tvInt( 0 ) ), tvInt( 1 ) ) );
+        tenAssert( tvEqual( recGet( state, rec, tvInt( 1 ) ), tvInt( 2 ) ) );
+    }
+    {
+        Gen* gen = genMake( state, NULL, NULL, false, true );
+        test.gen = gen;
+        
+        Gen* sub = genMake( state, gen, NULL, false, true );
+        GenVar* p1 = genAddParam( state, sub, symGet( state, "p1", 2 ), false );
+        genPutInstr( state, sub, inMake( OPC_GET_LOCAL, p1->which ) );
+        genPutInstr( state, sub, inMake( OPC_RETURN, 0 ) );
+        genFinish( state, sub, true );
+        
+        
+        genPutInstr( state, gen, inMake( OPC_LOAD_INT, 123 ) );
+        genPutInstr( state, gen, inMake( OPC_CALL, 0 ) );
+        genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
+        
+        Function* fun = genFinish( state, gen, false );
+        test.fun = fun;
+        test.gen = NULL;
+        
+        Closure* cls = clsNew( state, fun, NULL );
+        test.cls = cls;
+        
+        Fiber* fib = fibNew( state, cls );
+        test.fib = fib;
+        
+        Tup args = statePush( state, 0 );
+        Tup rets = fibCont( state, fib, &args );
+        tenAssert( rets.size == 1 );
+        tenAssert( tvEqual( tupAt( rets, 0 ), tvInt( 123 ) ) );
+    }
     
-    genPutInstr( state, gen, inMake( OPC_SUB, 0 ) );
-    // Stack: -1
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c3->which ) );
-    // Stack: 3 -1
-    
-    genPutInstr( state, gen, inMake( OPC_LSL, 0 ) );
-    // Stack: -8
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
-    // Stack: 1 -8
-    
-    genPutInstr( state, gen, inMake( OPC_LSR, 0 ) );
-    // Stack: 2147483644
-    
-    genPutInstr( state, gen, inMake( OPC_RETURN, 0 ) );
-    
-    
-    Function* fun = genFinish( state, gen, false );
-    test.fun = fun;
-    
-    Closure* cls = clsNew( state, fun, NULL );
-    test.cls = cls;
-    
-    Fiber* fib = fibNew( state, cls );
-    test.fib = fib;
-    
-    
-    Tup args = statePush( state, 0 );
-    Tup rets = fibCont( state, fib, &args );
-    tenAssert( tvGetInt( tupAt( rets, 0 ) ) == 2147483644 );
-    
-    test.gen = NULL;
     stateCommitDefer( state, &test.defer );
 }
 #endif
@@ -318,10 +568,10 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         stateSwapErrJmp( state, oldJmp );
         
         // Restore the parent fiber to the running state.
+        state->fiber = parent;
         if( parent ) {
             parent->state = FIB_RUNNING;
             stateInstallDefer( state, &parent->errDefer );
-            state->fiber = parent;
             fib->parent = NULL;
         }
         
@@ -330,6 +580,8 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         // will ultimately propegate back to the user.
         if( err == ten_ERR_MEMORY )
             stateErrProp( state );
+        
+        return (Tup){ .base = NULL, .offset = 0, .size = 0 };
     }
     
     
@@ -343,10 +595,10 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     if( sig ) {
         
         // Restore the calling fiber.
+        state->fiber = parent;
         if( parent ) {
             parent->state = FIB_RUNNING;
             stateInstallDefer( state, &parent->errDefer );
-            state->fiber = parent;
             fib->parent = NULL;
         }
         
@@ -413,8 +665,12 @@ fibTraverse( State* state, Fiber* fib ) {
 
 void
 fibDestruct( State* state, Fiber* fib ) {
-    if( fib->state != FIB_FINISHED && fib->state != FIB_FAILED )
-        freeStack( state, fib );
+    stateFreeRaw( state, fib->arStack.ars, fib->arStack.cap*sizeof(VirAR) );
+    stateFreeRaw( state, fib->tmpStack.tmps, fib->tmpStack.cap*sizeof(TVal) );
+    fib->arStack.cap   = 0;
+    fib->arStack.ars   = NULL;
+    fib->tmpStack.cap  = 0;
+    fib->tmpStack.tmps = NULL;
 }
 
 static void
@@ -536,12 +792,6 @@ doCall( State* state, Fiber* fib, bool tail ) {
         regs->lcl = argv;
     }
     
-    // This is used below to make sure the function call left
-    // a return value on the stack.
-    #ifndef rigK_NDEBUG
-        uint oTop = regs->sp - fib->tmpStack.tmps;
-    #endif
-    
     regs->cls = cls;
     if( cls->fun->type == FUN_VIR ) {
         VirFun* fun = & cls->fun->u.vir;
@@ -552,6 +802,12 @@ doCall( State* state, Fiber* fib, bool tail ) {
         doLoop( state, fib );
     }
     else {
+        // This is used below to make sure the function call left
+        // a return value on the stack.
+        #ifndef rigK_NDEBUG
+            uint oTop = regs->sp - fib->tmpStack.tmps;
+        #endif
+        
         regs->ip = NULL;
         
         // Initialize an argument tuple for the callback.
@@ -576,10 +832,11 @@ doCall( State* state, Fiber* fib, bool tail ) {
         else {
             cls->fun->u.nat.cb( (ten_Core*)state, (ten_Tup*)&aTup, NULL, NULL );
         }
+        
+        // Make sure the call left a return value.
+        tenAssert( oTop < regs->sp - fib->tmpStack.tmps );
     }
     
-    // Make sure the call left a return value.
-    tenAssert( oTop < regs->sp - fib->tmpStack.tmps );
     
     // After the call the return values will be left at
     // the top of the stack, we need to copy them down
@@ -1107,21 +1364,10 @@ ensureStack( State* state, Fiber* fib, uint n ) {
         .sz  = sizeof(TVal)*fib->tmpStack.cap
     };
     fib->tmpStack.tmps = stateResizeRaw( state, &tmpsP, sizeof(TVal)*cap );
-    
+    fib->tmpStack.cap  = cap;
     stateCommitRaw( state, &tmpsP );
     fib->rPtr->sp  = fib->tmpStack.tmps + oSp;
     fib->rPtr->lcl = fib->tmpStack.tmps + oLcl;
-}
-
-static void
-freeStack( State* state, Fiber* fib ) {
-    memset( fib->rPtr, 0, sizeof(Regs) );
-    stateFreeRaw( state, fib->arStack.ars, fib->arStack.cap*sizeof(VirAR) );
-    stateFreeRaw( state, fib->tmpStack.tmps, fib->tmpStack.cap*sizeof(TVal) );
-    fib->arStack.cap   = 0;
-    fib->arStack.ars   = NULL;
-    fib->tmpStack.cap  = 0;
-    fib->tmpStack.tmps = NULL;
 }
 
 
@@ -1136,11 +1382,8 @@ onError( State* state, Defer* defer ) {
     fib->trace  = stateClaimTrace( state );
     stateClearError( state );
     
-    // Set fiber to a failed state. Since a failed fiber
-    // will never be continued it has no need for a stack,
-    // so free the stacks also.
+    // Set fiber to a failed state.
     fib->state = FIB_FAILED;
-    freeStack( state, fib );
 }
 
 static void

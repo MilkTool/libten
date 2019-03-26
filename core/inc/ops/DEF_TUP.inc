@@ -2,7 +2,7 @@ uint  cnt = 1;
 TVal* vals = regs.sp - 1;
 if( tvIsTup( vals[0] ) ) {
     cnt  += tvGetTup( vals[0] );
-    vals -= cnt;
+    vals = regs.sp - cnt;
     regs.sp--;
 }
 if( cnt != opr )
@@ -12,7 +12,7 @@ if( cnt != opr )
     );
 
 TVal* vars = vals - opr;
-for( uint i = 0 ; i < cnt ; i++ ) {
+for( uint i = 0 ; i < opr ; i++ ) {
     TVal var = vars[i];
     TVal val = vals[i];
     

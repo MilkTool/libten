@@ -12,9 +12,9 @@ Record* rec = recNew( state, idx );
 
 TVal (*pairs)[2] = (TVal (*)[2])(iv + 1);
 
-Index* srcIdx  = tpGetPtr( rec->idx );
-TVal*  srcVals = tpGetPtr( rec->vals );
-uint   srcCap  = tpGetTag( rec->vals );
+Index* srcIdx  = tpGetPtr( src->idx );
+TVal*  srcVals = tpGetPtr( src->vals );
+uint   srcCap  = tpGetTag( src->vals );
 bool   srcMrk[srcCap]; memset( srcMrk, 0, sizeof(bool)*srcCap );
 
 for( uint i = 0 ; i < opr ; i++ ) {

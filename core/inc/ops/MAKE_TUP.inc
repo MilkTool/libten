@@ -1,5 +1,5 @@
 TVal* vals = regs.sp - opr;
-if( opr )
+if( opr > TUP_MAX )
     stateErrFmtA(
         state, ten_ERR_TUPLE,
         "Tuple exceeds max size"

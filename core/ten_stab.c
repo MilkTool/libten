@@ -217,8 +217,8 @@ stabAdd( State* state, STab* stab, SymT sym, void* edat ) {
             .sz = sizeof(Entry*)*stab->entries.cap
         };
         uint ecap = stab->entries.cap * 2;
-        Entry** entries = stateResizeRaw( state, &entriesP, ecap );
-        for( uint i = stab->entries.cap ; i++ ; i < ecap )
+        Entry** entries = stateResizeRaw( state, &entriesP, sizeof(Entry*)*ecap );
+        for( uint i = stab->entries.cap ; i < ecap ; i++ )
             entries[i] = NULL;
         
         stab->entries.cap = ecap;

@@ -42,10 +42,17 @@ static void
 ptrFinl( State* state, Finalizer* finl ) {
     PtrState* ptrState = (PtrState*)finl;
     
-    for( uint i = 0 ; i < ptrState->nodes.cap ; i++ ) {
+    for( uint i = 0 ; i < ptrState->next ; i++ ) {
         if( ptrState->nodes.buf[i] )
             stateFreeRaw( state, ptrState->nodes.buf[i], sizeof(PtrNode) );
     }
+    PtrNode* nIt = ptrState->recycled;
+    while( nIt ) {
+        PtrNode* n = nIt;
+        nIt = nIt->next;
+        stateFreeRaw( state, n, sizeof(PtrNode) );
+    }
+    
     stateFreeRaw(
         state,
         ptrState->map.buf,
@@ -220,6 +227,8 @@ ptrFinishCycle( State* state ) {
             node->info->destr( (ten_Core*)state, node->addr );
         
         remNode( node );
+        ptrState->nodes.buf[i] = NULL;
+        
         node->addr = NULL;
         node->info = NULL;
         addNode( &ptrState->recycled, node );
@@ -245,13 +254,14 @@ growMap( State* state ) {
         map[i] = NULL;
     
     for( uint i = 0 ; i< ptrState->map.cap ; i++ ) {
-        PtrNode* node = ptrState->map.buf[i];
-        if( !node )
-            continue;
-        
-        uint s = (ullong)node->addr % mcap;
-        remNode( node );
-        addNode( &map[s], node );
+        PtrNode* nIt = ptrState->map.buf[i];
+        while( nIt ) {
+            PtrNode* node = nIt;
+            nIt = nIt->next;
+            
+            uint s = (ullong)node->addr % mcap;
+            addNode( &map[s], node );
+        }
     }
     
     stateFreeRaw( state, ptrState->map.buf, sizeof(PtrNode*)*ptrState->map.cap );
