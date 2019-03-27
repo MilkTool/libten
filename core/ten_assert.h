@@ -42,6 +42,18 @@
                 abort();                                                \
             }                                                           \
         } while( 0 )
+
+    #define funAssert( COND, FMT, ARGS... )                             \
+        do {                                                            \
+            if( !(COND) ) {                                             \
+                fmtA( state, false, FMT, ARGS );                        \
+                fprintf(                                                \
+                    stderr, "Assertion failed[%s]: %s\n",               \
+                    __func__, fmtBuf( state )                           \
+                );                                                      \
+                abort();                                                \
+            }                                                           \
+        } while( 0 )
     
     #define expAssert( COND, RES, FMT, ARGS... )                        \
         ((COND)                                                         \

@@ -7,7 +7,7 @@
 
 typedef struct {
     SymT  type;
-    void  (*destr)( ten_Core* core, void* ptr );
+    void  (*destr)( ten_State* core, void* ptr );
 } PtrInfo;
 
 void

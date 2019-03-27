@@ -827,10 +827,10 @@ doCall( State* state, Fiber* fib, bool tail ) {
                 .offset = 0,
                 .size   = dat->info->nMems
             };
-            cls->fun->u.nat.cb( (ten_Core*)state, (ten_Tup*)&aTup, (ten_Tup*)&mTup, dat->data );
+            cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, (ten_Tup*)&mTup, dat->data );
         }
         else {
-            cls->fun->u.nat.cb( (ten_Core*)state, (ten_Tup*)&aTup, NULL, NULL );
+            cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, NULL, NULL );
         }
         
         // Make sure the call left a return value.

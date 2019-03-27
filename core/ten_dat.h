@@ -7,7 +7,7 @@ typedef struct {
     SymT   type;
     size_t size;
     uint   nMems;
-    void   (*destr)( ten_Core* core, void* ptr );
+    void   (*destr)( ten_State* core, void* ptr );
 } DatInfo;
 
 struct Data {

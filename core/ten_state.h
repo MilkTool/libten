@@ -267,6 +267,13 @@ struct State {
     Scanner*   scanners;
     Finalizer* finalizers;
     
+    // Temporary variables.
+    #define NUM_TMP_VARS (32)
+    uint    tmpNext;
+    TVal*   tmpBase;
+    Tup     tmpTup;
+    TVal    tmpVals[NUM_TMP_VARS];
+    ten_Var tmpVars[NUM_TMP_VARS];
     
     // Runtime stats.
     #ifdef ten_VERBOSE
@@ -311,6 +318,10 @@ stateTop( State* state );
 
 void
 statePop( State* state );
+
+// Returns the next temporary variable.
+ten_Var*
+stateTmp( State* state );
 
 
 // Throw an error.  The `stateErrStr()` should only be used for

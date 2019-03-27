@@ -223,8 +223,8 @@ ptrFinishCycle( State* state ) {
             node->mark = false;
             continue;
         }
-        if( node->info->destr )
-            node->info->destr( (ten_Core*)state, node->addr );
+        if( node->info && node->info->destr )
+            node->info->destr( (ten_State*)state, node->addr );
         
         remNode( node );
         ptrState->nodes.buf[i] = NULL;

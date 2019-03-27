@@ -22,12 +22,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-// Temporary prototypes.
 void
-apiInit( State* state ) {}
+apiInit( State* state );
 
 void
-apiTest( State* state ) {}
+apiTest( State* state );
 
 static void*
 mallocRaw( State* state, size_t nsz );
@@ -96,6 +95,22 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     state->errVal   = tvUdf();
     state->errJmp   = errJmp;
     state->memLimit = MEM_LIMIT_INIT;
+    
+    state->tmpNext = 0;
+    state->tmpBase = state->tmpVals;
+    state->tmpTup = (Tup){
+        .base   = &state->tmpBase,
+        .offset = 0,
+        .size   = NUM_TMP_VARS
+    };
+    for( uint i = 0 ; i < NUM_TMP_VARS ; i++ ) {
+        state->tmpVals[i] = tvUdf();
+        state->tmpVars[i] = (ten_Var){
+            .tup = (ten_Tup*)&state->tmpTup,
+            .loc = i
+        };
+    }
+    
     
     if( state->config.frealloc == NULL )
         state->config.frealloc = frealloc;
@@ -412,6 +427,11 @@ statePop( State* state ) {
         return fibPop( state, state->fiber );
     else
         return envPop( state );
+}
+
+ten_Var*
+stateTmp( State* state ) {
+    return &state->tmpVars[state->tmpNext++ % NUM_TMP_VARS ];
 }
 
 void
@@ -821,6 +841,9 @@ collect( State* state, size_t extra ) {
     // Mark the State owned objects.
     if( state->fiber )
         stateMark( state, state->fiber );
+    for( uint i = 0 ; i < NUM_TMP_VARS ; i++ )
+        tvMark( state->tmpVals[i] );
+    
     tvMark( state->errVal );
     
     #ifdef ten_TEST

@@ -141,7 +141,12 @@ fmtType( State* state, TVal val ) {
                 fmtRaw( state, "Fun:" );
                 
                 Function* fun = obj;
-                fmtStdA( state, "%u", (uint)fun->nParams );
+                fmtStdA(
+                    state,
+                    "%u%s",
+                    (uint)fun->nParams,
+                    fun->vargIdx == NULL ? "" : "+"
+                );
                 if( fun->vargIdx )
                     fmtRaw( state, "+" );
             } break;
@@ -150,7 +155,12 @@ fmtType( State* state, TVal val ) {
                 
                 Closure*  cls = obj;
                 Function* fun = cls->fun;
-                fmtStdA( state, "%u", (uint)fun->nParams );
+                fmtStdA(
+                    state,
+                    "%u%s",
+                    (uint)fun->nParams,
+                    fun->vargIdx == NULL ? "" : "+"
+                );
                 if( fun->vargIdx )
                     fmtRaw( state, "+" );
             } break;
@@ -176,7 +186,10 @@ fmtType( State* state, TVal val ) {
     else
     if( tvIsPtr( val ) ) {
         PtrInfo* info = ptrInfo( state, tvGetPtr( val ) );
-        fmtSym( state, info->type, false );
+        if( info )
+            fmtSym( state, info->type, false );
+        else
+            fmtRaw( state, "Ptr" );
     }
     else
     if( tvIsUdf( val ) ) {
