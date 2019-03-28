@@ -303,7 +303,7 @@ do {                                                                        \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_REF)
     
     #define tvGetTag( TVAL ) \
-        ((TVAL).nan & TAG_BITS) >> 48)
+        (tvIsDec( TVAL ) ? VAL_DEC : (TVAL).nan & TAG_BITS) >> 48)
     #define tvGetVal( TVAL ) \
         ((ullong)((TVAL).nan & VAL_BITS))
     #define tvGetObj( TVAL ) \
