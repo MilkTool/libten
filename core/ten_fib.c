@@ -1319,7 +1319,7 @@ pushAR( State* state, Fiber* fib, NatAR* nat ) {
 
 static void
 popAR( State* state, Fiber* fib ) {
-    AR* ar;
+    AR* ar = NULL;
     if( fib->nats ) {
         NatAR* nat = fib->nats;
         fib->nats = nat->prev;

@@ -791,7 +791,7 @@ static void
 freeObj( State* state, Object* obj ) {
     void*  ptr = objGetDat( obj );
     uint   tag = tpGetTag( obj->next );
-    size_t sz;
+    size_t sz = 0;
     switch( ( tag & OBJ_TAG_BITS ) >> OBJ_TAG_SHIFT ) {
         case OBJ_STR: sz = strSize( state, (String*)ptr );   break;
         case OBJ_IDX: sz = idxSize( state, (Index*)ptr );    break;
@@ -1040,7 +1040,9 @@ freeParts( State* state ) {
     
     pIt = state->objParts;
     while( pIt ) {
-        checkObjPart( state, pIt, __FILE__, __LINE__ );
+        #ifdef ten_DEBUG
+            checkObjPart( state, pIt, __FILE__, __LINE__ );
+        #endif
         stateFreeRaw( state, pIt->ptr, sizeof(Object) + pIt->sz );
         pIt = pIt->next;
     }
@@ -1048,7 +1050,9 @@ freeParts( State* state ) {
     
     pIt = state->rawParts;
     while( pIt ) {
-        checkRawPart( state, pIt, __FILE__, __LINE__ );
+        #ifdef ten_DEBUG
+            checkRawPart( state, pIt, __FILE__, __LINE__ );
+        #endif
         stateFreeRaw( state, pIt->ptr, pIt->sz );
         pIt = pIt->next;
     }

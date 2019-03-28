@@ -406,7 +406,7 @@ lexOper( State* state ) {
     ComState* com  = state->comState;
     uint      line = com->lex.line;
     
-    TokType type;
+    TokType type = 0;
     if( maybeChar( state, false, '@' ) )
         type = '@';
     else

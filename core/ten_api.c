@@ -19,6 +19,7 @@
 #include "ten_ptr.h"
 
 #include <string.h>
+#include <stdlib.h>
 
 #define ref( VAR ) *expAssert(                                               \
     (VAR)->loc < ((Tup*)(VAR)->tup)->size,                                  \
@@ -152,7 +153,7 @@ ten_pushV( ten_State* s, char const* pat, va_list ap ) {
     uint   n   = (uint)strlen( pat );
     Tup    tup = statePush( state, n );
     
-    for( uint i ; i < n ; i++ ) {
+    for( uint i = 0 ; i < n ; i++ ) {
         switch( pat[i] ) {
             case 'U':
                 tupAt( tup, i ) = tvUdf();

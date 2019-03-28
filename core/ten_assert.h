@@ -86,7 +86,9 @@
     
     #define fmtAssert( COND, FMT, ARGS... )
     
-    #define expAssert( COND, RES, FMT, ARGS... )
+    #define funAssert( COND, FMT, ARGS... )
+    
+    #define expAssert( COND, RES, FMT, ARGS... ) (RES)
     
     #define tenAssertNeverReached()  
 #endif
