@@ -22,7 +22,7 @@ comInit( State* state );
     comTest( State* state );
 #endif
 
-Function*
+Closure*
 comCompile( State* state, ComParams* params );
 
 

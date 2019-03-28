@@ -4,6 +4,7 @@
 #include "ten_ptr.h"
 #include "ten_idx.h"
 #include "ten_fun.h"
+#include "ten_upv.h"
 #include "ten_env.h"
 #include "ten_state.h"
 #include "ten_stab.h"
@@ -628,4 +629,29 @@ genPutInstr( State* state, Gen* gen, instr in ) {
 uint
 genGetPlace( State* state, Gen* gen ) {
     return gen->code.top;
+}
+
+static void
+setUpval( State* state, void* udat, void* edat ) {
+    Gen*    gen = udat;
+    GenVar* var = edat;
+    
+    Upvalue** upvals = gen->misc1;
+    TVal*     global = envGetGlobalByName( state, var->name );
+    if( global )
+        upvals[var->which] = upvNew( state, *global );
+}
+
+Upvalue**
+genGlobalUpvals( State* state, Gen* gen ) {
+    uint n = stabNumSlots( state, gen->upvs );
+    Part upvalsP;
+    Upvalue** upvals = stateAllocRaw( state, &upvalsP, sizeof(Upvalue*)*n );
+    for( uint i = 0 ; i < n ; i++ )
+        upvals[i] = NULL;
+    gen->misc1 = upvals;
+    stabForEach( state, gen->upvs, setUpval );
+    stateCommitRaw( state, &upvalsP );
+    
+    return upvals;
 }

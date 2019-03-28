@@ -5,6 +5,7 @@
 #include "ten_str.h"
 #include "ten_idx.h"
 #include "ten_fmt.h"
+#include "ten_cls.h"
 #include "ten_state.h"
 #include "ten_macros.h"
 #include "ten_opcodes.h"
@@ -1062,7 +1063,7 @@ parParam( State* state, void* udat ) {
         return false;
     
     if( dat->vpar )
-        errPar( state, "Extra entries after variadic parameter" );
+        errPar( state, "Extra parameters after '...'" );
     
     dat->size++;
     SymT name = tvGetSym( com->tok.value );
@@ -1245,7 +1246,7 @@ parSigParam( State* state, void* udat ) {
         return false;
     
     if( dat->vpar )
-        errPar( state, "Extra entries after variadic parameter" );
+        errPar( state, "Extra parameters after '...'" );
     
     dat->size++;
     SymT ident = tvGetSym( com->tok.value );
@@ -2072,7 +2073,7 @@ comTest( State* state ) {
 }
 #endif
 
-Function*
+Closure*
 comCompile( State* state, ComParams* params ) {
     ComState* com = state->comState;
     
@@ -2092,7 +2093,7 @@ comCompile( State* state, ComParams* params ) {
     if( params->params ) {
         for( uint i = 0 ; params->params[i] != NULL ; i++ ) {
             if( vpar )
-                errUser( state, "Extra entries after variadic parameter" );
+                errUser( state, "Extra parameters after '...'" );
             
             char const* str = params->params[i];
             size_t      len = strlen( str );
@@ -2117,5 +2118,10 @@ comCompile( State* state, ComParams* params ) {
     else {
         parExpr( state, false );
     }
-    return genFinish( state, com->gen, false );
+    
+    Upvalue** upvals = genGlobalUpvals( state, com->gen );
+    Function* fun = genFinish( state, com->gen, false );
+    com->obj1 = fun;
+    Closure* cls = clsNewVir( state, fun, upvals );
+    return cls;
 }

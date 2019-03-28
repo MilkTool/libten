@@ -6,8 +6,10 @@
 #include <stdbool.h>
 
 typedef struct {
+    #define PTR_MAGIC ((ulong)'P' << 16 | (ulong)'T' << 8 | 'R') 
+    uint  magic;
     SymT  type;
-    void  (*destr)( ten_State* core, void* ptr );
+    void  (*destr)( ten_State* core, void* addr );
 } PtrInfo;
 
 void

@@ -42,11 +42,13 @@ funNewNat( State* state, uint nParams, Index* vargIdx, ten_FunCb cb ) {
     Part funP;
     Function* fun = stateAllocObj( state, &funP, sizeof(Function), OBJ_FUN );
     
-    fun->type    = FUN_NAT;
-    fun->nParams = nParams;
-    fun->vargIdx = vargIdx;
+    fun->type       = FUN_NAT;
+    fun->nParams    = nParams;
+    fun->vargIdx    = vargIdx;
     
     memset( &fun->u.nat, 0, sizeof(NatFun) );
+    fun->u.nat.cb   = cb;
+    fun->u.nat.name = symGet( state, "<anon>", 6 );
     
     stateCommitObj( state, &funP );
     return fun;
@@ -61,8 +63,10 @@ funTraverse( State* state, Function* fun ) {
         if( state->gcFull ) {
             NatFun* nat = &fun->u.nat;
             symMark( state, nat->name );
-            for( uint i = 0 ; i < fun->nParams ; i++ )
-                symMark( state, nat->params[i] );
+            if( fun->u.nat.params ) {
+                for( uint i = 0 ; i < fun->nParams ; i++ )
+                    symMark( state, nat->params[i] );
+            }
         }
     }
     else {
@@ -84,7 +88,8 @@ funDestruct( State* state, Function* fun ) {
     
     if( fun->type == FUN_NAT ) {
         NatFun* nat = &fun->u.nat;
-        stateFreeRaw( state, nat->params, sizeof(SymT)*fun->nParams );
+        if( nat->params )
+            stateFreeRaw( state, nat->params, sizeof(SymT)*fun->nParams );
     }
     else {
         VirFun* vir = &fun->u.vir;

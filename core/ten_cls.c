@@ -39,39 +39,49 @@ clsTest( State* state ) {
     stateInstallDefer( state, &test.defer );
     
     for( uint i = 0 ; i < 100 ; i++ )
-        tenAssert( clsNew( state, test.fun, NULL ) );
+        tenAssert( clsNewVir( state, test.fun, NULL ) );
     
     stateCommitDefer( state, &test.defer );
 }
 #endif
 
 Closure*
-clsNew( State* state, Function* fun, Data* dat ) {
-    tenAssert( fun->type == FUN_NAT || dat == NULL );
+clsNewNat( State* state, Function* fun, Data* dat ) {
+    tenAssert( fun->type == FUN_NAT );
     
     Part clsP;
     Closure* cls = stateAllocObj( state, &clsP, sizeof(Closure), OBJ_CLS );
     cls->fun = fun;
-    if( fun->type == FUN_NAT ) {
-        cls->dat.dat = dat;
-        stateCommitObj( state, &clsP );
-        return cls;
-    }
-    
-    Part upvalsP;
-    Upvalue** upvals = stateAllocRaw(
-        state,
-        &upvalsP,
-        sizeof(Upvalue*)*fun->u.vir.nUpvals
-    );
-    for( uint i = 0 ; i < fun->u.vir.nUpvals ; i++ )
-        upvals[i] = NULL;
-    cls->dat.upvals = upvals;
-    
-    stateCommitRaw( state, &upvalsP );
+    cls->dat.dat = dat;
     stateCommitObj( state, &clsP );
     return cls;
 }
+
+Closure*
+clsNewVir( State* state, Function* fun, Upvalue** upvals ) {
+    tenAssert( fun->type == FUN_VIR );
+    
+    Part clsP;
+    Closure* cls = stateAllocObj( state, &clsP, sizeof(Closure), OBJ_CLS );
+    cls->fun = fun;
+    
+    
+    if( !upvals ) {
+        Part upvalsP;
+        upvals = stateAllocRaw(
+            state,
+            &upvalsP,
+            sizeof(Upvalue*)*fun->u.vir.nUpvals
+        );
+        for( uint i = 0 ; i < fun->u.vir.nUpvals ; i++ )
+            upvals[i] = NULL;
+        stateCommitRaw( state, &upvalsP );
+    }
+    cls->dat.upvals = upvals;
+    stateCommitObj( state, &clsP );
+    return cls;
+}
+
 
 void
 clsTraverse( State* state, Closure* cls ) {

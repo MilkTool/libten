@@ -26,10 +26,7 @@ static void
 contNext( State* state, Fiber* fib, Tup* args );
 
 static void
-doCall( State* state, Fiber* fib, bool tail );
-
-static void
-doTailCall( State* state, Fiber* fib );
+doCall( State* state, Fiber* fib );
 
 static void
 doLoop( State* state, Fiber* fib );
@@ -169,7 +166,7 @@ fibTest( State* state ) {
         test.fun = fun;
         test.gen = NULL;
         
-        Closure* cls = clsNew( state, fun, NULL );
+        Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
         Fiber* fib = fibNew( state, cls );
@@ -225,7 +222,7 @@ fibTest( State* state ) {
         test.fun = fun;
         test.gen = NULL;
         
-        Closure* cls = clsNew( state, fun, NULL );
+        Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
         Fiber* fib = fibNew( state, cls );
@@ -269,7 +266,7 @@ fibTest( State* state ) {
         test.fun = fun;
         test.gen = NULL;
         
-        Closure* cls = clsNew( state, fun, NULL );
+        Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
         Fiber* fib = fibNew( state, cls );
@@ -304,7 +301,7 @@ fibTest( State* state ) {
         test.fun = fun;
         test.gen = NULL;
         
-        Closure* cls = clsNew( state, fun, NULL );
+        Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
         Fiber* fib = fibNew( state, cls );
@@ -340,7 +337,7 @@ fibTest( State* state ) {
         test.fun = fun;
         test.gen = NULL;
         
-        Closure* cls = clsNew( state, fun, NULL );
+        Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
         Fiber* fib = fibNew( state, cls );
@@ -382,7 +379,7 @@ fibTest( State* state ) {
         test.fun = fun;
         test.gen = NULL;
         
-        Closure* cls = clsNew( state, fun, NULL );
+        Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
         Fiber* fib = fibNew( state, cls );
@@ -415,7 +412,7 @@ fibTest( State* state ) {
         test.fun = fun;
         test.gen = NULL;
         
-        Closure* cls = clsNew( state, fun, NULL );
+        Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
         Fiber* fib = fibNew( state, cls );
@@ -633,6 +630,45 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     longjmp( *fib->yieldJmp, 1 );
 }
 
+void
+fibYield( State* state ) {
+    tenAssert( state->fiber );
+    
+    state->fiber->state = FIB_STOPPED;
+    longjmp( *state->fiber->yieldJmp, 1 );
+}
+
+Tup
+fibCall_( State* state, Closure* cls, Tup* args, char const* file, uint line ) {
+    Fiber* fib = state->fiber;
+    tenAssert( fib );
+    
+    Tup cit = fibPush( state, fib, 1 );
+    tupAt( cit, 0 ) = tvObj( cls );
+    
+    Tup dup = fibPush( state, fib, args->size );
+    for( uint i = 0 ; i < args->size ; i++ )
+        tupAt( dup, i ) = tupAt( *args, i );
+    
+    NatAR nat = { .file = file, .line = line };
+    pushAR( state, fib, &nat );
+    doCall( state, fib );
+    popAR( state, fib );
+    
+    return fibTop( state, fib );
+}
+
+void
+fibClearError( State* state, Fiber* fib ) {
+    if( fib->errNum == ten_ERR_NONE )
+        return;
+    
+    fib->errNum = ten_ERR_NONE;
+    fib->errStr = NULL;
+    fib->errVal = tvUdf();
+    stateFreeTrace( state, fib->trace );
+}
+
 
 void
 fibTraverse( State* state, Fiber* fib ) {
@@ -690,7 +726,7 @@ contFirst( State* state, Fiber* fib, Tup* args ) {
     
     // That's all for initialization, the call routine
     // will take care of the rest.
-    doCall( state, fib, false );
+    doCall( state, fib  );
 }
 
 static void
@@ -713,7 +749,7 @@ contNext( State* state, Fiber* fib, Tup* args ) {
 }
 
 static void
-doCall( State* state, Fiber* fib, bool tail ) {
+doCall( State* state, Fiber* fib ) {
     tenAssert( fib->state == FIB_RUNNING );
     tenAssert( fib->rPtr->sp > fib->tmpStack.tmps + 1 );
     
@@ -780,18 +816,7 @@ doCall( State* state, Fiber* fib, bool tail ) {
         regs->sp = extra + 1;
     }
     
-    // For a tail call we copy the arguments and the closure
-    // itself down the stack to replace the previous call's
-    // frame.
-    if( tail ) {
-        for( uint i = 0 ; i <= argc ; i++ )
-            regs->lcl[i] = argv[i];
-        argv = regs->lcl;
-    }
-    else {
-        regs->lcl = argv;
-    }
-    
+    regs->lcl = argv;
     regs->cls = cls;
     if( cls->fun->type == FUN_VIR ) {
         VirFun* fun = & cls->fun->u.vir;
@@ -1320,23 +1345,23 @@ pushAR( State* state, Fiber* fib, NatAR* nat ) {
 static void
 popAR( State* state, Fiber* fib ) {
     AR* ar = NULL;
+    if( fib->arStack.top > 0 ) {
+        NatAR** nats = &fib->arStack.ars[fib->arStack.top-1].nats;
+        if( *nats ) {
+            NatAR* nat = *nats;
+            *nats = nat->prev;
+            ar = &nat->ar;
+        }
+        else {
+            ar = &fib->arStack.ars[--fib->arStack.top].ar;
+        }
+    }
+    else
     if( fib->nats ) {
         NatAR* nat = fib->nats;
         fib->nats = nat->prev;
         
         ar = &nat->ar;
-    }
-    else
-    if( fib->arStack.top >= fib->arStack.cap ) {
-        NatAR** nats = &fib->arStack.ars[fib->arStack.top-1].nats;
-        NatAR* nat = *nats;
-        if( *nats ) {
-            *nats = nat->prev;
-            ar = &nat->ar;
-        }
-        else {
-            ar = &fib->arStack.ars[fib->arStack.top-1].ar;
-        }
     }
     else {
         tenAssertNeverReached();

@@ -23,7 +23,10 @@ clsInit( State* state );
 #endif
 
 Closure*
-clsNew( State* state, Function* fun, Data* dat );
+clsNewNat( State* state, Function* fun, Data* dat );
+
+Closure*
+clsNewVir( State* state, Function* fun, Upvalue** upvals );
 
 void
 clsTraverse( State* state, Closure* cls );

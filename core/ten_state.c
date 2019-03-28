@@ -693,6 +693,9 @@ stateFreeTrace( State* state, ten_Trace* trace ) {
 
 void
 stateClearError( State* state ) {
+    if( state->errNum == ten_ERR_NONE )
+        return;
+    
     state->errNum = ten_ERR_NONE;
     state->errStr = NULL;
     state->errVal = tvUdf();

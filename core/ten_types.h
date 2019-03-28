@@ -97,7 +97,11 @@ do {                                                                        \
                     state, ten_ERR_ASSIGN,                                  \
                     "Mutation of undefined variable"                        \
                 );                                                          \
-            *ptr = (VAL);                                                   \
+            Upvalue* upv = tvGetObj( *ptr );                                \
+            if( tvIsObj( *ptr ) && datGetTag( (void*)upv ) == OBJ_UPV )     \
+                upv->val = (VAL);                                           \
+            else                                                            \
+                *ptr = (VAL);                                               \
         } break;                                                            \
         case REF_UPVAL: {                                                   \
             tenAssert( loc < regs.cls->fun->u.vir.nUpvals );                \
@@ -122,7 +126,13 @@ do {                                                                        \
             tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
             tenAssert( tvIsObj( regs.lcl[loc] ) );                          \
             tenAssert( datGetTag( tvGetObj( regs.lcl[loc] ) ) == OBJ_UPV ); \
-            ((Upvalue*)tvGetObj( regs.lcl[loc] ))->val = (VAL);             \
+            Upvalue* upv = tvGetObj( regs.lcl[loc] );                       \
+            if( tvIsUdf( upv->val ) )                                       \
+                stateErrFmtA(                                               \
+                    state, ten_ERR_ASSIGN,                                  \
+                    "Mutation of undefined varaible"                        \
+                );                                                          \
+            upv->val = (VAL);                                               \
         } break;                                                            \
         default:                                                            \
             tenAssertNeverReached();                                        \
@@ -145,10 +155,59 @@ do {                                                                        \
             tenAssertNeverReached();                                        \
         } break;                                                            \
         case REF_LOCAL: {                                                   \
+            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
             regs.lcl[loc] = (VAL);                                          \
         } break;                                                            \
         case REF_CLOSED: {                                                  \
+            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
             regs.lcl[loc] = (VAL);                                          \
+        } break;                                                            \
+        default:                                                            \
+            tenAssertNeverReached();                                        \
+        break;                                                              \
+    }                                                                       \
+} while( 0 )
+
+#define refUpv( REF, UPV )                                             \
+do {                                                                        \
+    RefT tag = refGetTag( REF );                                            \
+    RefT loc = refGetLoc( REF );                                            \
+                                                                            \
+    switch( tag ) {                                                         \
+        case REF_GLOBAL: {                                                  \
+            TVal* ptr = envGetGlobalByLoc( state, loc );                    \
+            tenAssert( ptr );                                               \
+            Upvalue* upv = tvGetObj( *ptr );                                \
+            if( tvIsObj( *ptr ) && datGetTag( (void*)upv ) == OBJ_UPV ) {   \
+                (UPV) = upv;                                                \
+            }                                                               \
+            else                                                            \
+            if( tvIsUdf( *ptr ) ) {                                         \
+                (UPV) = NULL;                                               \
+            }                                                               \
+            else {                                                          \
+                upv = upvNew( state, *ptr );                                \
+                *ptr = tvObj( upv );                                        \
+                (UPV) = upv;                                                \
+            }                                                               \
+        } break;                                                            \
+        case REF_UPVAL: {                                                   \
+            tenAssert( loc < regs.cls->fun->u.vir.nUpvals );                \
+            Upvalue** upvals  = regs.cls->dat.upvals;                       \
+            (UPV) = upvals[loc];                                            \
+        } break;                                                            \
+        case REF_LOCAL: {                                                   \
+            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+                                                                            \
+            Upvalue* upv = upvNew( state, regs.lcl[loc] );                  \
+            regs.lcl[loc] = tvObj( upv );                                   \
+            (UPV) = upv;                                                    \
+        } break;                                                            \
+        case REF_CLOSED: {                                                  \
+            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert( tvIsObj( regs.lcl[loc] ) );                          \
+            tenAssert( datGetTag( tvGetObj( regs.lcl[loc] ) ) == OBJ_UPV ); \
+            (UPV) = tvGetObj( regs.lcl[loc] );                              \
         } break;                                                            \
         default:                                                            \
             tenAssertNeverReached();                                        \

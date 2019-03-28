@@ -107,4 +107,7 @@ genPutInstr( State* state, Gen* gen, instr in );
 uint
 genGetPlace( State* state, Gen* gen );
 
+Upvalue**
+genGlobalUpvals( State* state, Gen* gen );
+
 #endif

@@ -9,12 +9,28 @@
 #include <stdio.h>
 
 typedef struct {
+    char pri[512];
+} ten_State;
+
+typedef struct {
     char pri[64];
 } ten_DatInfo;
 
 typedef struct {
+    char const* tag;
+    unsigned    size;
+    unsigned    mems;
+    void        (*destr)( ten_State* s, void* buf );
+} ten_DatConfig;
+
+typedef struct {
     char pri[64];
 } ten_PtrInfo;
+
+typedef struct {
+    char const* tag;
+    void        (*destr)( ten_State* s, void* addr );
+} ten_PtrConfig;
 
 typedef struct {
     char pri[32];
@@ -25,12 +41,14 @@ typedef struct {
     unsigned loc;
 } ten_Var;
 
-typedef struct {
-    char pri[512];
-} ten_State;
-
 typedef void
 (*ten_FunCb)( ten_State* core, ten_Tup* args, ten_Tup* mems, void* dat );
+
+typedef struct {
+    char const*  name;
+    char const** params;
+    ten_FunCb    cb;
+} ten_FunParams;
 
 typedef enum {
     ten_ERR_NONE,
@@ -55,7 +73,6 @@ typedef enum {
 } ten_ErrNum;
 
 typedef enum {
-    ten_COM_FUN,
     ten_COM_CLS,
     ten_COM_FIB
 } ten_ComType;
@@ -210,7 +227,7 @@ bool
 ten_isDec( ten_State* s, ten_Var* var );
 
 void
-ten_setDec( ten_State* s, double in, ten_Var* dst );
+ten_setDec( ten_State* s, double dec, ten_Var* dst );
 
 double
 ten_getDec( ten_State* s, ten_Var* var );
@@ -245,7 +262,7 @@ char const*
 ten_getPtrType( ten_State* s, ten_Var* var );
 
 void
-ten_initPtrInfo( ten_State* s, char const* name, ten_PtrInfo* info );
+ten_initPtrInfo( ten_State* s, ten_PtrConfig* config, ten_PtrInfo* info );
 
 // Strings objects.
 bool
@@ -291,7 +308,7 @@ bool
 ten_isFun( ten_State* s, ten_Var* var );
 
 void
-ten_newFun( ten_State* s, char const** params, ten_FunCb cb, ten_Var* dst );
+ten_newFun( ten_State* s, ten_FunParams* p, ten_Var* dst );
 
 // Closure objects.
 bool
@@ -299,12 +316,6 @@ ten_isCls( ten_State* s, ten_Var* var );
 
 void
 ten_newCls( ten_State* s, ten_Var* fun, ten_Var* dat, ten_Var* dst );
-
-void
-ten_setUpval( ten_State* s, ten_Var* cls, ten_Var* name, ten_Var* val );
-
-void
-ten_getUpval( ten_State* s, ten_Var* cls, ten_Var* name, ten_Var* dst );
 
 // Fiber objects.
 bool
@@ -321,6 +332,9 @@ ten_yield( ten_State* s, ten_Tup* vals );
 
 void
 ten_panic( ten_State* s, ten_Var* val );
+
+ten_Tup
+ten_call( ten_State* s, ten_Var* cls, ten_Tup* args );
 
 ten_ErrNum
 ten_getErrNum( ten_State* s, ten_Var* fib );
@@ -359,11 +373,11 @@ ten_getDatInfo( ten_State* s, ten_Var* dat );
 char const*
 ten_getDatType( ten_State* s, ten_Var* dat );
 
-void
+void*
 ten_getDatBuf( ten_State* s, ten_Var* dat );
 
 void
-ten_initDatInfo( ten_State* s, char const* name, unsigned nbytes, unsigned nmems, ten_DatInfo* info );
+ten_initDatInfo( ten_State* s, ten_DatConfig* config, ten_DatInfo* info );
 
 
 #endif

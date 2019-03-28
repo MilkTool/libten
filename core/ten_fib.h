@@ -126,8 +126,17 @@ fibPop( State* state, Fiber* fib );
 Tup
 fibCont( State* state, Fiber* fib, Tup* args );
 
+#define fibCall( STATE, CLS, ARGS ) \
+    fibCall_( STATE, CLS, ARGS, __FILE__, __LINE__ )
+
+Tup
+fibCall_( State* state, Closure* cls, Tup* args, char const* file, uint line );
+
 void
 fibYield( State* state );
+
+void
+fibClearError( State* state, Fiber* fib );
 
 void
 fibTraverse( State* state, Fiber* fib );

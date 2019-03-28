@@ -8,11 +8,15 @@ tenAssert( fun->type == FUN_VIR );
 VirFun* vir = &fun->u.vir;
 tenAssert( opr == vir->nUpvals );
 
-Closure* cls = clsNew( state, fun, NULL );
+Closure* cls = clsNewVir( state, fun, NULL );
 *fv = tvObj( cls );
 
-TVal* upvs = fv + 1;
-for( uint i = 0 ; i < opr ; i++ )
-    cls->dat.upvals[i] = upvNew( state, upvs[i] );
+TVal* refs = fv + 1;
+for( uint i = 0 ; i < opr ; i++ ) {
+    tenAssert( tvIsRef( refs[i] ) );
+    RefT ref = tvGetRef( refs[i] );
+    
+    refUpv( ref, cls->dat.upvals[i] );
+}
 
 regs.sp -= opr;
