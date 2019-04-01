@@ -77,6 +77,11 @@ typedef enum {
     ten_COM_FIB
 } ten_ComType;
 
+typedef enum {
+    ten_SCOPE_LOCAL,
+    ten_SCOPE_GLOBAL
+} ten_ComScope;
+
 typedef struct ten_Trace ten_Trace;
 struct ten_Trace {
     char const* file;
@@ -91,6 +96,8 @@ typedef struct ten_Source {
 typedef struct ten_Config {
     void* udata;
     void* (*frealloc)( void* udata,  void* old, size_t osz, size_t nsz );
+    
+    bool debug;
     
     double memGrowth;
 } ten_Config;
@@ -164,29 +171,29 @@ ten_ptr( ten_State* s, void* ptr );
 
 // Compilation.
 void
-ten_compileFile( ten_State* s, FILE* file, ten_ComType out, ten_Var* dst );
+ten_compileFile( ten_State* s, FILE* file, ten_ComScope scope, ten_ComType out, ten_Var* dst );
 
 void
-ten_compilePath( ten_State* s, char const* path, ten_ComType out, ten_Var* dst );
+ten_compilePath( ten_State* s, char const* path, ten_ComScope scope, ten_ComType out, ten_Var* dst );
 
 void
-ten_compileScript( ten_State* s, char const* script, ten_ComType out, ten_Var* dst );
+ten_compileScript( ten_State* s, char const* script, ten_ComScope scope, ten_ComType out, ten_Var* dst );
 
 void
-ten_compileExpr( ten_State* s, char const* expr, ten_ComType out, ten_Var* dst );
+ten_compileExpr( ten_State* s,  char const** pnames, char const* expr, ten_ComType out, ten_Var* dst );
 
 // Execution.
 void
-ten_executeFile( ten_State* s, FILE* file, ten_Var* dst );
+ten_executeFile( ten_State* s, FILE* file, ten_ComScope scope );
 
 void
-ten_executePath( ten_State* s, char const* path, ten_Var* dst );
+ten_executePath( ten_State* s, char const* path, ten_ComScope scope );
 
 void
-ten_executeScript( ten_State* s, char const* script, ten_Var* dst );
+ten_executeScript( ten_State* s, char const* script, ten_ComScope scope );
 
-void
-ten_executeExpr( ten_State* s, char const* expr, ten_Var* dst );
+ten_Tup
+ten_executeExpr( ten_State* s, char const* expr );
 
 
 // Singleton values.

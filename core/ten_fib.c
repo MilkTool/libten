@@ -1398,7 +1398,14 @@ ensureStack( State* state, Fiber* fib, uint n ) {
 
 static void
 onError( State* state, Defer* defer ) {
+    if( state->errNum == ten_ERR_MEMORY )
+        return;
+    
     Fiber* fib = (void*)defer - (ullong)&((Fiber*)NULL)->errDefer;
+    
+    
+    
+    // TODO: generate trace
     
     // Set the fiber's error values from the state.
     fib->errNum = state->errNum;

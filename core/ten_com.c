@@ -2114,10 +2114,12 @@ comCompile( State* state, ComParams* params ) {
             if( com->tok.type != TOK_END && !parDelim( state ) )
                 errPar( state, "Expected delimiter or EOF" );
         }
+        genInstr( state, OPC_MAKE_TUP, 0 );
     }
     else {
         parExpr( state, false );
     }
+    genInstr( state, OPC_RETURN, 0 );
     
     Upvalue** upvals = genGlobalUpvals( state, com->gen );
     Function* fun = genFinish( state, com->gen, false );
