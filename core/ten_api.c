@@ -17,18 +17,12 @@
 #include "ten_upv.h"
 #include "ten_dat.h"
 #include "ten_ptr.h"
+#include "ten_lib.h"
 
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
-
-#define ref( VAR ) *expAssert(                                               \
-    (VAR)->loc < ((Tup*)(VAR)->tup)->size,                                  \
-    *((Tup*)(VAR)->tup)->base + ((Tup*)(VAR)->tup)->offset + (VAR)->loc,    \
-    "Variable 'loc' out of tuple bounds, tuple size is %u",                                   \
-    ((Tup*)(VAR)->tup)->size                                                                    \
-)
 
 struct ApiState {
     Scanner   scan;
@@ -56,6 +50,9 @@ void
 apiScan( State* state, Scanner* scan ) {
     ApiState* api = structFromScan( ApiState, scan );
     
+    tvMark( api->val1 );
+    tvMark( api->val2 );
+    
     if( !state->gcFull )
         return;
     
@@ -66,9 +63,6 @@ apiScan( State* state, Scanner* scan ) {
         symMark( state, api->clsNS[i] );
     }
     symMark( state, api->tagS );
-    
-    tvMark( api->val1 );
-    tvMark( api->val2 );
 }
 
 void
@@ -134,7 +128,106 @@ apiInit( State* state ) {
 #ifdef ten_TEST
 void
 apiTest( State* state ) {
-    // TODO
+    ten_State* s = (ten_State*)state;
+    
+    // Stack.
+    ten_Tup t1 = ten_pushA( s, "UNLIDS", true, (long)123, 1.2, "abc" );
+    ten_Var t1v1 = { .tup = &t1, .loc = 0 };
+    ten_Var t1v2 = { .tup = &t1, .loc = 1 };
+    ten_Var t1v3 = { .tup = &t1, .loc = 2 };
+    ten_Var t1v4 = { .tup = &t1, .loc = 3 };
+    ten_Var t1v5 = { .tup = &t1, .loc = 4 };
+    ten_Var t1v6 = { .tup = &t1, .loc = 5 };
+    
+    tenAssert( ten_size( s, &t1 ) == 6 );
+    tenAssert( ten_isUdf( s, &t1v1 ) );
+    tenAssert( ten_isNil( s, &t1v2 ) );
+    tenAssert( ten_isLog( s, &t1v3 ) );
+    tenAssert( ten_isInt( s, &t1v4 ) );
+    tenAssert( ten_isDec( s, &t1v5 ) );
+    tenAssert( ten_isSym( s, &t1v6 ) );
+    
+    ten_Tup t2 = ten_top( s );
+    ten_Var t2v1 = { .tup = &t2, .loc = 0 };
+    ten_Var t2v2 = { .tup = &t2, .loc = 1 };
+    ten_Var t2v3 = { .tup = &t2, .loc = 2 };
+    ten_Var t2v4 = { .tup = &t2, .loc = 3 };
+    ten_Var t2v5 = { .tup = &t2, .loc = 4 };
+    ten_Var t2v6 = { .tup = &t2, .loc = 5 };
+    
+    tenAssert( ten_size( s, &t2 ) == 6 );
+    tenAssert( ten_isUdf( s, &t2v1 ) );
+    tenAssert( ten_isNil( s, &t2v2 ) );
+    tenAssert( ten_isLog( s, &t2v3 ) );
+    tenAssert( ten_isInt( s, &t2v4 ) );
+    tenAssert( ten_isDec( s, &t2v5 ) );
+    tenAssert( ten_isSym( s, &t2v6 ) );
+
+    ten_Tup t3 = ten_dup( s, &t1 );
+    ten_Var t3v1 = { .tup = &t3, .loc = 0 };
+    ten_Var t3v2 = { .tup = &t3, .loc = 1 };
+    ten_Var t3v3 = { .tup = &t3, .loc = 2 };
+    ten_Var t3v4 = { .tup = &t3, .loc = 3 };
+    ten_Var t3v5 = { .tup = &t3, .loc = 4 };
+    ten_Var t3v6 = { .tup = &t3, .loc = 5 };
+
+    tenAssert( ten_size( s, &t3 ) == 6 );
+    tenAssert( ten_isUdf( s, &t3v1 ) );
+    tenAssert( ten_isNil( s, &t3v2 ) );
+    tenAssert( ten_isLog( s, &t3v3 ) );
+    tenAssert( ten_isInt( s, &t3v4 ) );
+    tenAssert( ten_isDec( s, &t3v5 ) );
+    tenAssert( ten_isSym( s, &t3v6 ) );
+    
+    ten_pop( s );
+    ten_pop( s );
+    
+    // Globals.
+    ten_def( s, ten_sym( s, "var1" ), ten_int( s, 1 ) );
+    ten_def( s, ten_sym( s, "var2" ), ten_int( s, -2 ) );
+    ten_set( s, ten_sym( s, "var2" ), ten_int( s, 2 ) );
+    
+    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var1" ) ), ten_int( s, 1 ) ) );
+    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var2" ) ), ten_int( s, 2 ) ) );
+    
+    // Types.
+    ten_Var* type = ten_udf( s );
+    ten_type( s, ten_int( s, 1 ), type );
+    
+    tenAssert( !strcmp( ten_getSymBuf( s, type ), "Int" ) );
+    
+    // Testing ten_expect() is a bit too difficult here,
+    // will have to do it manually instead.
+    
+    // Misc.
+    tenAssert( ten_equal( s, ten_int( s, 1 ), ten_int( s, 1 ) ) );
+    tenAssert( !ten_equal( s, ten_int( s, 1 ), ten_int( s, 2 ) ) );
+    tenAssert( !ten_equal( s, ten_int( s, 1 ), ten_dec( s, 1.0 ) ) );
+    
+    // Compilation and execution.
+    char const* script =
+        "def var3: 3\n"
+        "def var4: 4\n";
+    char const* expr =
+        "var3 + var4";
+    
+    ten_Var* fib  = ten_udf( s );
+    ten_Tup  args = ten_pushA( s, "" );
+    ten_compileScript( s, script, ten_SCOPE_GLOBAL, ten_COM_FIB, fib );
+    ten_Tup  rets = ten_cont( s, fib, &args );
+    ten_pop( s );
+    
+    tenAssert( ten_size( s, &rets ) == 0 );
+    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var3" ) ), ten_int( s, 3 ) ) );
+    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var4" ) ), ten_int( s, 4 ) ) );
+    
+    rets = ten_executeExpr( s, expr );
+    ten_Var ret = { .tup = &rets, .loc = 0 };
+    
+    tenAssert( ten_size( s, &rets ) == 1 );
+    tenAssert( ten_equal( s, &ret, ten_int( s, 7 ) ) );
+    
+    // TODO: other tests.
 }
 #endif
 
@@ -190,6 +283,10 @@ ten_pushV( ten_State* s, char const* pat, va_list ap ) {
                 PtrT ptr = ptrGet( state, NULL, va_arg( ap, void* ) );
                 tupAt( tup, i ) = tvPtr( ptr );
             } break;
+            case 'V': {
+                ten_Var* var = va_arg( ap, ten_Var* );
+                tupAt( tup, i ) = ref(var);
+            } break;
             default: {
                 strAssert( false, "Invalid type char" );
             } break;
@@ -227,6 +324,11 @@ ten_dup( ten_State* s, ten_Tup* tup ) {
     return t;
 }
 
+unsigned
+ten_size( ten_State* state, ten_Tup* tup ) {
+    return ((Tup*)tup)->size;
+}
+
 void
 ten_def( ten_State* s, ten_Var* name, ten_Var* val ) {
     State* state = (State*)s;
@@ -251,18 +353,21 @@ ten_set( ten_State* s, ten_Var* name, ten_Var* val ) {
     *gval = ref(val);
 }
 
-void
-ten_get( ten_State* s, ten_Var* name, ten_Var* dst ) {
+ten_Var*
+ten_get( ten_State* s, ten_Var* name ) {
     State* state = (State*)s;
     TVal nameV = ref(name);
     funAssert( tvIsSym( nameV ), "Wrong type for 'name', need Sym", NULL );
     
-    SymT  nameS = tvGetSym( nameV );
-    TVal* gval  = envGetGlobalByName( state, nameS );
+    SymT     nameS = tvGetSym( nameV );
+    TVal*    gval  = envGetGlobalByName( state, nameS );
+    ten_Var* tmp   = stateTmp( state );
     if( !gval )
-        ref(dst) = tvUdf();
+        ref(tmp) = tvUdf();
     else
-        ref(dst) = *gval;
+        ref(tmp) = *gval;
+    
+    return tmp;
 }
 
 void
@@ -270,229 +375,18 @@ ten_type( ten_State* s, ten_Var* var, ten_Var* dst ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    TVal val = ref(var);
-    int  tag = tvGetTag( val );
-    if( tag == VAL_OBJ )
-        tag = datGetTag( tvGetObj( val ) );
-    
-    if( tag == VAL_PTR ) {
-        PtrT     ptr  = tvGetPtr( val );
-        PtrInfo* info = ptrInfo( state, ptr );
-        if( info )
-            ref(dst) = tvSym( info->type );
-        else
-            ref(dst) = tvSym( api->typeS[VAL_PTR] );
-        return;
-    }
-    
-    if( tag <= OBJ_IDX ) {
-        ref(dst) = tvSym( api->typeS[tag] );
-        return;
-    }
-    if( tag == OBJ_REC ) {
-        TVal rTag = recGet( state, tvGetObj( val ), tvSym( api->tagS ) );
-        if( !tvIsUdf( rTag ) ) {
-            char const* str = fmtA( state, false, "Rec:%v", rTag );
-            size_t      len = fmtLen( state );
-            ref(dst) = tvSym( symGet( state, str, len ) );
-        }
-        else {
-            ref(dst) = tvSym( api->typeS[OBJ_REC] );
-        }
-        return;
-    }
-    if( tag == OBJ_FUN ) {
-        Function* fun = tvGetObj( val );
-        if( fun->nParams <= TUP_MAX && fun->vargIdx == NULL ) {
-            ref(dst) = tvSym( api->funNS[fun->nParams] );
-            return;
-        }
-       if( fun->nParams <= TUP_MAX && fun->vargIdx != NULL ) {
-            ref(dst) = tvSym( api->funVS[fun->nParams] );
-            return;
-        }
-        char const* str =
-            fmtA(
-                state, false,
-                "Fun:%u%s",
-                fun->nParams,
-                fun->vargIdx == NULL ? "" : "+"
-            );
-        
-        size_t len = fmtLen( state );
-        ref(dst) = tvSym( symGet( state, str, len ) );
-        return;
-    }
-    if( tag == OBJ_CLS ) {
-        Function* fun = ((Closure*)tvGetObj( val ))->fun;
-        if( fun->nParams <= TUP_MAX && fun->vargIdx == NULL ) {
-            ref(dst) = tvSym( api->clsNS[fun->nParams] );
-            return;
-        }
-        if( fun->nParams <= TUP_MAX && fun->vargIdx != NULL ) {
-            ref(dst) = tvSym( api->clsVS[fun->nParams] );
-            return;
-        }
-        char const* str =
-            fmtA(
-                state, false,
-                "Cls:%u%s",
-                fun->nParams,
-                fun->vargIdx == NULL ? "" : "+"
-            );
-        
-        size_t len = fmtLen( state );
-        ref(dst) = tvSym( symGet( state, str, len ) );
-        return;
-    }
-    if( tag == OBJ_FIB ) {
-        ref(dst) = tvSym( api->typeS[OBJ_FIB] );
-        return;
-    }
-    if( tag == OBJ_DAT ) {
-        Data* dat = tvGetObj( val );
-        ref(dst) = tvSym( dat->info->type );
-        return;
-    }
-    
-    char const* str = fmtA( state, false, "%t", val );
-    size_t      len = fmtLen( state );
-    ref(dst) = tvSym( symGet( state, str, len ) );
+    ref(dst) = tvSym( libType( state, ref(var) ) );
 }
 
 void
-ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var ) {
+ten_expect( ten_State* s, ten_Var* what, ten_Var* type, ten_Var* var ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
     TVal typeV = ref(type);
     funAssert( tvIsSym( typeV ), "Wrong type for 'type', need Sym", NULL );
-    SymT typeS = tvGetSym( typeV );
     
-    
-    TVal val = ref(var);
-    int  tag = tvGetTag( val );
-    if( tag == VAL_OBJ )
-        tag = datGetTag( tvGetObj( val ) );
-    
-    if( tag == VAL_PTR ) {
-        if( typeS == api->typeS[VAL_PTR] )
-            goto good;
-        
-        PtrT     ptr  = tvGetPtr( val );
-        PtrInfo* info = ptrInfo( state, ptr );
-        if( info && typeS == info->type )
-            goto good;
-        else
-            goto bad;
-    }
-    
-    if( tag <= OBJ_IDX ) {
-        if( typeS == api->typeS[tag] )
-            goto good;
-        else
-            goto bad;
-    }
-    
-    if( tag == OBJ_REC ) {
-        if( typeS == api->typeS[OBJ_REC] )
-            goto good;
-        
-        TVal rTag = recGet( state, tvGetObj( val ), tvSym( api->tagS ) );
-        if( !tvIsUdf( rTag ) ) {
-            char const* str = fmtA( state, false, "Rec:%v", rTag );
-            if( !strcmp( symBuf( state, typeS ), str ) )
-                goto good;
-            else
-                goto bad;
-        }
-        else {
-            goto bad;
-        }
-    }
-    if( tag == OBJ_FUN ) {
-        if( typeS == api->typeS[OBJ_FUN] )
-            goto good;
-        
-        Function* fun = tvGetObj( val );
-        char const* buf = symBuf( state, typeS );
-        if( buf[0] != 'F' || buf[1] != 'u' || buf[2] != 'n' || buf[3] != ':' )
-            goto bad;
-        
-        char* end;
-        long p = strtol( buf + 4, &end, 10 );
-        if( end == buf || ( *end != '\0' && *end != '+' ) )
-            goto bad;
-        
-        if( *end == '+' ) {
-            if( fun->vargIdx == NULL )
-                goto bad;
-            if( fun->nParams < p )
-                goto bad;
-            goto good;
-        }
-        else {
-            if( fun->nParams == p || ( p > fun->nParams && fun->vargIdx != NULL ) )
-                goto good;
-            else
-                goto bad;
-        }
-    }
-    if( tag == OBJ_CLS ) {
-        if( typeS == api->typeS[OBJ_CLS] )
-            goto good;
-        
-        Function* fun = ((Closure*)tvGetObj( val ))->fun;
-        char const* buf = symBuf( state, typeS );
-        if( buf[0] != 'C' || buf[1] != 'l' || buf[2] != 's' || buf[3] != ':' )
-            goto bad;
-        
-        char* end;
-        long p = strtol( buf + 4, &end, 10 );
-        if( end == buf || ( *end != '\0' && *end != '+' ) )
-            goto bad;
-        
-        if( *end == '+' ) {
-            if( fun->vargIdx == NULL )
-                goto bad;
-            if( fun->nParams < p )
-                goto bad;
-            goto good;
-        }
-        else {
-            if( fun->nParams == p || ( p > fun->nParams && fun->vargIdx != NULL ) )
-                goto good;
-            else
-                goto bad;
-        }
-    }
-    if( tag == OBJ_FIB ) {
-        if( typeS == api->typeS[OBJ_FIB] )
-            goto good;
-        else
-            goto bad;
-    }
-    if( tag == OBJ_DAT ) {
-        if( typeS == api->typeS[OBJ_DAT] )
-            goto good;
-        
-        Data* dat = tvGetObj( val );
-        if( typeS == dat->info->type )
-            goto good;
-        else
-            goto bad;
-    }
-    
-    good: {
-        return;
-    }
-    bad: {
-        stateErrFmtA(
-            state, ten_ERR_PANIC,
-            "Wrong type %t for '%s', need %v",
-            val, what, typeV
-        );
-    }
+    libExpect( state, ref(what), tvGetSym( typeV ), ref(var) );
 }
 
 bool
@@ -558,6 +452,14 @@ ten_ptr( ten_State* s, void* ptr ) {
     return var;
 }
 
+ten_Var*
+ten_str( ten_State* s, char const* str ) {
+    State* state = (State*)s;
+    ten_Var* var = stateTmp( state );
+    ref(var) = tvObj( strNew( state, str, strlen( str ) ) );
+    return var;
+}
+
 typedef struct {
     ten_Source source;
     FILE*      file;
@@ -617,6 +519,8 @@ ten_compileFile( ten_State* s, FILE* file, ten_ComScope scope, ten_ComType out, 
     
     Fiber* fib = fibNew( state, cls );
     ref(dst) = tvObj( fib );
+    
+    api->val1 = tvUdf();
 }
 
 static Closure*
@@ -661,6 +565,8 @@ ten_compilePath( ten_State* s, char const* path, ten_ComScope scope, ten_ComType
     
     Fiber* fib = fibNew( state, cls );
     ref(dst) = tvObj( fib );
+    
+    api->val1 = tvUdf();
 }
 
 typedef struct {
@@ -710,6 +616,8 @@ ten_compileScript( ten_State* s, char const* script, ten_ComScope scope, ten_Com
     
     Fiber* fib = fibNew( state, cls );
     ref(dst) = tvObj( fib );
+    
+    api->val1 = tvUdf();
 }
 
 static Closure*
@@ -744,6 +652,8 @@ ten_compileExpr( ten_State* s, char const** pnames, char const* expr, ten_ComTyp
     
     Fiber* fib = fibNew( state, cls );
     ref(dst) = tvObj( fib );
+    
+    api->val1 = tvUdf();
 }
 
 void
@@ -759,6 +669,8 @@ ten_executeFile( ten_State* s, FILE* file, ten_ComScope scope ) {
     Tup args = statePush( state, 0 );
     fibCont( state, fib, &args );
     statePop( state );
+    
+    api->val1 = tvUdf();
 }
 
 void
@@ -774,6 +686,8 @@ ten_executePath( ten_State* s, char const* path, ten_ComScope scope ) {
     Tup args = statePush( state, 0 );
     fibCont( state, fib, &args );
     statePop( state );
+    
+    api->val1 = tvUdf();
 }
 
 void
@@ -789,6 +703,8 @@ ten_executeScript( ten_State* s, char const* script, ten_ComScope scope ) {
     Tup args = statePush( state, 0 );
     fibCont( state, fib, &args );
     statePop( state );
+    
+    api->val1 = tvUdf();
 }
 
 ten_Tup
@@ -804,6 +720,8 @@ ten_executeExpr( ten_State* s, char const* expr ) {
     Tup args = statePush( state, 0 );
     Tup ret  = fibCont( state, fib, &args );
     statePop( state );
+    
+    api->val1 = tvUdf();
     
     ten_Tup t;
     memcpy( &t, &ret, sizeof(Tup) );
@@ -825,7 +743,7 @@ ten_setUdf( ten_State* s, ten_Var* dst ) {
 bool
 ten_isNil( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsUdf( ref(var) );
+    return tvIsNil( ref(var) );
 }
 
 void
@@ -875,7 +793,7 @@ ten_getInt( ten_State* s, ten_Var* var ) {
 bool
 ten_isDec( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsInt( ref(var) );
+    return tvIsDec( ref(var) );
 }
 
 void
@@ -1247,7 +1165,7 @@ ten_panic( ten_State* s, ten_Var* val ) {
 }
 
 ten_Tup
-ten_call( ten_State* s, ten_Var* cls, ten_Tup* args ) {
+ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned line ) {
     State* state = (State*)s;
     
     funAssert( state->fiber, "Call without running fiber", NULL );
@@ -1260,7 +1178,7 @@ ten_call( ten_State* s, ten_Var* cls, ten_Tup* args ) {
     );
     Closure* clsO = tvGetObj( clsV );
     
-    Tup tup = fibCall( state, clsO, (Tup*)args );
+    Tup tup = fibCall_( state, clsO, (Tup*)args, file, line );
     
     ten_Tup t;
     memcpy( &t, &tup, sizeof(Tup) );
@@ -1349,6 +1267,16 @@ ten_clearError( ten_State* s, ten_Var* fib ) {
     else {
         stateClearError( state );
     }
+}
+
+void
+ten_propError( ten_State* s ) {
+    stateErrProp( (State*)s );
+}
+
+jmp_buf*
+ten_swapErrJmp( ten_State* s, jmp_buf* errJmp ) {
+    return stateSwapErrJmp( (State*)s, errJmp );
 }
 
 bool

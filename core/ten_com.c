@@ -271,7 +271,7 @@ lexWord( State* state ) {
     else {
         type = TOK_IDENT;
         
-        SymT sym = symGet( state, com->lex.chars.buf, com->lex.chars.top );
+        SymT sym = symGet( state, com->lex.chars.buf, com->lex.chars.top - 1 );
         value = tvSym( sym );
     }
     
@@ -1927,6 +1927,7 @@ parAssign( State* state ) {
     
     if( com->tok.type != ':' )
         errPar( state, "Expected ':' after assignment pattern" );
+    lex( state );
     
     // Parse the source expression.
     parExpr( state, false );

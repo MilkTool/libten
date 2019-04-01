@@ -16,6 +16,7 @@
 #include "ten_upv.h"
 #include "ten_dat.h"
 #include "ten_ptr.h"
+#include "ten_lib.h"
 
 #include <string.h>
 #include <setjmp.h>
@@ -131,6 +132,7 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     upvInit( state ); CHECK_STATE;
     datInit( state ); CHECK_STATE;
     ptrInit( state ); CHECK_STATE;
+    libInit( state ); CHECK_STATE;
     apiInit( state ); CHECK_STATE;
 }
 
@@ -347,6 +349,7 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         upvTest( state ); CHECK_STATE;
         datTest( state ); CHECK_STATE;
         ptrTest( state ); CHECK_STATE;
+        libTest( state ); CHECK_STATE;
         apiTest( state ); CHECK_STATE;
         
         // Force GC.

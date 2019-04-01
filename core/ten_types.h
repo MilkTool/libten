@@ -12,7 +12,6 @@
 
 // State structures for each VM component, and for the VM as a whole.
 typedef struct State    State;
-typedef struct ApiState ApiState;
 typedef struct ComState ComState;
 typedef struct GenState GenState;
 typedef struct EnvState EnvState;
@@ -27,6 +26,8 @@ typedef struct FibState FibState;
 typedef struct UpvState UpvState;
 typedef struct DatState DatState;
 typedef struct PtrState PtrState;
+typedef struct LibState LibState;
+typedef struct ApiState ApiState;
 
 // These are all the types of heap allocated objects.
 typedef struct String   String;
@@ -114,7 +115,9 @@ do {                                                                        \
             upvals[loc]->val = (VAL);                                       \
         } break;                                                            \
         case REF_LOCAL: {                                                   \
-            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert(                                                      \
+                loc < regs.cls->fun->u.vir.nLocals + regs.cls->fun->nParams + 1 \
+            );                                                              \
             if( tvIsUdf( regs.lcl[loc] ) )                                  \
                 stateErrFmtA(                                               \
                     state, ten_ERR_ASSIGN,                                  \
@@ -123,7 +126,9 @@ do {                                                                        \
             regs.lcl[loc] = (VAL);                                          \
         } break;                                                            \
         case REF_CLOSED: {                                                  \
-            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert(                                                      \
+                loc < regs.cls->fun->u.vir.nLocals + regs.cls->fun->nParams + 1 \
+            );                                                              \
             tenAssert( tvIsObj( regs.lcl[loc] ) );                          \
             tenAssert( datGetTag( tvGetObj( regs.lcl[loc] ) ) == OBJ_UPV ); \
             Upvalue* upv = tvGetObj( regs.lcl[loc] );                       \
@@ -155,11 +160,15 @@ do {                                                                        \
             tenAssertNeverReached();                                        \
         } break;                                                            \
         case REF_LOCAL: {                                                   \
-            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert(                                                      \
+                loc < regs.cls->fun->u.vir.nLocals + regs.cls->fun->nParams + 1 \
+            );                                                              \
             regs.lcl[loc] = (VAL);                                          \
         } break;                                                            \
         case REF_CLOSED: {                                                  \
-            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert(                                                      \
+                loc < regs.cls->fun->u.vir.nLocals + regs.cls->fun->nParams + 1 \
+            );                                                              \
             regs.lcl[loc] = (VAL);                                          \
         } break;                                                            \
         default:                                                            \
@@ -197,14 +206,18 @@ do {                                                                        \
             (UPV) = upvals[loc];                                            \
         } break;                                                            \
         case REF_LOCAL: {                                                   \
-            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert(                                                      \
+                loc < regs.cls->fun->u.vir.nLocals + regs.cls->fun->nParams + 1 \
+            );                                                              \
                                                                             \
             Upvalue* upv = upvNew( state, regs.lcl[loc] );                  \
             regs.lcl[loc] = tvObj( upv );                                   \
             (UPV) = upv;                                                    \
         } break;                                                            \
         case REF_CLOSED: {                                                  \
-            tenAssert( loc < regs.cls->fun->u.vir.nLocals );                \
+            tenAssert(                                                      \
+                loc < regs.cls->fun->u.vir.nLocals + regs.cls->fun->nParams + 1 \
+            );                                                              \
             tenAssert( tvIsObj( regs.lcl[loc] ) );                          \
             tenAssert( datGetTag( tvGetObj( regs.lcl[loc] ) ) == OBJ_UPV ); \
             (UPV) = tvGetObj( regs.lcl[loc] );                              \
@@ -330,15 +343,15 @@ do {                                                                        \
     #define tvDec( DEC ) \
         (TVal){.num = (DEC)}
     #define tvInt( INT ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_INT << 48 | (INT) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_INT << 48 | (uint32_t)(IntT)(INT) }
     #define tvSym( SYM ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_SYM << 48 | (SYM) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_SYM << 48 | (SymT)(SYM) }
     #define tvPtr( PTR ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_PTR << 48 | (PTR) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_PTR << 48 | (PtrT)(PTR) }
     #define tvTup( TUP ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (TUP) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (TupT)(TUP) }
     #define tvRef( REF ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_REF << 48 | (REF) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_REF << 48 | (RefT)(REF) }
     
     #define tvIsObj( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & SIGN_BIT))
@@ -370,7 +383,7 @@ do {                                                                        \
     #define tvGetLog( TVAL ) \
         ((TVAL).nan & VAL_BITS)
     #define tvGetInt( TVAL ) \
-        ((IntT)((TVAL).nan & VAL_BITS))
+        ((IntT)(uint32_t)((TVAL).nan & VAL_BITS))
     #define tvGetDec( TVAL ) \
         ((TVAL).num)
     #define tvGetSym( TVAL ) \
@@ -389,7 +402,7 @@ do {                                                                        \
         (tvIsSym( TVAL ) ? shash( (TVAL).nan ) : (TVAL).nan )
 
     #define tvMark( TVAL )                                          \
-        switch( ((TVAL).nan & TAG_BITS) >> 48 ) {                   \
+        switch( tvGetTag( TVAL ) ) {                                \
             case VAL_OBJ:                                           \
                 stateMark( state, tvGetObj(TVAL) );                 \
             break;                                                  \
@@ -500,6 +513,9 @@ do {                                                                        \
             break;                                                  \
         }
 #endif
+
+#define tvIsObjType( TVAL, TYPE ) \
+    (tvIsObj( TVAL ) && datGetTag( tvGetObj( TVAL ) ) == (TYPE))
 
 // Type tags used directly in the TVal.  The VAL_OBJ should
 // have the zero tag since it'll never be used in a NaN

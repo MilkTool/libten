@@ -1,10 +1,10 @@
 TVal arg = regs.sp[-1];
 if( tvIsDec( arg ) ) {
-    regs.sp[-1] = tvDec( -tvGetDec( regs.sp[-1] ) );
+    regs.sp[-1] = tvDec( -tvGetDec( arg ) );
 }
 else
 if( tvIsInt( arg ) ) {
-    regs.sp[-1] = tvInt( -tvGetInt( regs.sp[-1] ) );
+    regs.sp[-1] = tvInt( -tvGetInt( arg ) );
 }
 else {
     stateErrFmtA(

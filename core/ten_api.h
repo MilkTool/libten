@@ -41,8 +41,9 @@ typedef struct {
     unsigned loc;
 } ten_Var;
 
+#define ten_PARAMS ten_State* ten, ten_Tup* args, ten_Tup* mems, void* dat
 typedef void
-(*ten_FunCb)( ten_State* core, ten_Tup* args, ten_Tup* mems, void* dat );
+(*ten_FunCb)( ten_PARAMS );
 
 typedef struct {
     char const*  name;
@@ -126,6 +127,9 @@ ten_pop( ten_State* s );
 ten_Tup
 ten_dup( ten_State* s, ten_Tup* tup );
 
+unsigned
+ten_size( ten_State* state, ten_Tup* tup );
+
 // Global variables.
 void
 ten_def( ten_State* s, ten_Var* name, ten_Var* val );
@@ -133,15 +137,15 @@ ten_def( ten_State* s, ten_Var* name, ten_Var* val );
 void
 ten_set( ten_State* s, ten_Var* name, ten_Var* val );
 
-void
-ten_get( ten_State* s, ten_Var* name, ten_Var* dst );
+ten_Var*
+ten_get( ten_State* s, ten_Var* name );
 
 // Types.
 void
 ten_type( ten_State* s, ten_Var* var, ten_Var* dst );
 
 void
-ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var );
+ten_expect( ten_State* s, ten_Var* what, ten_Var* type, ten_Var* var );
 
 // Misc.
 bool
@@ -168,6 +172,9 @@ ten_sym( ten_State* s, char const* sym );
 
 ten_Var*
 ten_ptr( ten_State* s, void* ptr );
+
+ten_Var*
+ten_str( ten_State* s, char const* str );
 
 // Compilation.
 void
@@ -340,8 +347,13 @@ ten_yield( ten_State* s, ten_Tup* vals );
 void
 ten_panic( ten_State* s, ten_Var* val );
 
+#define ten_call( S, CLS, ARGS ) \
+    ten_call_( S, CLS, ARGS, __FILE__, __LINE__ )
+
 ten_Tup
-ten_call( ten_State* s, ten_Var* cls, ten_Tup* args );
+ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned line );
+
+// Errors.
 
 ten_ErrNum
 ten_getErrNum( ten_State* s, ten_Var* fib );
@@ -357,6 +369,12 @@ ten_getTrace( ten_State* s, ten_Var* fib );
 
 void
 ten_clearError( ten_State* s, ten_Var* fib );
+
+void
+ten_propError( ten_State* s );
+
+jmp_buf*
+ten_swapErrJmp( ten_State* s, jmp_buf* errJmp );
 
 // Data objects.
 bool

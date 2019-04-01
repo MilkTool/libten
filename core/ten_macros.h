@@ -34,5 +34,18 @@
 #define identCat( A, B )  identCat_( A, B )
 
 #define isEmpty( DEF ) (identCat( DEF, 1 ) == 1)
+
+#define ref( VAR ) *expAssert(                                               \
+    (VAR)->loc < ((Tup*)(VAR)->tup)->size,                                  \
+    *((Tup*)(VAR)->tup)->base + ((Tup*)(VAR)->tup)->offset + (VAR)->loc,    \
+    "Variable 'loc' out of tuple bounds, tuple size is %u",                                   \
+    ((Tup*)(VAR)->tup)->size                                                                    \
+)
+
+#define panic( FMT... )                                \
+    do {                                                \
+        statePushTrace( state, __FILE__, __LINE__ );    \
+        stateErrFmtA( state, ten_ERR_PANIC, FMT );      \
+    } while( 0 )
     
 #endif

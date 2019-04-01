@@ -206,6 +206,7 @@ struct State {
     UpvState* upvState;
     DatState* datState;
     PtrState* ptrState;
+    LibState* libState;
     ApiState* apiState;
     
     // Error related stuff.  The `errJmp` points to the

@@ -591,6 +591,9 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     int sig = setjmp( yieldJmp );
     if( sig ) {
         
+        // Restore old error jump.
+        stateSwapErrJmp( state, oldJmp );
+        
         // Restore the calling fiber.
         state->fiber = parent;
         if( parent ) {
