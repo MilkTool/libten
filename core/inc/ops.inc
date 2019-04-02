@@ -87,7 +87,6 @@ OP( GET_CLOSED7, SE( 0, 1 ) )
 OP( GET_GLOBAL, SE( 0, 1 ) )
 
 OP( GET_FIELD, SE( 0, -1 ) )
-OP( GET_FIELDS, SE( 0, -1 ) )
 
 OP( REF_UPVAL, SE( 0, 1 ) )
 OP( REF_LOCAL, SE( 0, 1 ) )
@@ -105,8 +104,7 @@ OP( MAKE_CLS, SE( 0, 1 ) )
 OP( MAKE_REC, SE( -2, 0 ) )
 OP( MAKE_VREC, SE( -2, -1 ) )
 
-OP( POP, SE( 0, -1 ) )
-OP( DUP, SE( 0, -1 ) )
+OP( POP, SE( -1, -1 ) )
 
 OP( NEG, SE( 0, 0 ) )
 OP( NOT, SE( 0, 0 ) )

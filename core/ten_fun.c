@@ -94,7 +94,7 @@ funDestruct( State* state, Function* fun ) {
     else {
         VirFun* vir = &fun->u.vir;
         stateFreeRaw( state, vir->consts, sizeof(TVal)*vir->nConsts );
-        stateFreeRaw( state, vir->labels, sizeof(TVal)*vir->nLabels );
+        stateFreeRaw( state, vir->labels, sizeof(instr*)*vir->nLabels );
         stateFreeRaw( state, vir->code,   sizeof(instr)*vir->len );
         if( vir->dbg ) {
             DbgInfo* dbg = vir->dbg;

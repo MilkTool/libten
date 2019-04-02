@@ -672,6 +672,20 @@ fibClearError( State* state, Fiber* fib ) {
     stateFreeTrace( state, fib->trace );
 }
 
+void
+fibPropError( State* state, Fiber* fib ) {
+    if( fib->errNum == ten_ERR_NONE )
+        return;
+    
+    state->errNum = fib->errNum;
+    state->errStr = fib->errStr;
+    state->errVal = fib->errVal;
+    state->trace  = fib->trace;
+    fib->trace = NULL;
+    
+    stateErrProp( state );
+}
+
 
 void
 fibTraverse( State* state, Fiber* fib ) {
@@ -710,6 +724,9 @@ fibDestruct( State* state, Fiber* fib ) {
     fib->arStack.ars   = NULL;
     fib->tmpStack.cap  = 0;
     fib->tmpStack.tmps = NULL;
+    
+    if( fib->trace )
+        stateFreeTrace( state, fib->trace );
 }
 
 static void
@@ -841,7 +858,7 @@ doCall( State* state, Fiber* fib ) {
         // Initialize an argument tuple for the callback.
         Tup aTup = {
             .base   = &fib->tmpStack.tmps,
-            .offset = regs->lcl - fib->tmpStack.tmps,
+            .offset = regs->lcl - fib->tmpStack.tmps + 1,
             .size   = argc
         };
         
@@ -1137,9 +1154,6 @@ doLoop( State* state, Fiber* fib ) {
             case OPC_GET_FIELD: {
                 #include "inc/ops/GET_FIELD.inc"
             } break;
-            case OPC_GET_FIELDS: {
-                #include "inc/ops/GET_FIELDS.inc"
-            } break;
             
             case OPC_REF_UPVAL: {
                 ushort const opr = inGetOpr( in );
@@ -1377,7 +1391,8 @@ popAR( State* state, Fiber* fib ) {
 
 static void
 ensureStack( State* state, Fiber* fib, uint n ) {
-    if( fib->tmpStack.tmps - fib->rPtr->sp + n < fib->tmpStack.cap )
+    uint top = fib->rPtr->sp - fib->tmpStack.tmps;
+    if( top + n < fib->tmpStack.cap )
         return;
     
     // The address of the stack may change, so save
@@ -1386,7 +1401,7 @@ ensureStack( State* state, Fiber* fib, uint n ) {
     uint oSp  = fib->rPtr->sp - fib->tmpStack.tmps;
     uint oLcl = fib->rPtr->lcl - fib->tmpStack.tmps;
     
-    uint cap = fib->tmpStack.cap * 2;
+    uint cap = ( top + n ) * 2;
     Part tmpsP = {
         .ptr = fib->tmpStack.tmps,
         .sz  = sizeof(TVal)*fib->tmpStack.cap
@@ -1406,9 +1421,57 @@ onError( State* state, Defer* defer ) {
     
     Fiber* fib = (void*)defer - (ullong)&((Fiber*)NULL)->errDefer;
     
-    
-    
-    // TODO: generate trace
+    // Generate stack trace.
+    if( state->config.debug ) {
+        if( fib->rPtr->ip ) {
+            VirFun* vir  = &fib->rPtr->cls->fun->u.vir;
+            ullong place = fib->rPtr->ip - vir->code;
+            
+            tenAssert( vir->dbg );
+            
+            uint      nLines = vir->dbg->nLines;
+            LineInfo* lines  = vir->dbg->lines;
+            for( uint i = 0 ; i < nLines ; i++ ) {
+                if( lines[i].start <= place && place < lines[i].end ) {
+                    uint        line = lines[i].line;
+                    char const* file = symBuf( state, vir->dbg->file );
+                    statePushTrace( state, file, line );
+                    break;
+                }
+            }
+        }
+        
+        for( long i = (long)fib->arStack.top - 1 ; i >= 0 ; i-- ) {
+            NatAR* nIt = fib->arStack.ars[i].nats;
+            while( nIt ) {
+                statePushTrace( state, nIt->file, nIt->line );
+                nIt = nIt->prev;
+            }
+            if( !fib->arStack.ars[i].ar.rAddr )
+                continue;
+            
+            VirFun* vir   = &fib->arStack.ars[i].ar.cls->fun->u.vir;
+            ullong  place = fib->arStack.ars[i].ar.rAddr - vir->code;
+            tenAssert( vir->dbg );
+            
+            uint      nLines = vir->dbg->nLines;
+            LineInfo* lines  = vir->dbg->lines;
+            for( uint i = 0 ; i < nLines ; i++ ) {
+                if( lines[i].start <= place && place < lines[i].end ) {
+                    uint        line = lines[i].line;
+                    char const* file = symBuf( state, vir->dbg->file );
+                    statePushTrace( state, file, line );
+                    break;
+                }
+            }
+        }
+        
+        NatAR* nIt = fib->nats;
+        while( nIt ) {
+            statePushTrace( state, nIt->file, nIt->line );
+            nIt = nIt->prev;
+        }
+    }
     
     // Set the fiber's error values from the state.
     fib->errNum = state->errNum;
@@ -1423,6 +1486,7 @@ onError( State* state, Defer* defer ) {
 
 static void
 errUdfAsArg( State* state, Function* fun, uint arg ) {
+    popAR( state, state->fiber );
     stateErrFmtA(
         state, ten_ERR_CALL,
         "Passed `udf` for argument %u",
@@ -1438,9 +1502,10 @@ errTooFewArgs( State* state, Function* fun, uint argc ) {
     else
         func = symBuf( state, fun->u.nat.name );
     
+    popAR( state, state->fiber );
     stateErrFmtA(
         state, ten_ERR_CALL,
-        "Too many arguments to `%s`",
+        "Too few arguments to `%s`",
         func
     );
 }
@@ -1453,9 +1518,10 @@ errTooManyArgs( State* state, Function* fun, uint argc ) {
     else
         func = symBuf( state, fun->u.nat.name );
     
+    popAR( state, state->fiber );
     stateErrFmtA(
         state, ten_ERR_CALL,
-        "Too few arguments to `%s`",
+        "Too many arguments to `%s`",
         func
     );
 }

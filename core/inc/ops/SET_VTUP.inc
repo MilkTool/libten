@@ -1,8 +1,8 @@
 uint  cnt = 1;
-TVal* vals = --regs.sp;
+TVal* vals = regs.sp - 1;
 if( tvIsTup( vals[0] ) ) {
-    cnt  += tvGetTup( vals[0] );
-    vals -= cnt;
+    cnt  = tvGetTup( vals[0] );
+    vals = --regs.sp - cnt;
 }
 if( cnt < opr )
     stateErrFmtA(

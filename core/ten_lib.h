@@ -26,7 +26,7 @@ void
 libAssert( State* state, TVal cond, TVal what );
 
 void
-libExpect( State* state, TVal what, SymT type, TVal val );
+libExpect( State* state, char const* what, SymT type, TVal val );
 
 void
 libCollect( State* state );

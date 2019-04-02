@@ -286,7 +286,7 @@ libAssert( State* state, TVal cond, TVal what ) {
 }
 
 void
-libExpect( State* state, TVal what, SymT type, TVal val ) {
+libExpect( State* state, char const* what, SymT type, TVal val ) {
     LibState* lib = state->libState;
     
     int  tag = tvGetTag( val );
@@ -361,7 +361,7 @@ libExpect( State* state, TVal what, SymT type, TVal val ) {
         return;
     }
     bad: {
-        panic( "Wrong type %t for '%v', need %v", val, what, tvSym( type ) );
+        panic( "Wrong type %t for '%s', need %v", val, what, tvSym( type ) );
     }
 }
 
@@ -411,6 +411,124 @@ libLog( State* state, TVal val ) {
     return tvUdf();
 }
 
+
+
+#define expectArg( ARG, TYPE ) \
+    libExpect( state, #ARG, state->libState->types[TYPE], ref(&ARG ## Arg) ) 
+
+static void
+requireFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var modArg = { .tup = args, .loc = 0 };
+    expectArg( mod, OBJ_STR );
+    
+    Tup rets = statePush( state, 1 );
+    tupAt( rets, 0 ) = libRequire( state, tvGetObj( ref(&modArg) ) );
+}
+
+static void
+importFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var modArg = { .tup = args, .loc = 0 };
+    expectArg( mod, OBJ_STR );
+    
+    Tup rets = statePush( state, 1 );
+    tupAt( rets, 0 ) = libImport( state, tvGetObj( ref(&modArg) ) );
+}
+
+static void
+typeFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valArg = { .tup = args, .loc = 0 };
+    
+    Tup rets = statePush( state, 1 );
+    tupAt( rets, 0 ) = tvSym( libType( state, ref(&valArg) ) );
+}
+
+static void
+panicFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var errArg = { .tup = args, .loc = 0 };
+    panic( "%v", ref(&errArg) );
+}
+
+static void
+assertFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var condArg = { .tup = args, .loc = 0 };
+    ten_Var whatArg = { .tup = args, .loc = 1 };
+    
+    TVal cond = ref(&condArg);
+    TVal what = ref(&whatArg);
+    libAssert( state, cond, what );
+    
+    statePush( state, 0 );
+}
+
+static void
+expectFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var whatArg = { .tup = args, .loc = 0 };
+    ten_Var typeArg = { .tup = args, .loc = 1 };
+    ten_Var valArg  = { .tup = args, .loc = 2 };
+    
+    expectArg( what, OBJ_STR );
+    String* what = tvGetObj( ref(&whatArg) );
+    
+    expectArg( type, VAL_SYM );
+    SymT type = tvGetSym( ref(&typeArg) );
+    
+    libExpect( state, what->buf, type, ref(&valArg) );
+    
+    statePush( state, 0 );
+}
+
+static void
+collectFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    libCollect( state );
+}
+
+static void
+loaderFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var typeArg  = { .tup = args, .loc = 0 };
+    ten_Var loadrArg = { .tup = args, .loc = 1 };
+    ten_Var transArg = { .tup = args, .loc = 2 };
+    
+    expectArg( type, VAL_SYM );
+    SymT type = tvGetSym( ref(&typeArg) );
+    
+    expectArg( loadr, OBJ_CLS );
+    Closure* loadr = tvGetObj( ref(&loadrArg) );
+    
+    expectArg( trans, OBJ_CLS );
+    Closure* trans = tvGetObj( ref(&transArg) );
+    
+    libLoader( state, type, loadr, trans );
+    
+    statePush( state, 0 );
+}
+
+static void
+logFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valArg = { .tup = args, .loc = 0 };
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libLog( state, ref(&valArg) );
+}
+
 void
 libInit( State* state ) {
     Part libP;
@@ -430,6 +548,11 @@ libInit( State* state ) {
     lib->finl.cb = libFinl; stateInstallFinalizer( state, &lib->finl );
     
     stateCommitRaw( state, &libP );
+    
+    ten_Tup varTup = ten_pushA( (ten_State*)state, "UUU" );
+    ten_Var idxVar = { .tup = &varTup, .loc = 0 };
+    ten_Var funVar = { .tup = &varTup, .loc = 1 };
+    ten_Var clsVar = { .tup = &varTup, .loc = 2 };
     
     
     #define IDENT( I ) \
@@ -509,6 +632,38 @@ libInit( State* state ) {
     TYPE( OBJ_CLS, Cls );
     TYPE( OBJ_FIB, Fib );
     TYPE( OBJ_DAT, Dat );
+    
+    
+    #define FUN( N, P, V )                                          \
+    do {                                                            \
+        Index* idx = NULL;                                          \
+        if( (V) ) {                                                 \
+            idx = idxNew( state );                                  \
+            ref(&idxVar) = tvObj( idx );                            \
+        }                                                           \
+                                                                    \
+        Function* fun = funNewNat( state, (P), idx, N ## Fun );     \
+        fun->u.nat.name = symGet( state, #N, sizeof(#N)-1 );        \
+        ref(&funVar) = tvObj( fun );                                \
+                                                                    \
+        Closure* cls = clsNewNat( state, fun, NULL );               \
+        ref(&clsVar) = tvObj( cls );                                \
+                                                                    \
+        ten_State* s = (ten_State*)state;                           \
+        ten_def( s, ten_sym( s, #N ), &clsVar );                    \
+    } while( 0 )
+    
+    FUN( require, 1, false );
+    FUN( import, 1, false );
+    FUN( type, 1, false );
+    FUN( panic, 1, false );
+    FUN( assert, 2, false );
+    FUN( expect, 3, false );
+    FUN( collect, 0, false );
+    FUN( loader, 3, false );
+    FUN( log, 1, false );
+    
+    statePop( state ); // varTup
     
     Index* importIdx = idxNew( state );
     lib->val1 = tvObj( importIdx );

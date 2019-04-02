@@ -350,7 +350,7 @@ stabOpenScope( State* state, STab* stab, uint pc ) {
     putForScope( stab->scoping.used, entry );
     stateCommitRaw( state, &entryP );
     
-    stab->current.scope++;
+    stab->current.scope = stab->nextScope++;
     stab->current.start = pc;
 }
 

@@ -101,7 +101,7 @@ else {
     // Initialize an argument tuple for the callback.
     Tup aTup = {
         .base   = &fib->tmpStack.tmps,
-        .offset = regs.lcl - fib->tmpStack.tmps,
+        .offset = regs.lcl - fib->tmpStack.tmps + 1,
         .size   = argc
     };
     

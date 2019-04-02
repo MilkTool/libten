@@ -1,0 +1,32 @@
+def v: 123
+assert( v = 123, "1" )
+
+def ( v1, v2 ): ( 123, 321 )
+assert( v1 = 123, "2" )
+assert( v2 = 321, "3" )
+
+def { v1, v2 }: { 321, 123 }
+assert( v1 = 321, "4" )
+assert( v2 = 123, "5" )
+
+def { v1: .k1, v2: .k2 }: { .k1: 'v1', .k2: 'v2' }
+assert( v1 = 'v1', "6" )
+assert( v2 = 'v2', "7" )
+
+def ( v1, v2, vs... ): ( 'v1', 'v2', 'v3', 'v4' )
+assert( v1 = 'v1', "8" )
+assert( v2 = 'v2', "9" )
+assert( vs@0 = 'v3', "10" )
+assert( vs@1 = 'v4', "11" )
+
+def { v1, v2, vs... }: { 'v1', 'v2', 'v3', 'v4' }
+assert( v1 = 'v1', "12" )
+assert( v2 = 'v2', "13" )
+assert( vs@2 = 'v3', "14" )
+assert( vs@3 = 'v4', "15" )
+
+def { v1: .k1, v2: .k2, vs... }: { .k1: 'v1', .k2: 'v2', .k3: 'v3' }
+assert( v1 = 'v1', "16" )
+assert( v2 = 'v2', "17" )
+assert( vs.k3 = 'v3', "18" )
+

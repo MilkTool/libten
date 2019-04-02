@@ -7,9 +7,14 @@ if( tvIsUdf( arg ) )
         state, ten_ERR_TYPE,
         "Conditional expression passed Udf"
     );
+if( tvIsTup( arg ) )
+    stateErrFmtA(
+        state, ten_ERR_TYPE,
+        "Conditional expression passed Tup"
+    );
 
 instr* dst = fun->labels[opr];
-if( ( tvIsLog( arg ) && tvGetLog( arg ) ) || !tvIsNil( arg ) ) {
+if( ( tvIsLog( arg ) && !tvGetLog( arg ) ) || tvIsNil( arg ) ) {
     regs.ip = dst;
 }
 regs.sp--;

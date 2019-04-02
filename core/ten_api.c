@@ -28,13 +28,6 @@ struct ApiState {
     Scanner   scan;
     Finalizer finl;
     
-    SymT typeS[OBJ_LAST];
-    SymT funNS[TUP_MAX+1];
-    SymT funVS[TUP_MAX+1];
-    SymT clsNS[TUP_MAX+1];
-    SymT clsVS[TUP_MAX+1];
-    SymT tagS;
-    
     TVal val1;
     TVal val2;
 };
@@ -52,17 +45,6 @@ apiScan( State* state, Scanner* scan ) {
     
     tvMark( api->val1 );
     tvMark( api->val2 );
-    
-    if( !state->gcFull )
-        return;
-    
-    for( uint i = 0 ; i < OBJ_LAST ; i++ )
-        symMark( state, api->typeS[i] );
-    for( uint i = 0 ; i <= TUP_MAX ; i++ ) {
-        symMark( state, api->funNS[i] );
-        symMark( state, api->clsNS[i] );
-    }
-    symMark( state, api->tagS );
 }
 
 void
@@ -71,51 +53,6 @@ apiInit( State* state ) {
     ApiState* api = stateAllocRaw( state, &apiP, sizeof(ApiState) );
     api->finl.cb = apiFinl; stateInstallFinalizer( state, &api->finl );
     api->scan.cb = apiScan; stateInstallScanner( state, &api->scan );
-    
-    api->typeS[VAL_OBJ] = symGet( state, "Obj", 3 );
-    api->typeS[VAL_SYM] = symGet( state, "Sym", 3 );
-    api->typeS[VAL_PTR] = symGet( state, "Ptr", 3 );
-    api->typeS[VAL_UDF] = symGet( state, "Udf", 3 );
-    api->typeS[VAL_NIL] = symGet( state, "Nil", 3 );
-    api->typeS[VAL_LOG] = symGet( state, "Log", 3 );
-    api->typeS[VAL_INT] = symGet( state, "Int", 3 );
-    api->typeS[VAL_DEC] = symGet( state, "Dec", 3 );
-    api->typeS[VAL_TUP] = symGet( state, "Tup", 3 );
-    api->typeS[VAL_REF] = symGet( state, "Ref", 3 );
-    api->typeS[OBJ_STR] = symGet( state, "Str", 3 );
-    api->typeS[OBJ_IDX] = symGet( state, "Idx", 3 );
-    api->typeS[OBJ_REC] = symGet( state, "Rec", 3 );
-    api->typeS[OBJ_FUN] = symGet( state, "Fun", 3 );
-    api->typeS[OBJ_CLS] = symGet( state, "Cls", 3 );
-    api->typeS[OBJ_FIB] = symGet( state, "Fib", 3 );
-    api->typeS[OBJ_UPV] = symGet( state, "Upv", 3 );
-    api->typeS[OBJ_DAT] = symGet( state, "Dat", 3 );
-    #ifdef ten_TEST
-        api->typeS[OBJ_TST] = symGet( state, "Tst", 3 );
-    #endif
-    
-    for( uint i = 0 ; i <= TUP_MAX ; i++ ) {
-        char const* str = fmtA( state, false, "Fun:%u", i );
-        size_t      len = fmtLen( state );
-        api->funNS[i] = symGet( state, str, len );
-    }
-    for( uint i = 0 ; i <= TUP_MAX ; i++ ) {
-        char const* str = fmtA( state, false, "Fun:%u+", i );
-        size_t      len = fmtLen( state );
-        api->funVS[i] = symGet( state, str, len );
-    }
-    for( uint i = 0 ; i <= TUP_MAX ; i++ ) {
-        char const* str = fmtA( state, false, "Cls:%u", i );
-        size_t      len = fmtLen( state );
-        api->clsNS[i] = symGet( state, str, len );
-    }
-    for( uint i = 0 ; i <= TUP_MAX ; i++ ) {
-        char const* str = fmtA( state, false, "Cls:%u+", i );
-        size_t      len = fmtLen( state );
-        api->clsNS[i] = symGet( state, str, len );
-    }
-    
-    api->tagS = symGet( state, "tag", 3 );
     
     api->val1 = tvUdf();
     api->val2 = tvUdf();
@@ -361,10 +298,8 @@ ten_get( ten_State* s, ten_Var* name ) {
     
     SymT     nameS = tvGetSym( nameV );
     TVal*    gval  = envGetGlobalByName( state, nameS );
-    ten_Var* tmp   = stateTmp( state );
-    if( !gval )
-        ref(tmp) = tvUdf();
-    else
+    ten_Var* tmp   = stateTmp( state, tvUdf() );
+    if( gval )
         ref(tmp) = *gval;
     
     return tmp;
@@ -379,14 +314,14 @@ ten_type( ten_State* s, ten_Var* var, ten_Var* dst ) {
 }
 
 void
-ten_expect( ten_State* s, ten_Var* what, ten_Var* type, ten_Var* var ) {
+ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
     TVal typeV = ref(type);
     funAssert( tvIsSym( typeV ), "Wrong type for 'type', need Sym", NULL );
     
-    libExpect( state, ref(what), tvGetSym( typeV ), ref(var) );
+    libExpect( state, what, tvGetSym( typeV ), ref(var) );
 }
 
 bool
@@ -399,65 +334,52 @@ ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 ) {
 ten_Var*
 ten_udf( ten_State* s ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvUdf();
-    return var;
+    return stateTmp( state, tvUdf() );
 }
 
 ten_Var*
 ten_nil( ten_State* s ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvNil();
-    return var;
+    return stateTmp( state, tvNil() );
 }
 
 ten_Var*
 ten_log( ten_State* s, bool log ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvLog( log );
-    return var;
+    return stateTmp( state, tvLog( log ) );
 }
 
 ten_Var*
 ten_int( ten_State* s, long in ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvInt( in );
-    return var;
+    return stateTmp( state, tvInt( in ) );
 }
 
 ten_Var*
 ten_dec( ten_State* s, double dec ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvDec( dec );
-    return var;
+    return stateTmp( state, tvDec( dec ) );
 }
 
 ten_Var*
 ten_sym( ten_State* s, char const* sym ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvSym( symGet( state, sym, strlen( sym ) ) );
-    return var;
+    SymT t = symGet( state, sym, strlen( sym ) );
+    return stateTmp( state, tvSym( t ) );
 }
 
 ten_Var*
 ten_ptr( ten_State* s, void* ptr ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvPtr( ptrGet( state, NULL, ptr ) );
-    return var;
+    PtrT t = ptrGet( state, ptr, NULL );
+    return stateTmp( state, tvPtr( t ) );
 }
 
 ten_Var*
 ten_str( ten_State* s, char const* str ) {
     State* state = (State*)s;
-    ten_Var* var = stateTmp( state );
-    ref(var) = tvObj( strNew( state, str, strlen( str ) ) );
-    return var;
+    String* t = strNew( state, str, strlen( str ) );
+    return stateTmp( state, tvObj( t ) );
 }
 
 typedef struct {
@@ -503,7 +425,11 @@ compileFile( State* state, FILE* file, ten_ComScope scope )  {
         .script = true,
         .src    = (ten_Source*)&source
     };
-    return comCompile( state, &params );
+    Closure* cls = comCompile( state, &params );
+    
+    stateCommitDefer( state, (Defer*)&defer );
+    
+    return cls;
 }
 
 void
@@ -549,7 +475,11 @@ compilePath( State* state, char const* path, ten_ComScope scope ) {
         .src    = (ten_Source*)&source
     };
     
-    return comCompile( state, &params );
+    Closure* cls = comCompile( state, &params );
+    
+    stateCommitDefer( state, (Defer*)&defer );
+    
+    return cls;
 }
 
 void
@@ -671,6 +601,7 @@ ten_executeFile( ten_State* s, FILE* file, ten_ComScope scope ) {
     statePop( state );
     
     api->val1 = tvUdf();
+    fibPropError( state, fib );
 }
 
 void
@@ -688,6 +619,7 @@ ten_executePath( ten_State* s, char const* path, ten_ComScope scope ) {
     statePop( state );
     
     api->val1 = tvUdf();
+    fibPropError( state, fib );
 }
 
 void
@@ -705,6 +637,7 @@ ten_executeScript( ten_State* s, char const* script, ten_ComScope scope ) {
     statePop( state );
     
     api->val1 = tvUdf();
+    fibPropError( state, fib );
 }
 
 ten_Tup
@@ -722,6 +655,7 @@ ten_executeExpr( ten_State* s, char const* expr ) {
     statePop( state );
     
     api->val1 = tvUdf();
+    fibPropError( state, fib );
     
     ten_Tup t;
     memcpy( &t, &ret, sizeof(Tup) );

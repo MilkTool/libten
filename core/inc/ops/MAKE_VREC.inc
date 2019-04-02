@@ -1,16 +1,20 @@
 TVal* sv = regs.sp - 1;
-tenAssert( tvIsObj( *sv ) );
-tenAssert( datGetTag( tvGetObj( *sv ) ) == OBJ_REC );
+if( !tvIsObjType( *sv, OBJ_REC ) )
+    stateErrFmtA(
+        state, ten_ERR_TYPE,
+        "Record expansion attempted on non-Rec type %t",
+        *sv
+    );
 Record* src = tvGetObj( *sv );
 
-TVal* iv = regs.sp - opr*2 - 2;
+TVal (*pairs)[2] = (TVal (*)[])(regs.sp - 1 - opr*2);
+
+TVal* iv = (TVal*)pairs - 1;
 tenAssert( tvIsObj( *iv ) );
 tenAssert( datGetTag( tvGetObj( *iv ) ) == OBJ_IDX );
 Index*  idx = tvGetObj( *iv );
 Record* rec = recNew( state, idx );
 *iv = tvObj( rec );
-
-TVal (*pairs)[2] = (TVal (*)[2])(iv + 1);
 
 Index* srcIdx  = tpGetPtr( src->idx );
 TVal*  srcVals = tpGetPtr( src->vals );

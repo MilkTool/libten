@@ -139,6 +139,9 @@ void
 fibClearError( State* state, Fiber* fib );
 
 void
+fibPropError( State* state, Fiber* fib );
+
+void
 fibTraverse( State* state, Fiber* fib );
 
 void

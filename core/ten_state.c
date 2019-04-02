@@ -175,24 +175,28 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     
     TestAlloc* allocs = NULL;
     
-    /*
-    size_t
-    allocated( void ) {
-        size_t allocated = 0;
-        
-        TestAlloc* aIt = allocs;
-        while( aIt ) {
-            allocated += aIt->size;
-            aIt = aIt->next;
+    
+    #ifdef ten_MEM_DEBUG
+        size_t
+        allocated( void ) {
+            size_t allocated = 0;
+            
+            TestAlloc* aIt = allocs;
+            while( aIt ) {
+                allocated += aIt->size;
+                aIt = aIt->next;
+            }
+            
+            return allocated;
         }
-        
-        return allocated;
-    }
-    */
+    #endif
     
     void*
     testFreealloc( void* udat, void* old, size_t osz, size_t nsz ) {
-        //tenAssert( allocated() == ((State*)udat)->memUsed );
+        #ifdef ten_MEM_DEBUG
+            tenAssert( allocated() == ((State*)udat)->memUsed );
+        #endif
+        
         tenAssert( old != NULL || osz == 0 );
         
         TestAlloc* oAlloc = NULL;
@@ -375,6 +379,16 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
 
 void
 stateFinl( State* state ) {
+    // We should never jump to the error handler during,
+    // finalization, so if an error occurs then abort.
+    jmp_buf errJmp;
+    int err = setjmp( errJmp );
+    if( err ) {
+        fprintf( stderr, "Ten finalization failure\n" );
+        abort();
+    }
+    state->errJmp = &errJmp;
+    
     // Destruct and free all objects.
     Object* oIt;
     
@@ -406,6 +420,8 @@ stateFinl( State* state ) {
         finl->cb( state, finl );
     }
     state->finalizers = NULL;
+    
+    stateClearError( state );
 }
 
 Tup
@@ -433,8 +449,10 @@ statePop( State* state ) {
 }
 
 ten_Var*
-stateTmp( State* state ) {
-    return &state->tmpVars[state->tmpNext++ % NUM_TMP_VARS ];
+stateTmp( State* state, TVal val ) {
+    uint loc = state->tmpNext++ % NUM_TMP_VARS;
+    state->tmpVals[loc] = val;
+    return &state->tmpVars[loc];
 }
 
 void

@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 typedef struct {
-    char pri[512];
+    char pri[2048];
 } ten_State;
 
 typedef struct {
@@ -145,7 +145,7 @@ void
 ten_type( ten_State* s, ten_Var* var, ten_Var* dst );
 
 void
-ten_expect( ten_State* s, ten_Var* what, ten_Var* type, ten_Var* var );
+ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var );
 
 // Misc.
 bool

@@ -60,6 +60,9 @@ struct ComState {
     // The next token, lexed from input characters.
     Token tok;
     
+    // The operand to use for the next POP instruction.
+    uint popc;
+    
     // The current code generator.
     Gen* gen;
     
@@ -846,6 +849,8 @@ parConst( State* state ) {
     
     genConst( state, com->tok.value );
     lex( state );
+    
+    com->popc = 0;
     return true;
 }
 
@@ -859,6 +864,8 @@ parGet( State* state ) {
     GenVar* var = genGetVar( state, com->gen, name );
     genGet( state, var );
     lex( state );
+    
+    com->popc = 0;
     return true;
 }
 
@@ -923,13 +930,13 @@ parTupleEntry( State* state, void* udat ) {
     if( dat->rexp )
         errPar( state, "Extra entries after record expansion" );
     
-    dat->size++;
-    parExpr( state, false );
     if( com->tok.type == '..' ) {
         dat->rexp = true;
         lex( state );
+    } else {
+        dat->size++;
     }
-    
+    parExpr( state, false );
     return true;
 }
 
@@ -956,6 +963,8 @@ parTuple( State* state ) {
     else
     if( dat.rexp )
         genInstr( state, OPC_MAKE_VTUP, dat.size );
+    
+    com->popc = dat.size;
     return true;
 }
 
@@ -980,10 +989,11 @@ parIdentKey( State* state ) {
     if( com->tok.type != '.' )
         return false;
     lex( state );
-    if( com->tok.type == TOK_IDENT )
+    if( com->tok.type != TOK_IDENT )
         errPar( state, "Expected identifier after '.'" );
     
     genConst( state, com->tok.value );
+    lex( state );
     return true;
 }
 
@@ -1007,16 +1017,20 @@ parRecordEntry( State* state, void* udat ) {
     if( dat->rexp )
         errPar( state, "Extra entries after record expansion" );
     
-    dat->size++;
     if( !parKey( state ) ) {
-        genConst( state, tvInt( dat->ikey++ ) );
-        parExpr( state, false );
         if( com->tok.type == '..' ) {
-            dat->rexp = true;
             lex( state );
+            parExpr( state, false );
+            dat->rexp = true;
+        }
+        else {
+            dat->size++;
+            genConst( state, tvInt( dat->ikey++ ) );
+            parExpr( state, false );
         }
         return true;
     }
+    dat->size++;
     
     if( com->tok.type != ':' )
         errPar( state, "Expected ':' after record key" );
@@ -1030,16 +1044,18 @@ parRecordEntry( State* state, void* udat ) {
 static bool
 parRecord( State* state ) {
     ComState* com = state->comState;
+    if( com->tok.type != '{' )
+        return false;
+    
+    genIndex( state );
     
     RecDat dat = { .size = 0, .ikey = 0, .rexp = false };
-    bool r = parSequence(
+    parSequence(
         state,
         '{', '}',
         "record constructor", "}",
         &dat, parRecordEntry
     );
-    if( !r )
-        return false;
     
     if( dat.size > IN_OPR_MAX )
         errLimit( state, "record constructor entry count" );
@@ -1047,6 +1063,8 @@ parRecord( State* state ) {
         genInstr( state, OPC_MAKE_REC, dat.size );
     else
         genInstr( state, OPC_MAKE_VREC, dat.size );
+    
+    com->popc = 0;
     return true;
 }
 
@@ -1079,11 +1097,12 @@ parParam( State* state, void* udat ) {
 static bool
 parClosure( State* state, SymT* name ) {
     ComState* com = state->comState;
-    if( com->tok.type != ']' )
+    if( com->tok.type != '[' )
         return false;
     Gen* pgen = com->gen;
     Gen* cgen = genMake( state, pgen, name, false, false );
-    com->gen = cgen;
+    com->gen  = cgen;
+    com->popc = 0;
     
     ParamsDat dat = { .size = 0, .vpar = false };
     parSequence(
@@ -1109,13 +1128,15 @@ parClosure( State* state, SymT* name ) {
     genFinish( state, cgen, true );
     
     com->gen = pgen;
+    com->popc = 0;
     return true;
 }
 
 static bool
 parDoClause( State* state, void* udat ) {
     parExpr( state, false );
-    genInstr( state, OPC_POP, 0 );
+    genInstr( state, OPC_POP, state->comState->popc );
+    state->comState->popc = 0;
     return true;
 }
 
@@ -1163,7 +1184,11 @@ parIfClause( State* state, void* udat ) {
     // allocate it, its position will be set later.
     char const* altStr = fmtA( state, false, "$%u", (uint)dat->size );
     SymT        altSym = symGet( state, altStr, fmtLen( state ) );
-    GenLbl*     altLbl = genLbl( state, altSym );
+    com->val2 = tvSym( altSym );
+    
+    GenLbl* altLbl = genLbl( state, altSym );
+    
+    uint popc = com->popc;
     
     // Predicate expression.
     parExpr( state, false );
@@ -1185,6 +1210,9 @@ parIfClause( State* state, void* udat ) {
     // Consequent expression.
     parExpr( state, dat->tail );
     
+    if( com->popc < popc )
+        com->popc = popc;
+    
     // If consequent was evaluated then jump to the
     // end of the conditional.
     genInstr( state, OPC_JUMP, dat->exitLbl->which );
@@ -1203,11 +1231,15 @@ parIfExpr( State* state, bool tail ) {
     if( com->tok.type != 'if' )
         return false;
     
+    com->popc = 0;
+    
     genOpenLblScope( state, com->gen );
     
     // Exit label, this will be set to the end of the
     // conditional code.
-    SymT    exitSym = symGet( state, "$e", 2 );
+    SymT exitSym = symGet( state, "$e", 2 );
+    com->val1 = tvSym( exitSym );
+    
     GenLbl* exitLbl = genLbl( state, exitSym );
     
     IfDat dat = { .tail = tail, .size = 0, .exitLbl = exitLbl };
@@ -1305,7 +1337,14 @@ parWhenClause( State* state, void* udat ) {
         errPar( state, "Expected ':' after signal parameters" );
     lex( state );
     
+    
+    uint popc = com->popc;
+    
     parExpr( state, dat->tail );
+    
+    if( com->popc < popc )
+        com->popc = popc;
+    
     genInstr( state, OPC_JUMP, dat->exitLbl->which );
     
     genCloseScope( state, com->gen );
@@ -1317,6 +1356,8 @@ parWhenExpr( State* state, bool tail ) {
    ComState* com = state->comState;
     if( com->tok.type != 'if' )
         return false;
+    
+    com->popc = 0;
     
     genOpenLblScope( state, com->gen );
     
@@ -1387,7 +1428,9 @@ finPath( State* state ) {
         genInstr( state, OPC_GET_FIELD, 0 );
         
         lex( state );
+        com->popc = 0;
         finPath( state );
+        
     }
     else
     if( com->tok.type == '@' ) {
@@ -1395,6 +1438,7 @@ finPath( State* state ) {
         if( !parPrim( state, false ) )
             errPar( state, "Unexpected token" );
         genInstr( state, OPC_GET_FIELD, 0 );
+        com->popc = 0;
         finPath( state );
     }
 }
@@ -1416,7 +1460,7 @@ parCall( State* state, void* udat ) {
     OperDat* dat = udat;
     
     if( !parPath( state ) )
-        errPar( state, "Expected path or primary expression" );
+        errPar( state, "Invalid expression" );
     
     while( parPath( state ) ) {
         genInstr( state, OPC_CALL, 0 );
@@ -1428,6 +1472,7 @@ parCall( State* state, void* udat ) {
     if( dat->tail && state->comState->tok.type == TOK_DELIM )
         genInstr( state, OPC_RETURN, 0 );
     
+    state->comState->popc = 0;
     return true;
 }
 
@@ -1467,6 +1512,8 @@ parBinaryOper(
         genInstr( state, opc, 0 );
         opc = matchOpCode( state, opers );
     }
+    
+    state->comState->popc = 0;
 }
 
 static void
@@ -1484,6 +1531,7 @@ parUnaryOper(
     if( opc != OPC_LAST ) {
         genInstr( state, opc, 0 );
     }
+    state->comState->popc = 0;
 }
 
 static bool
@@ -1596,6 +1644,8 @@ parConditional( State* state, bool tail ) {
     OpCode opc = matchOpCode( state, opers );
     
     if( opc != OPC_LAST ) {
+        genOpenLblScope( state, com->gen );
+        
         SymT    exitSym = symGet( state, "$e", 2 );
         GenLbl* exitLbl = genLbl( state, exitSym );
         
@@ -1607,6 +1657,8 @@ parConditional( State* state, bool tail ) {
         }
         uint place = genGetPlace( state, com->gen );
         genMovLbl( state, com->gen, exitLbl, place );
+        
+        genCloseLblScope( state, com->gen );
     }
 }
 
@@ -1632,7 +1684,6 @@ parVarTupEntry( State* state, void* udat ) {
     if( dat->vtup )
         errPar( state, "Extra variables after '...'" );
     
-    dat->size++;
     if( com->tok.type != TOK_IDENT )
         errPar( state, "Expected identifier" );
     
@@ -1645,6 +1696,9 @@ parVarTupEntry( State* state, void* udat ) {
     if( com->tok.type == '..' ) {
         dat->vtup = true;
         lex( state );
+    }
+    else {
+        dat->size++;
     }
     return true;
 }
@@ -1665,9 +1719,9 @@ parVarTup( State* state, bool def ) {
     if( dat.vtup ) {
         genIndex( state );
         if( def )
-            return inMake( OPC_DEF_VTUP, dat.size - 1 );
+            return inMake( OPC_DEF_VTUP, dat.size );
         else
-            return inMake( OPC_SET_VTUP, dat.size - 1 );
+            return inMake( OPC_SET_VTUP, dat.size );
     }
     else {
         if( def )
@@ -1685,7 +1739,6 @@ parVarRecEntry( State* state, void* udat ) {
     if( dat->vrec )
         errPar( state, "Extra variables after '...'" );
     
-    dat->size++;
     if( com->tok.type != TOK_IDENT )
         errPar( state, "Expected identifier" );
     
@@ -1703,9 +1756,11 @@ parVarRecEntry( State* state, void* udat ) {
     if( com->tok.type == ':' ) {
         lex( state );
         parKey( state );
+        dat->size++;
     }
     else {
         genConst( state, tvInt( dat->ikey++ ) );
+        dat->size++;
     }
     return true;
 }
@@ -1715,9 +1770,9 @@ parVarRec( State* state, bool def ) {
     DstRecDat dat = { .size = 0, .ikey = 0, .def = def, .vrec = false };
     parSequence(
         state,
-        '(', ')',
-        "variable tuple",
-        ")",
+        '{', '}',
+        "variable record",
+        "}",
         &dat, parVarRecEntry
     );
     if( dat.size > IN_OPC_MAX )
@@ -1726,9 +1781,9 @@ parVarRec( State* state, bool def ) {
     if( dat.vrec ) {
         genIndex( state );
         if( def )
-            return inMake( OPC_DEF_VREC, dat.size - 1 );
+            return inMake( OPC_DEF_VREC, dat.size );
         else
-            return inMake( OPC_SET_VREC, dat.size - 1 );
+            return inMake( OPC_SET_VREC, dat.size );
     }
     else {
         if( def )
@@ -1748,13 +1803,15 @@ parKeyTupEntry( State* state, void* udat ) {
     if( dat->vtup )
         errPar( state, "Extra keys after '...'" );
     
-    dat->size++;
     if( !parKey( state ) )
         errPar( state, "Expected record key" );
     
     if( com->tok.type == '..' ) {
         dat->vtup = true;
         lex( state );
+    }
+    else {
+        dat->size++;
     }
     return true;
 }
@@ -1775,9 +1832,9 @@ parKeyTup( State* state, bool def ) {
     if( dat.vtup ) {
         genIndex( state );
         if( def )
-            return inMake( OPC_REC_DEF_VTUP, dat.size - 1 );
+            return inMake( OPC_REC_DEF_VTUP, dat.size );
         else
-            return inMake( OPC_REC_SET_VTUP, dat.size - 1 );
+            return inMake( OPC_REC_SET_VTUP, dat.size );
     }
     else {
         if( def )
@@ -1795,7 +1852,6 @@ parKeyRecEntry( State* state, void* udat ) {
     if( dat->vrec )
         errPar( state, "Extra keys after '...'" );
     
-    dat->size++;
     if( !parKey( state ) )
         errPar( state, "Expected record key" );
     
@@ -1807,9 +1863,11 @@ parKeyRecEntry( State* state, void* udat ) {
     if( com->tok.type == ':' ) {
         lex( state );
         parKey( state );
+        dat->size++;
     }
     else {
         genConst( state, tvInt( dat->ikey++ ) );
+        dat->size++;
     }
     return true;
 }
@@ -1819,9 +1877,9 @@ parKeyRec( State* state, bool def ) {
     DstRecDat dat = { .size = 0, .ikey = 0, .def = def, .vrec = false };
     parSequence(
         state,
-        '(', ')',
-        "variable tuple",
-        ")",
+        '{', '}',
+        "key record",
+        "}",
         &dat, parKeyRecEntry
     );
     if( dat.size > IN_OPC_MAX )
@@ -1830,9 +1888,9 @@ parKeyRec( State* state, bool def ) {
     if( dat.vrec ) {
         genIndex( state );
         if( def )
-            return inMake( OPC_REC_DEF_VREC, dat.size - 1 );
+            return inMake( OPC_REC_DEF_VREC, dat.size );
         else
-            return inMake( OPC_REC_SET_VREC, dat.size - 1 );
+            return inMake( OPC_REC_SET_VREC, dat.size );
     }
     else {
         if( def )
@@ -1936,9 +1994,7 @@ parAssign( State* state ) {
     // Add the assignment instruction.
     genPutInstr( state, com->gen, in );
     
-    // Pop the `udf` returned by the assignment instruction.
-    genInstr( state, OPC_POP, 0 );
-    
+    com->popc = 0;
     return true;
 }
 
@@ -1963,6 +2019,8 @@ parSignal( State* state ) {
     
     parExpr( state, false );
     genInstr( state, OPC_JUMP, lbl->which );
+    
+    com->popc = 0;
     return true;
 }
 
@@ -1998,6 +2056,8 @@ comScan( State* state, Scanner* scan ) {
     
     tvMark( com->val1 );
     tvMark( com->val2 );
+    tvMark( com->tok.value );
+    
     if( state->gcFull )
         symMark( state, com->this );
 }
@@ -2008,13 +2068,14 @@ comInit( State* state ) {
     ComState* com = stateAllocRaw( state, &comP, sizeof(ComState) );
     memset( com, 0, sizeof(ComState) );
     
-    com->finl.cb = comFinl;
-    com->scan.cb = comScan;
-    com->obj1    = NULL;
-    com->obj2    = NULL;
-    com->val1    = tvUdf();
-    com->val2    = tvUdf();
-    com->this    = symGet( state, "this", 4 );
+    com->finl.cb   = comFinl;
+    com->scan.cb   = comScan;
+    com->obj1      = NULL;
+    com->obj2      = NULL;
+    com->val1      = tvUdf();
+    com->val2      = tvUdf();
+    com->this      = symGet( state, "this", 4 );
+    com->tok.value = tvUdf();
     
     initCharBuf( state, &com->lex.chars );
     
@@ -2049,7 +2110,7 @@ srcInit( Source* src, char const* code ) {
 
 void
 comTest( State* state ) {
-    Source src1; srcInit( &src1, "a + b, a - b" );
+    Source src1; srcInit( &src1, "a + b, if true: a - b else a + b" );
     ComParams p1 = {
         .file   = "test.ten",
         .params = NULL,
@@ -2083,12 +2144,21 @@ comCompile( State* state, ComParams* params ) {
     com->obj2    = NULL;
     com->val1    = tvUdf();
     com->val2    = tvUdf();
+    com->popc    = 0;
+    com->tok.value = tvUdf();
     
     com->gen = genMake( state, NULL, NULL, params->global, params->debug );
     
-    com->lex.nChar = params->src->next( params->src );
     com->lex.line  = 1;
+    com->lex.nChar = params->src->next( params->src );
     lex( state );
+    
+    if( params->file ) {
+        SymT file = symGet( state, params->file, strlen( params->file ) );
+        com->val1 = tvSym( file );
+        genSetFile( state, com->gen, file );
+        com->val1 = tvUdf();
+    }
     
     bool vpar = false;
     if( params->params ) {
@@ -2112,6 +2182,7 @@ comCompile( State* state, ComParams* params ) {
         parDelim( state );
         while( com->tok.type != TOK_END ) {
             parExpr( state, false );
+            genInstr( state, OPC_POP, com->popc );
             if( com->tok.type != TOK_END && !parDelim( state ) )
                 errPar( state, "Expected delimiter or EOF" );
         }

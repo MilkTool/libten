@@ -322,7 +322,7 @@ statePop( State* state );
 
 // Returns the next temporary variable.
 ten_Var*
-stateTmp( State* state );
+stateTmp( State* state, TVal val );
 
 
 // Throw an error.  The `stateErrStr()` should only be used for

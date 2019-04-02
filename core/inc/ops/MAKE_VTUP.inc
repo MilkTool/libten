@@ -1,3 +1,12 @@
+TVal* sv = regs.sp - 1;
+if( !tvIsObjType( *sv, OBJ_REC ) )
+    stateErrFmtA(
+        state, ten_ERR_TYPE,
+        "Record expansion attempted on non-Rec type %t",
+        *sv
+    );
+Record* src = tvGetObj( *sv );
+
 TVal* vals = regs.sp - opr;
 if( opr > TUP_MAX )
     stateErrFmtA(
@@ -13,18 +22,14 @@ for( uint i = 0 ; i < opr ; i++ ) {
         );
 }
 
-tenAssert( tvIsObj( regs.sp[-1] ) );
-tenAssert( datGetTag( tvGetObj( regs.sp[-1] ) ) == OBJ_REC );
-Record* rec  = tvGetObj( regs.sp[-1] );
-
 uint cnt = 0;
-TVal val = recGet( state, rec, tvInt( cnt ) );
+TVal val = recGet( state, src, tvInt( cnt ) );
 while( !tvIsUdf( val ) ) {
     regs.sp++;
     regs.sp[-1] = regs.sp[-2];
     regs.sp[-2] = val;
     cnt++;
-    val = recGet( state, rec, tvInt( cnt ) );
+    val = recGet( state, src, tvInt( cnt ) );
 }
 
 regs.sp[-1] = tvTup( cnt + opr );
