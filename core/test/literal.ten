@@ -1,0 +1,17 @@
+def n: nil
+assert( n = nil, "1" )
+
+def l: true
+assert( l = true, "2" )
+
+def i: 123
+assert( i = 123, "3" )
+
+def d: 1.2
+assert( d = 1.2, "4" )
+
+def s: 'hello'
+assert( s = 'hello', "5" )
+
+def t: "hello"
+

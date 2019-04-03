@@ -30,3 +30,26 @@ assert( v1 = 'v1', "16" )
 assert( v2 = 'v2', "17" )
 assert( vs.k3 = 'v3', "18" )
 
+def r: {}
+
+def r.v: 123
+assert( r.v = 123, "19" )
+
+def r( .v1, .v2 ): ( 123, 321 )
+assert( r.v1 = 123, "20" )
+assert( r.v2 = 321, "21" )
+
+
+def r{ .v1, .v2 }: { 321, 123 }
+assert( r.v1 = 321, "20" )
+assert( r.v2 = 123, "21" )
+
+def r{ .v1: .k1, .v2: .k2 }: { .k1: 'v1', .k2: 'v2' }
+assert( r.v1 = 'v1', "22" )
+assert( r.v2 = 'v2', "23" )
+
+def r( .v1, .v2, .vs... ): ( 'v1', 'v2', 'v3', 'v4' )
+assert( r.v1 = 'v1', "24" )
+assert( r.v2 = 'v2', "25" )
+assert( r.vs@0 = 'v3', "26" )
+assert( r.vs@1 = 'v4', "27" )

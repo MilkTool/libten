@@ -46,7 +46,7 @@ libDec( State* state, TVal val );
 TVal
 libSym( State* state, TVal val );
 
-String*
+TVal
 libStr( State* state, TVal val );
 
 Closure*
@@ -108,6 +108,12 @@ libUchar( State* state, IntT code );
 
 String*
 libCat( State* state, Record* rec );
+
+TVal
+libBcmp( State* state, String* str1, SymT opr, String* str2 );
+
+TVal
+libCcmp( State* state, String* str1, SymT opr, String* str2 );
 
 String*
 libJoin( State* state, Closure* stream );

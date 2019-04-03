@@ -300,23 +300,25 @@ genUpvalRef( State* state, void* udat, void* edat ) {
     Gen*    gen = udat;
     GenVar* upv = edat;
     
+    instr* urefs = gen->misc1;
+    
     Gen*    pgen = gen->parent;
     GenVar* pvar = (GenVar*)genGetVar( state, pgen, upv->name );
     if( pvar->type == VAR_LOCAL ) {
         pvar->type = VAR_CLOSED;
-        genPutInstr( state, pgen, inMake( OPC_REF_LOCAL, pvar->which ) );
+        urefs[upv->which] = inMake( OPC_REF_LOCAL, pvar->which );
     }
     else
     if( pvar->type == VAR_CLOSED ) {
-        genPutInstr( state, pgen, inMake( OPC_REF_CLOSED, pvar->which ) );
+        urefs[upv->which] = inMake( OPC_REF_CLOSED, pvar->which );
     }
     else
     if( pvar->type == VAR_UPVAL ) {
-        genPutInstr( state, pgen, inMake( OPC_REF_UPVAL, pvar->which ) );
+        urefs[upv->which] = inMake( OPC_REF_UPVAL, pvar->which );
     }
     else
     if( pvar->type == VAR_GLOBAL ) {
-        genPutInstr( state, pgen, inMake( OPC_REF_GLOBAL, pvar->which ) );
+        urefs[upv->which] = inMake( OPC_REF_GLOBAL, pvar->which );
     }
 }
 
@@ -374,7 +376,11 @@ genFinish( State* state, Gen* gen, bool constr ) {
         
         // Following the function goes a list of references,
         // one for each upvalue of the child function.
+        instr urefs[vfun->nUpvals];
+        gen->misc1 = urefs;
         stabForEach( state, gen->upvs, genUpvalRef );
+        for( uint i = 0 ; i < vfun->nUpvals ; i++ )
+            genPutInstr( state, pgen, urefs[i] );
         
         // And the closure constructor instruction.
         genPutInstr( state, pgen, inMake( OPC_MAKE_CLS, vfun->nUpvals ) );
@@ -477,15 +483,8 @@ addGlobal( State* state, Gen* gen, SymT name ) {
 
 static GenVar*
 addLocal( State* state, Gen* gen, SymT name ) {
-    GenVar* var = stabGetDat( state, gen->lcls, name, gen->code.top );
-    if( var ) {
-        if( var->type == VAR_CLOSED )
-            var->type = VAR_LOCAL;
-        return var;
-    }
-    
     Part varP;
-    var = stateAllocRaw( state, &varP, sizeof(GenVar) );
+    GenVar* var = stateAllocRaw( state, &varP, sizeof(GenVar) );
     var->which = stabAdd( state, gen->lcls, name, var );
     var->name  = name;
     var->type  = VAR_LOCAL;

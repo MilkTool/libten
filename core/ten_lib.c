@@ -82,6 +82,16 @@ typedef enum {
     IDENT_LAST
 } Ident;
 
+typedef enum {
+    OPER_ILT,
+    OPER_IMT,
+    OPER_IET,
+    OPER_ILE,
+    OPER_IME,
+    OPER_NET,
+    OPER_LAST
+} Oper;
+
 struct LibState {
     Finalizer finl;
     Scanner   scan;
@@ -94,6 +104,7 @@ struct LibState {
     Record* modules;
     
     SymT idents[IDENT_LAST];
+    SymT opers[OPER_LAST];
     SymT types[OBJ_LAST];
 };
 
@@ -117,6 +128,8 @@ libScan( State* state, Scanner* scan ) {
     
     for( uint i = 0 ; i < IDENT_LAST ; i++ )
         symMark( state, lib->idents[i] );
+    for( uint i = 0 ; i < OPER_LAST ; i++ )
+        symMark( state, lib->opers[i] );
     for( uint i = 0 ; i < OBJ_LAST ; i++ )
         symMark( state, lib->types[i] );
 }
@@ -386,6 +399,8 @@ libLoader( State* state, SymT type, Closure* loadr, Closure* trans ) {
 
 TVal
 libLog( State* state, TVal val ) {
+    if( tvIsLog( val ) )
+        return val;
     if( tvIsInt( val ) )
         return tvLog( tvGetInt( val ) != 0 );
     if( tvIsDec( val ) )
@@ -408,6 +423,144 @@ libLog( State* state, TVal val ) {
         else
             return tvUdf();
     }
+    return tvUdf();
+}
+
+TVal
+libInt( State* state, TVal val ) {
+    if( tvIsInt( val ) )
+        return val;
+    if( tvIsLog( val ) )
+        return tvInt( !!tvGetLog( val ) );
+    if( tvIsDec( val ) )
+        return tvInt( (IntT)tvGetDec( val ) );
+    if( tvIsSym( val ) ) {
+        SymT sym = tvGetSym( val );
+        
+        char*       end;
+        char const* start = symBuf( state, sym );
+        
+        IntT i = strtol( start, &end, 0 );
+        if( end != &start[symLen( state, sym )] )
+            return tvUdf();
+        
+        return tvInt( i );
+    }
+    if( tvIsObjType( val, OBJ_STR ) ) {
+        String* str = tvGetObj( val );
+        
+        char*       end;
+        char const* start = strBuf( state, str );
+        
+        IntT i = strtol( start, &end, 0 );
+        if( end != &start[strLen( state, str )] )
+            return tvUdf();
+        
+        return tvInt( i );
+    }
+    return tvUdf();
+}
+
+TVal
+libDec( State* state, TVal val ) {
+    if( tvIsDec( val ) )
+        return val;
+    if( tvIsLog( val ) )
+        return tvDec( (DecT)!!tvGetLog( val ) );
+    if( tvIsInt( val ) )
+        return tvDec( (DecT)tvGetInt( val ) );
+    if( tvIsSym( val ) ) {
+        SymT sym = tvGetSym( val );
+        
+        char*       end;
+        char const* start = symBuf( state, sym );
+        
+        DecT f = strtof( start, &end );
+        if( end != &start[symLen( state, sym )] )
+            return tvUdf();
+        
+        return tvDec( f );
+    }
+    if( tvIsObjType( val, OBJ_STR ) ) {
+        String* str = tvGetObj( val );
+        
+        char*       end;
+        char const* start = strBuf( state, str );
+        
+        DecT f = strtof( start, &end );
+        if( end != &start[strLen( state, str )] )
+            return tvUdf();
+        
+        return tvDec( f );
+    }
+    return tvUdf();
+}
+
+TVal
+libSym( State* state, TVal val ) {
+    if( tvIsSym( val ) )
+        return val;
+    if( tvIsObjType( val, OBJ_STR ) ) {
+        String* str = tvGetObj( val );
+        SymT    sym = symGet( state, strBuf( state, str ), strLen( state, str ) );
+        
+        return tvSym( sym );
+    }
+    char const* buf = fmtA( state, false, "%v", val );
+    size_t      len = fmtLen( state );
+    
+    return tvSym( symGet( state, buf, len ) );
+}
+
+TVal
+libStr( State* state, TVal val ) {
+    if( tvIsObjType( val, OBJ_STR ) )
+        return val;
+    if( tvIsSym( val ) ) {
+        SymT    sym = tvGetSym( val );
+        String* str = strNew( state, symBuf( state, sym ), symLen( state, sym ) );
+        
+        return tvObj( str );
+    }
+    char const* buf = fmtA( state, false, "%v", val );
+    size_t      len = fmtLen( state );
+    
+    return tvObj( strNew( state, buf, len ) );
+}
+
+void
+libShow( State* state, Record* rec ) {
+    fmtA( state, false, "" );
+    
+    uint  i = 0;
+    TVal  v = recGet( state, rec, tvInt( i++ ) );
+    while( !tvIsUdf( v ) ) {
+        fmtA( state, true, "%v", v );
+        v = recGet( state, rec, tvInt( i++ ) );
+    }
+    fwrite( fmtBuf( state ), 1, fmtLen( state ), stdout );
+}
+
+TVal
+libBcmp( State* state, String* str1, SymT opr, String* str2 ) {
+    LibState* lib = state->libState;
+    
+    size_t len = str2->len < str1->len ? str2->len : str1->len;
+    int r = memcmp( str1->buf, str2->buf, len + 1 );
+    
+    if( opr == lib->opers[OPER_ILT] )
+        return  tvLog( r < 0 );
+    if( opr == lib->opers[OPER_IMT] )
+        return tvLog( r > 0 );
+    if( opr == lib->opers[OPER_IET] )
+        return tvLog( r == 0 );
+    if( opr == lib->opers[OPER_ILE] )
+        return tvLog( r <= 0 );
+    if( opr == lib->opers[OPER_IME] )
+        return tvLog( r >= 0 );
+    if( opr == lib->opers[OPER_NET] )
+        return tvLog( r != 0 );
+    
     return tvUdf();
 }
 
@@ -529,8 +682,91 @@ logFun( ten_PARAMS ) {
     ref(&retVar) = libLog( state, ref(&valArg) );
 }
 
+static void
+intFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valArg = { .tup = args, .loc = 0 };
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libInt( state, ref(&valArg) );
+}
+
+static void
+decFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valArg = { .tup = args, .loc = 0 };
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libDec( state, ref(&valArg) );
+}
+
+static void
+symFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valArg = { .tup = args, .loc = 0 };
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libSym( state, ref(&valArg) );
+}
+
+static void
+strFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valArg = { .tup = args, .loc = 0 };
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libStr( state, ref(&valArg) );
+}
+
+static void
+showFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    ten_Var valsArg = { .tup = args, .loc = 0 };
+    
+    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    
+    libShow( state, tvGetObj( ref(&valsArg) ) );
+    
+    statePush( state, 0 );
+}
+
+static void
+bcmpFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var str1Arg = { .tup = args, .loc = 0 };
+    ten_Var oprArg  = { .tup = args, .loc = 1 };
+    ten_Var str2Arg = { .tup = args, .loc = 2 };
+    
+    expectArg( str1, OBJ_STR );
+    expectArg( opr, VAL_SYM );
+    expectArg( str2, OBJ_STR );
+    
+    String* str1 = tvGetObj( ref(&str1Arg) );
+    SymT    opr  = tvGetSym( ref(&oprArg) );
+    String* str2 = tvGetObj( ref(&str2Arg) );
+    
+    TVal r = libBcmp( state, str1, opr, str2 );
+    
+    ten_pushA( ten, "V", stateTmp( state, r ) );
+}
+
 void
 libInit( State* state ) {
+    ten_State* s = (ten_State*)state;
+    
     Part libP;
     LibState* lib = stateAllocRaw( state, &libP, sizeof(LibState) );
     lib->val1 = tvUdf();
@@ -541,6 +777,8 @@ libInit( State* state ) {
     
     for( uint i = 0 ; i < IDENT_LAST ; i++ )
         lib->idents[i] = symGet( state, "", 0 );
+    for( uint i = 0 ; i < OPER_LAST ; i++ )
+        lib->opers[i] = symGet( state, "", 0 );
     for( uint i = 0 ; i < OBJ_LAST ; i++ )
         lib->types[i] = symGet( state, "", 0 );
     
@@ -615,6 +853,17 @@ libInit( State* state ) {
     
     IDENT( tag );
     
+
+    #define OPER( N, O ) \
+        lib->opers[OPER_ ## N] = symGet( state, O, sizeof(O)-1 )
+    
+    OPER( ILT, "<" );
+    OPER( IMT, ">" );
+    OPER( IET, "=" );
+    OPER( ILE, "<=" );
+    OPER( IME, ">=" );
+    OPER( NET, "~=" );
+    
     #define TYPE( T, N ) \
         lib->types[T] = symGet( state, #N, sizeof(#N)-1 )
     
@@ -649,7 +898,6 @@ libInit( State* state ) {
         Closure* cls = clsNewNat( state, fun, NULL );               \
         ref(&clsVar) = tvObj( cls );                                \
                                                                     \
-        ten_State* s = (ten_State*)state;                           \
         ten_def( s, ten_sym( s, #N ), &clsVar );                    \
     } while( 0 )
     
@@ -662,6 +910,14 @@ libInit( State* state ) {
     FUN( collect, 0, false );
     FUN( loader, 3, false );
     FUN( log, 1, false );
+    FUN( int, 1, false );
+    FUN( dec, 1, false );
+    FUN( sym, 1, false );
+    FUN( str, 1, false );
+    FUN( show, 0, true );
+    FUN( bcmp, 3, false );
+    
+    ten_def( s, ten_sym( s, "N" ), ten_sym( s, "\n" ) );
     
     statePop( state ); // varTup
     

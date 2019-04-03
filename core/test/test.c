@@ -8,6 +8,10 @@ char const* tests[] = {
     "variadic.ten",
     "conditional.ten",
     "signal.ten",
+    "closure.ten",
+    "literal.ten",
+    "block.ten",
+    "convert.ten",
     NULL
 };
 

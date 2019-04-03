@@ -304,7 +304,7 @@ lexNum( State* state ) {
     }
     
     takeAll( maybeChar( state, false, '_' ) || maybeType( state, true, isdigit ) );
-    if( !maybeChar( state, true, '.' ) )
+    if( maybeChar( state, true, '.' ) )
         errLex( state, "Extra decimal point" );
     *putCharBuf( state, &com->lex.chars ) = '\0';
     DecT dec = strtod( com->lex.chars.buf, NULL );
@@ -338,14 +338,14 @@ lexSym( State* state ) {
     if( maybeChar( state, false, '|' ) ) {
         untilPair( true, '|', '\'' );
         trim = 2;
-    
-        if( hasEOF() )
-            errLex( state, "Unexpected EOF" );
     }
     else {
         untilOne( true, '\'' );
         trim = 1;
     }
+    
+    if( hasEOF() )
+        errLex( state, "Unexpected EOF" );
     
     SymT sym = symGet( state, com->lex.chars.buf, com->lex.chars.top - trim );
     com->tok.type  = TOK_CONST;
@@ -368,14 +368,14 @@ lexStr( State* state ) {
     if( maybeChar( state, false, '|' ) ) {
         untilPair( true, '|', '"' );
         trim = 2;
-    
-        if( hasEOF() )
-            errLex( state, "Unexpected EOF" );
     }
     else {
         untilOne( true, '"' );
         trim = 1;
     }
+    
+    if( hasEOF() )
+        errLex( state, "Unexpected EOF" );
     
     String* str = strNew( state, com->lex.chars.buf, com->lex.chars.top - trim );
     com->tok.type  = TOK_CONST;
@@ -1148,7 +1148,7 @@ parDoExpr( State* state, bool tail ) {
     
     genOpenScope( state, com->gen );
     
-    bool r = parSequence(
+    parSequence(
         state,
         'do', 'fo',
         "do expression", "for",
@@ -1904,13 +1904,21 @@ static instr
 finFieldDst( State* state, bool def ) {
     ComState* com = state->comState;
     
-    if( !parKey( state ) )
-        errPar( state, "Expected field pattern or ':'" );
-    while( com->tok.type == '@' || com->tok.type == '.' ) {
-        genInstr( state, OPC_GET_FIELD, 0 );
-        if( !parKey( state ) )
-            errPar( state, "Expected field pattern or ':'" );
+    if( parKey( state ) ) {
+        while( com->tok.type == '@' || com->tok.type == '.' ) {
+            genInstr( state, OPC_GET_FIELD, 0 );
+            if( !parKey( state ) )
+                errPar( state, "Invalid record key" );
+        }
     }
+    
+    if( com->tok.type == ':' ) {
+        if( def )
+            return inMake( OPC_REC_DEF_ONE, 0 );
+        else
+            return inMake( OPC_REC_SET_ONE, 0 );
+    }
+        
     if( com->tok.type == '(' ) {
         parKey( state );
         return parKeyTup( state, def );
@@ -1920,12 +1928,9 @@ finFieldDst( State* state, bool def ) {
         parKey( state );
         return parKeyRec( state, def );
     }
-    else {
-        if( def )
-            return inMake( OPC_REC_DEF_ONE, 0 );
-        else
-            return inMake( OPC_REC_SET_ONE, 0 );
-    }
+    
+    errPar( state, "Syntax error" );
+    return 0;
 }
 
 static bool

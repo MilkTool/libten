@@ -790,8 +790,12 @@ doCall( State* state, Fiber* fib ) {
     }
     
     // First value in argv is the closure being called.
-    tenAssert( tvIsObj( argv[0] ) );
-    tenAssert( datGetTag( tvGetObj( argv[0] ) ) == OBJ_CLS );
+    if( !tvIsObjType( argv[0], OBJ_CLS ) )
+        stateErrFmtA(
+            state, ten_ERR_TYPE,
+            "Attempt to call non-Cls type %t",
+            argv[0]
+        );
     
     Closure* cls = tvGetObj( argv[0] );
     uint parc = cls->fun->nParams;
