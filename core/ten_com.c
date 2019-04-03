@@ -1210,7 +1210,7 @@ parIfClause( State* state, void* udat ) {
     // Consequent expression.
     parExpr( state, dat->tail );
     
-    if( com->popc < popc )
+    if( com->popc > popc )
         com->popc = popc;
     
     // If consequent was evaluated then jump to the
@@ -1237,9 +1237,7 @@ parIfExpr( State* state, bool tail ) {
     
     // Exit label, this will be set to the end of the
     // conditional code.
-    SymT exitSym = symGet( state, "$e", 2 );
-    com->val1 = tvSym( exitSym );
-    
+    SymT    exitSym = symGet( state, "$e", 2 );
     GenLbl* exitLbl = genLbl( state, exitSym );
     
     IfDat dat = { .tail = tail, .size = 0, .exitLbl = exitLbl };
@@ -1280,7 +1278,6 @@ parSigParam( State* state, void* udat ) {
     if( dat->vpar )
         errPar( state, "Extra parameters after '...'" );
     
-    dat->size++;
     SymT ident = tvGetSym( com->tok.value );
     GenVar* var = genVar( state, ident, true );
     genRef( state, var );
@@ -1289,6 +1286,9 @@ parSigParam( State* state, void* udat ) {
     if( com->tok.type == '..' ) {
         dat->vpar = true;
         lex( state );
+    }
+    else {
+        dat->size++;
     }
     
     return true;
@@ -1327,7 +1327,7 @@ parWhenClause( State* state, void* udat ) {
     
     if( pdat.vpar ) {
         genIndex( state );
-        genInstr( state, OPC_DEF_VSIG, pdat.size - 1 );
+        genInstr( state, OPC_DEF_VSIG, pdat.size );
     }
     else {
         genInstr( state, OPC_DEF_SIG, pdat.size );
@@ -1336,13 +1336,13 @@ parWhenClause( State* state, void* udat ) {
     if( com->tok.type != ':' )
         errPar( state, "Expected ':' after signal parameters" );
     lex( state );
-    
+    parDelim( state );
     
     uint popc = com->popc;
     
     parExpr( state, dat->tail );
     
-    if( com->popc < popc )
+    if( com->popc > popc )
         com->popc = popc;
     
     genInstr( state, OPC_JUMP, dat->exitLbl->which );
@@ -1354,7 +1354,7 @@ parWhenClause( State* state, void* udat ) {
 static bool
 parWhenExpr( State* state, bool tail ) {
    ComState* com = state->comState;
-    if( com->tok.type != 'if' )
+    if( com->tok.type != 'wh' )
         return false;
     
     com->popc = 0;
@@ -1942,6 +1942,7 @@ parAssign( State* state ) {
         return false;
     
     lex( state );
+    parDelim( state );
     
     // Parse the destination pattern, the respective
     // function for parsing each type of pattern will
@@ -1987,6 +1988,9 @@ parAssign( State* state ) {
         errPar( state, "Expected ':' after assignment pattern" );
     lex( state );
     
+    
+    parDelim( state );
+    
     // Parse the source expression.
     parExpr( state, false );
     
@@ -2004,11 +2008,12 @@ parSignal( State* state ) {
     if( com->tok.type != 'si' )
         return false;
     lex( state );
+    parDelim( state );
     
     if( com->tok.type != TOK_IDENT )
         errPar( state, "Expected identifier after 'sig'" );
     
-    GenLbl* lbl = genLbl( state, tvGetSym( com->tok.value ) );
+    GenLbl* lbl = genGetLbl( state, com->gen, tvGetSym( com->tok.value ) );
     if( !lbl )
         errCom( state, "No signal handler for '%v' in scope", com->tok.type );
     
@@ -2016,6 +2021,7 @@ parSignal( State* state ) {
     if( com->tok.type != ':' )
         errPar( state, "Expected ':' after signal name" );
     lex( state );
+    parDelim( state );
     
     parExpr( state, false );
     genInstr( state, OPC_JUMP, lbl->which );

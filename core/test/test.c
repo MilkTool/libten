@@ -7,6 +7,7 @@ char const* tests[] = {
     "assign.ten",
     "variadic.ten",
     "conditional.ten",
+    "signal.ten",
     NULL
 };
 

@@ -937,6 +937,14 @@ doLoop( State* state, Fiber* fib ) {
                 ushort const opr = inGetOpr( in );
                 #include "inc/ops/DEF_VREC.inc"
             } break;
+            case OPC_DEF_SIG: {
+                ushort const opr = inGetOpr( in );
+                #include "inc/ops/DEF_SIG.inc"
+            } break;
+            case OPC_DEF_VSIG: {
+                ushort const opr = inGetOpr( in );
+                #include "inc/ops/DEF_VSIG.inc"
+            } break;
             case OPC_SET_ONE: {
                 ushort const opr = inGetOpr( in );
                 #include "inc/ops/SET_ONE.inc"
