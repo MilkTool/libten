@@ -20,6 +20,7 @@ char const* tests[] = {
     "list.ten",
     "fiber.ten",
     "compile.ten",
+    "recurse.ten",
     "stress.ten",
     NULL
 };
