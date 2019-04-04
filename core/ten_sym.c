@@ -105,7 +105,7 @@ symInit( State* state ) {
     
     symState->count     = 0;
     symState->next      = 0;
-    symState->map.row   = 1;
+    symState->map.row   = 0;
     symState->map.cap   = mcap;
     symState->map.buf   = map;
     symState->nodes.cap = ncap;
@@ -304,8 +304,8 @@ growMap( State* state ) {
     SymState* symState = state->symState;
     
     uint mcap;
-    if( symState->map.row < slowGrowthMapCapTableSize )
-        mcap = slowGrowthMapCapTable[symState->map.row++];
+    if( symState->map.row + 1 < slowGrowthMapCapTableSize )
+        mcap = slowGrowthMapCapTable[++symState->map.row];
     else
         mcap = symState->map.cap * 2;
     

@@ -3,15 +3,18 @@
 #include "ten_types.h"
 #include "ten_api.h"
 
-typedef struct {
+typedef struct DatInfo DatInfo;
+struct DatInfo {
     #define DAT_MAGIC ((ulong)'D' << 16 | (ulong)'A' << 8 | 'T') 
     uint  magic;
+    
+    DatInfo* next;
     
     SymT   type;
     size_t size;
     uint   nMems;
     void   (*destr)( ten_State* state, void* buf );
-} DatInfo;
+};
 
 struct Data {
     DatInfo* info;
@@ -25,6 +28,9 @@ struct Data {
 
 void
 datInit( State* state );
+
+void
+datInitInfo( State* state, ten_DatConfig* config, DatInfo* info );
 
 #ifdef ten_TEST
     void

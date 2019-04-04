@@ -335,7 +335,7 @@ stepTarget( uint cap ) {
 static void
 growMap( State* state, Index* idx, bool clean ) {
     uint mcap;
-    if( idx->map.row < fastGrowthMapCapTableSize )
+    if( idx->map.row + 1 < fastGrowthMapCapTableSize )
         mcap = fastGrowthMapCapTable[++idx->map.row];
     else
         mcap = idx->map.cap * 2;

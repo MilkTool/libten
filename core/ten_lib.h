@@ -49,6 +49,15 @@ libSym( State* state, TVal val );
 TVal
 libStr( State* state, TVal val );
 
+TVal
+libHex( State* state, String* str );
+
+TVal
+libOct( State* state, String* str );
+
+TVal
+libBin( State* state, String* str );
+
 Closure*
 libKeys( State* state, Record* rec );
 
@@ -69,6 +78,12 @@ libChars( State* state, String* str );
 
 Closure*
 libItems( State* state, Record* list );
+
+Closure*
+libDrange( State* state, DecT start, DecT end, DecT step );
+
+Closure*
+libIrange( State* state, IntT start, IntT end, IntT step );
 
 void
 libShow( State* state, Record* vals );
@@ -138,5 +153,6 @@ libScript( State* state, String* code );
 
 Closure*
 libClosure( State* state, Record* params, String* code );
+
 
 #endif

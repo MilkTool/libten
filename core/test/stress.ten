@@ -1,0 +1,4 @@
+def rec: {}
+each( irange( 0, 100000 ), [ i ] def rec@i: i )
+
+def list: explode( irange( 0, 100000 ) )

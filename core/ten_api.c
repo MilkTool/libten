@@ -847,18 +847,7 @@ ten_getPtrType( ten_State* s, ten_Var* var ) {
 void
 ten_initPtrInfo( ten_State* s, ten_PtrConfig* config, ten_PtrInfo* info ) {
     tenAssert( sizeof(ten_PtrInfo) >= sizeof(PtrInfo) );
-    
-    State*   state = (State*)s;
-    PtrInfo* pInfo = (PtrInfo*)info;
-    
-    char const* type;
-    if( config->tag )
-        type = fmtA( state, false, "Ptr:%s", config->tag );
-    else
-        type = "Ptr";
-    pInfo->type  = symGet( state, type, strlen( type ) );
-    pInfo->destr = config->destr;
-    pInfo->magic = PTR_MAGIC;
+    ptrInitInfo( (State*)s, config, (PtrInfo*)info );
 }
 
 bool
@@ -1368,21 +1357,6 @@ ten_getDatBuf( ten_State* s, ten_Var* dat ) {
 void
 ten_initDatInfo( ten_State* s, ten_DatConfig* config, ten_DatInfo* info ) {
     tenAssert( sizeof(ten_DatInfo) >= sizeof(DatInfo) );
-    
-    State* state = (State*)s;
-    
-    DatInfo* dInfo = (DatInfo*)info;
-    
-    char const* type;
-    if( config->tag )
-        type = fmtA( state, false, "Dat:%s", config->tag );
-    else
-        type = "Dat";
-    
-    dInfo->type  = symGet( state, type, strlen( type ) );
-    dInfo->size  = config->size;
-    dInfo->nMems = config->mems;
-    dInfo->destr = config->destr;
-    dInfo->magic = DAT_MAGIC;
+    datInitInfo( (State*)s, config, (DatInfo*)info );
 }
 

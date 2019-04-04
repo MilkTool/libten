@@ -52,6 +52,10 @@ typedef enum {
     IDENT_sym,
     IDENT_str,
     
+    IDENT_hex,
+    IDENT_oct,
+    IDENT_bin,
+    
     IDENT_keys,
     IDENT_vals,
     IDENT_pairs,
@@ -59,6 +63,8 @@ typedef enum {
     IDENT_bytes,
     IDENT_chars,
     IDENT_items,
+    IDENT_drange,
+    IDENT_irange,
     
     IDENT_show,
     IDENT_warn,
@@ -145,6 +151,8 @@ struct LibState {
     ten_DatInfo strIterInfo;
     ten_DatInfo streamInfo;
     ten_DatInfo listIterInfo;
+    ten_DatInfo dRangeInfo;
+    ten_DatInfo iRangeInfo;
 };
 
 static void
@@ -569,6 +577,138 @@ libStr( State* state, TVal val ) {
     size_t      len = fmtLen( state );
     
     return tvObj( strNew( state, buf, len ) );
+}
+
+TVal
+libHex( State* state, String* str ) {
+    char const* chr = str->buf;
+    char const* end = str->buf + str->len;
+    
+    double val = 0.0;
+    while( chr != end ) {
+        if( *chr == '.' )
+            break;
+        
+        val *= 16.0;
+        if( *chr >= '0' && *chr <= '9' )
+            val += *chr - '0';
+        else
+        if( *chr >= 'a' && *chr <= 'f' )
+            val += 10 + *chr - 'a';
+        else
+        if( *chr >= 'A' && *chr <= 'F' )
+            val += 10 + *chr - 'A';
+        else
+            return tvUdf();
+        
+        chr++;
+    }
+    if( chr == end ) {
+        if( val > INT32_MAX || val < INT32_MIN )
+            panic( "Number is too large" );
+        return tvInt( (IntT)val );
+    }
+    
+    chr++;
+    
+    double mul = 1.0;
+    while( chr != end ) {
+        mul /= 16.0;
+        if( *chr >= '0' && *chr <= '9' )
+            val += (*chr - '0')*mul;
+        else
+        if( *chr >= 'a' && *chr <= 'f' )
+            val += (10 + *chr - 'a')*mul;
+        else
+        if( *chr >= 'A' && *chr <= 'F' )
+            val += (10 + *chr - 'A')*mul;
+        else
+            return tvUdf();
+        
+        chr++;
+    }
+    
+    return tvDec( val );
+}
+
+TVal
+libOct( State* state, String* str ) {
+    char const* chr = str->buf;
+    char const* end = str->buf + str->len;
+    
+    double val = 0.0;
+    while( chr != end ) {
+        if( *chr == '.' )
+            break;
+        
+        val *= 8.0;
+        if( *chr >= '0' && *chr <= '7' )
+            val += *chr - '0';
+        else
+            return tvUdf();
+        
+        chr++;
+    }
+    if( chr == end ) {
+        if( val > INT32_MAX || val < INT32_MIN )
+            panic( "Number is too large" );
+        return tvInt( (IntT)val );
+    }
+    
+    chr++;
+    
+    double mul = 1.0;
+    while( chr != end ) {
+        mul /= 8.0;
+        if( *chr >= '0' && *chr <= '9' )
+            val += (*chr - '0')*mul;
+        else
+            return tvUdf();
+        
+        chr++;
+    }
+    
+    return tvDec( val );
+}
+
+TVal
+libBin( State* state, String* str ) {
+    char const* chr = str->buf;
+    char const* end = str->buf + str->len;
+    
+    double val = 0.0;
+    while( chr != end ) {
+        if( *chr == '.' )
+            break;
+        
+        val *= 2.0;
+        if( *chr >= '0' && *chr <= '1' )
+            val += *chr - '0';
+        else
+            return tvUdf();
+        
+        chr++;
+    }
+    if( chr == end ) {
+        if( val > INT32_MAX || val < INT32_MIN )
+            panic( "Number is too large" );
+        return tvInt( (IntT)val );
+    }
+    
+    chr++;
+    
+    double mul = 1.0;
+    while( chr != end ) {
+        mul /= 2.0;
+        if( *chr >= '0' && *chr <= '1' )
+            val += (*chr - '0')*mul;
+        else
+            return tvUdf();
+        
+        chr++;
+    }
+    
+    return tvDec( val );
 }
 
 typedef struct {
@@ -1066,6 +1206,132 @@ libItems( State* state, Record* list ) {
         .name   = fmtA( state, false, "items#%llu", (ullong)iter ),
         .params = NULL,
         .cb     = listIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+
+typedef struct {
+   DecT start;
+   DecT end;
+   DecT step; 
+   DecT next;
+} DRange;
+
+static ten_Tup
+dRangeNext( ten_PARAMS ) {
+    State*    state = (State*)ten;
+    LibState* lib   = state->libState;
+    
+    DRange* range = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    DecT start = range->start;
+    DecT end   = range->end;
+    DecT next  = range->next;
+    if( (end < start && next <= end) || ( end > start && next >= end ) )
+        return retTup;
+    
+    range->next += range->step;
+    ref(&retVar) = tvDec( next );
+    
+    return retTup;
+}
+
+Closure*
+libDrange( State* state, DecT start, DecT end, DecT step ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUU" );
+    ten_Var datVar  = { .tup = &varTup, .loc = 0 };
+    ten_Var funVar  = { .tup = &varTup, .loc = 1 };
+    ten_Var clsVar  = { .tup = &varTup, .loc = 2 };
+    
+    if( (end < start && step >= 0.0) || ( end > start && step <= 0.0 ) )
+        panic( "Range does not progress" );
+    
+    DRange* range = ten_newDat( ten, &lib->dRangeInfo, &datVar );
+    range->start = start;
+    range->end   = end;
+    range->step  = step;
+    range->next  = start;
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "drange#%llu", (ullong)range ),
+        .params = NULL,
+        .cb     = dRangeNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+typedef struct {
+    IntT start;
+    IntT end;
+    IntT step;
+    IntT next;
+} IRange;
+
+
+static ten_Tup
+iRangeNext( ten_PARAMS ) {
+    State*    state = (State*)ten;
+    LibState* lib   = state->libState;
+    
+    IRange* range = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    IntT start = range->start;
+    IntT end   = range->end;
+    IntT next  = range->next;
+    if( (end < start && next <= end) || ( end > start && next >= end ) )
+        return retTup;
+    
+    range->next += range->step;
+    ref(&retVar) = tvInt( next );
+    
+    return retTup;
+}
+
+Closure*
+libIrange( State* state, IntT start, IntT end, IntT step ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUU" );
+    ten_Var datVar  = { .tup = &varTup, .loc = 0 };
+    ten_Var funVar  = { .tup = &varTup, .loc = 1 };
+    ten_Var clsVar  = { .tup = &varTup, .loc = 2 };
+    
+    if( (end < start && step >= 0.0) || ( end > start && step <= 0.0 ) )
+        panic( "Range does not progress" );
+    
+    IRange* range = ten_newDat( ten, &lib->iRangeInfo, &datVar );
+    range->start = start;
+    range->end   = end;
+    range->step  = step;
+    range->next  = start;
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "irange#%llu", (ullong)range ),
+        .params = NULL,
+        .cb     = iRangeNext
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1829,6 +2095,48 @@ strFun( ten_PARAMS ) {
 }
 
 static ten_Tup
+hexFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libHex( state, tvGetObj( ref(&strArg) ) );
+    return retTup;
+}
+
+static ten_Tup
+octFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libOct( state, tvGetObj( ref(&strArg) ) );
+    return retTup;
+}
+
+static ten_Tup
+binFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    ref(&retVar) = libBin( state, tvGetObj( ref(&strArg) ) );
+    return retTup;
+}
+
+static ten_Tup
 keysFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
@@ -1935,6 +2243,68 @@ itemsFun( ten_PARAMS ) {
     Closure* cls = libItems( (State*)ten, tvGetObj( ref(&listArg) ) );
     ref(&retVar) = tvObj( cls );
     
+    return retTup;
+}
+
+static ten_Tup
+drangeFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var startArg = { .tup = args, .loc = 0 };
+    ten_Var endArg   = { .tup = args, .loc = 1 };
+    ten_Var optArg   = { .tup = args, .loc = 2 };
+    
+    expectArg( start, VAL_DEC );
+    expectArg( end, VAL_DEC );
+    tenAssert( tvIsObjType( ref(&optArg), OBJ_REC ) );
+    
+    DecT start = tvGetDec( ref(&startArg) );
+    DecT end   = tvGetDec( ref(&endArg) );
+    DecT step  = end >= start ? 1.0 : -1.0;
+    
+    Record*  opt = tvGetObj( ref(&optArg) );
+    TVal opt0 = recGet( state, opt, tvInt( 0 ) );
+    if( !tvIsUdf( opt0 ) ) {
+        if( !tvIsDec( opt0 ) )
+            panic( "DRange step has non-Dec type" );
+        step = tvGetDec( opt0 );
+    }
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ref(&retVar) = tvObj( libDrange( state, start, end, step ) );
+
+    return retTup;
+}
+
+static ten_Tup
+irangeFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var startArg = { .tup = args, .loc = 0 };
+    ten_Var endArg   = { .tup = args, .loc = 1 };
+    ten_Var optArg   = { .tup = args, .loc = 2 };
+    
+    expectArg( start, VAL_INT );
+    expectArg( end, VAL_INT );
+    tenAssert( tvIsObjType( ref(&optArg), OBJ_REC ) );
+    
+    IntT start = tvGetInt( ref(&startArg) );
+    IntT end   = tvGetInt( ref(&endArg) );
+    IntT step  = end >= start ? 1 : -1;
+    
+    Record*  opt = tvGetObj( ref(&optArg) );
+    TVal opt0 = recGet( state, opt, tvInt( 0 ) );
+    if( !tvIsUdf( opt0 ) ) {
+        if( !tvIsInt( opt0 ) )
+            panic( "IRange step has non-Int type" );
+        step = tvGetInt( opt0 );
+    }
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ref(&retVar) = tvObj( libIrange( state, start, end, step ) );
+
     return retTup;
 }
 
@@ -2358,6 +2728,10 @@ libInit( State* state ) {
     IDENT( sym );
     IDENT( str );
     
+    IDENT( hex );
+    IDENT( oct );
+    IDENT( bin );
+    
     IDENT( keys );
     IDENT( vals );
     IDENT( pairs );
@@ -2365,6 +2739,8 @@ libInit( State* state ) {
     IDENT( bytes );
     IDENT( chars );
     IDENT( items );
+    IDENT( drange );
+    IDENT( irange );
     
     IDENT( show );
     IDENT( warn );
@@ -2477,6 +2853,9 @@ libInit( State* state ) {
     FUN( dec, 1, false );
     FUN( sym, 1, false );
     FUN( str, 1, false );
+    FUN( hex, 1, false );
+    FUN( oct, 1, false );
+    FUN( bin, 1, false );
     FUN( keys, 1, false );
     FUN( vals, 1, false );
     FUN( pairs, 1, false );
@@ -2484,6 +2863,8 @@ libInit( State* state ) {
     FUN( bytes, 1, false );
     FUN( chars, 1, false );
     FUN( items, 1, false );
+    FUN( drange, 2, true );
+    FUN( irange, 2, true );
     FUN( show, 0, true );
     FUN( warn, 0, true );
     FUN( input, 0, false );
@@ -2553,6 +2934,26 @@ libInit( State* state ) {
             .destr = NULL
         },
         &lib->listIterInfo
+    );
+    ten_initDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "DRange",
+            .size  = sizeof(DRange),
+            .mems  = 0,
+            .destr = NULL
+        },
+        &lib->dRangeInfo
+    );
+    ten_initDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "IRange",
+            .size  = sizeof(IRange),
+            .mems  = 0,
+            .destr = NULL
+        },
+        &lib->iRangeInfo
     );
     
     statePop( state ); // varTup

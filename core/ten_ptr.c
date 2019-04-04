@@ -1,9 +1,11 @@
 #include "ten_ptr.h"
+#include "ten_sym.h"
 #include "ten_state.h"
 #include "ten_assert.h"
 #include "ten_tables.h"
 #include "ten_macros.h"
 #include <limits.h>
+#include <string.h>
 
 typedef struct PtrNode {
     struct PtrNode*  next;
@@ -17,6 +19,7 @@ typedef struct PtrNode {
 
 struct PtrState {
     Finalizer finl;
+    Scanner   scan;
     
     uint count;
     uint next;
@@ -33,14 +36,31 @@ struct PtrState {
     } nodes;
     
     PtrNode* recycled;
+    PtrInfo* infos;
 };
 
 static void
 growMap( State* state );
 
 static void
+ptrScan( State* state, Scanner* scan ) {
+    PtrState* ptrState = structFromScan( PtrState, scan );
+    
+    if( !state->gcFull )
+        return;
+    
+    PtrInfo* it = ptrState->infos;
+    while( it ) {
+        symMark( state, it->type );
+        it = it->next;
+    }
+}
+
+static void
 ptrFinl( State* state, Finalizer* finl ) {
     PtrState* ptrState = (PtrState*)finl;
+    
+    stateRemoveScanner( state, &ptrState->scan );
     
     for( uint i = 0 ; i < ptrState->next ; i++ ) {
         if( ptrState->nodes.buf[i] )
@@ -93,14 +113,31 @@ ptrInit( State* state ) {
     ptrState->nodes.cap = ncap;
     ptrState->nodes.buf = nodes;
     ptrState->recycled  = NULL;
+    ptrState->infos     = NULL;
     ptrState->finl.cb   = ptrFinl;
+    ptrState->scan.cb   = ptrScan;
     
+    stateInstallScanner( state, &ptrState->scan );
     stateInstallFinalizer( state, &ptrState->finl );
     stateCommitRaw( state, &stateP );
     stateCommitRaw( state, &mapP );
     stateCommitRaw( state, &nodesP );
     
     state->ptrState = ptrState;
+}
+
+void
+ptrInitInfo( State* state, ten_PtrConfig* config, PtrInfo* info ) {
+    char const* type;
+    if( config->tag )
+        type = fmtA( state, false, "Ptr:%s", config->tag );
+    else
+        type = "Ptr";
+    info->type  = symGet( state, type, strlen( type ) );
+    info->destr = config->destr;
+    info->magic = PTR_MAGIC;
+    info->next  = state->ptrState->infos;
+    state->ptrState->infos = info;
 }
 
 
@@ -243,8 +280,8 @@ growMap( State* state ) {
     PtrState* ptrState = state->ptrState;
     
     uint mcap;
-    if( ptrState->map.row < slowGrowthMapCapTableSize )
-        mcap = slowGrowthMapCapTable[ptrState->map.row++];
+    if( ptrState->map.row + 1 < slowGrowthMapCapTableSize )
+        mcap = slowGrowthMapCapTable[++ptrState->map.row];
     else
         mcap = ptrState->map.cap * 2;
     

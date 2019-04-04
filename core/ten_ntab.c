@@ -79,7 +79,7 @@ ntabMake( State* state ) {
     
     ntab->count   = 0;
     ntab->next    = 0;
-    ntab->map.row = 1;
+    ntab->map.row = 0;
     ntab->map.cap = mcap;
     ntab->map.buf = map;
     ntab->scan.cb = ntabScan;
@@ -144,8 +144,8 @@ ntabGet( State* state, NTab* ntab, SymT name ) {
 static void
 growMap( State* state, NTab* ntab ) {
     uint mcap;
-    if( ntab->map.row < slowGrowthMapCapTableSize )
-        mcap = slowGrowthMapCapTable[ntab->map.row++];
+    if( ntab->map.row + 1 < slowGrowthMapCapTableSize )
+        mcap = slowGrowthMapCapTable[++ntab->map.row];
     else
         mcap = ntab->map.cap*2;
     

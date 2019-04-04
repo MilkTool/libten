@@ -5,15 +5,23 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-typedef struct {
+typedef struct PtrInfo PtrInfo;
+
+struct PtrInfo {
     #define PTR_MAGIC ((ulong)'P' << 16 | (ulong)'T' << 8 | 'R') 
     uint  magic;
+    
+    PtrInfo* next;
+    
     SymT  type;
     void  (*destr)( ten_State* core, void* addr );
-} PtrInfo;
+};
 
 void
 ptrInit( State* state );
+
+void
+ptrInitInfo( State* state, ten_PtrConfig* config, PtrInfo* info );
 
 #ifdef ten_TEST
     void

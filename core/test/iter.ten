@@ -65,3 +65,11 @@ assert( l() = 1, "26" )
 assert( l() = 2, "27" )
 assert( l() = 3, "28" )
 assert( l() != udf, "29" )
+
+def d: drange( 1.0, -5.0, -0.5 )
+assert( d() = 1.0, "30" )
+assert( d() = 0.5, "31" )
+
+def i: irange( 1, 5, 2 )
+assert( i() = 1, "32" )
+assert( i() = 3, "33" )
