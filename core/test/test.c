@@ -15,6 +15,7 @@ char const* tests[] = {
     "operator.ten",
     "type.ten",
     "iter.ten",
+    "misc.ten",
     NULL
 };
 

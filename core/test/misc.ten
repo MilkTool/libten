@@ -1,0 +1,19 @@
+assert( bcmp( cat( "Hello, ", "World!" ), '=', "Hello, World!" ), "1" )
+
+def s: stream( "Hello, ", "World!" )
+assert( bcmp( join( s ), '=', "Hello, World!" ), "2" )
+
+assert( ucode'ぁ' = 12353, "3" )
+assert( uchar( 12353 ) = 'ぁ', "4" )
+
+assert( bcmp( "abc", '<', "cba" ), "5" )
+assert( bcmp( "cba", '>', "abc" ), "6" )
+assert( bcmp( "abc", '=', "abc" ), "7" )
+
+assert( ccmp( "abc", '<', "cba" ), "8" )
+assert( ccmp( "cba", '>', "abc" ), "9" )
+assert( ccmp( "abc", '=', "abc" ), "10" )
+
+assert( bcmp( "ぁ", '<', "ぃ" ), "11" )
+assert( bcmp( "ぃ", '>', "ぁ" ), "12" )
+assert( bcmp( "ぁ", '=', "ぁ" ), "13" )

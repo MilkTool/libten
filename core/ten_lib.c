@@ -1212,7 +1212,7 @@ libCat( State* state, Record* vals ) {
 
 String*
 libJoin( State* state, Closure* stream ) {
-    ten_State* ten = (ten_State*)ten;
+    ten_State* ten = (ten_State*)state;
     
     CharBuf buf; initCharBuf( state, &buf );
     
@@ -1228,8 +1228,12 @@ libJoin( State* state, Closure* stream ) {
         for( uint i = 0 ; i < len ; i++ )
             *putCharBuf( state, &buf ) = str[i];
         
+        ten_pop( ten );
         retTup = ten_call( ten, stateTmp( state, tvObj( stream ) ), &argTup );
     }
+    
+    ten_pop( ten );
+    ten_pop( ten );
     
     String* str = strNew( state, buf.buf, buf.top );
     finlCharBuf( state, &buf );
