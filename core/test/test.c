@@ -12,6 +12,9 @@ char const* tests[] = {
     "literal.ten",
     "block.ten",
     "convert.ten",
+    "operator.ten",
+    "type.ten",
+    "iter.ten",
     NULL
 };
 

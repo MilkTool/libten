@@ -453,7 +453,7 @@ genAddConst( State* state, Gen* gen, TVal val ) {
     Part cP;
     GenConst* c = stateAllocRaw( state, &cP, sizeof(GenConst) );
     
-    char buf[sizeof(ullong) + sizeof(uchar)];
+    char buf[sizeof(ullong) + 1];
     *(ullong*)&buf[0]             = tvGetVal( val );
     *(uchar*)&buf[sizeof(ullong)] = tvGetTag( val );
     

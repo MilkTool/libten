@@ -122,6 +122,9 @@ PtrT
 ptrGet( State* state, PtrInfo* info, void* addr ) {
     PtrState* ptrState = state->ptrState;
     
+    if( ptrState->count*3 >= ptrState->map.cap )
+        growMap( state );
+    
     uint h = (ullong)addr;
     uint s = h % ptrState->map.cap;
     
@@ -173,9 +176,6 @@ ptrGet( State* state, PtrInfo* info, void* addr ) {
     node->mark = false;
     ptrState->nodes.buf[node->loc] = node;
     ptrState->count++;
-    
-    if( ptrState->count*3 >= ptrState->map.cap )
-        growMap( state );
     
     return node->loc;
 }

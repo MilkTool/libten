@@ -13,10 +13,11 @@
 // State structures for each VM component, and for the VM as a whole.
 typedef struct State    State;
 typedef struct ComState ComState;
+typedef struct SymState SymState;
+typedef struct PtrState PtrState;
 typedef struct GenState GenState;
 typedef struct EnvState EnvState;
 typedef struct FmtState FmtState;
-typedef struct SymState SymState;
 typedef struct StrState StrState;
 typedef struct IdxState IdxState;
 typedef struct RecState RecState;
@@ -25,7 +26,6 @@ typedef struct ClsState ClsState;
 typedef struct FibState FibState;
 typedef struct UpvState UpvState;
 typedef struct DatState DatState;
-typedef struct PtrState PtrState;
 typedef struct LibState LibState;
 typedef struct ApiState ApiState;
 

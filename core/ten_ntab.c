@@ -103,6 +103,10 @@ ntabFree( State* state, NTab* ntab ) {
 
 uint
 ntabAdd( State* state, NTab* ntab, SymT name ) {
+    
+    if( ntab->count*3 >= ntab->map.cap )
+        growMap( state, ntab );
+    
     uint s = name % ntab->map.cap;
     NameNode* node = ntab->map.buf[s];
     while( node ) {
@@ -120,9 +124,6 @@ ntabAdd( State* state, NTab* ntab, SymT name ) {
     addNode( &ntab->map.buf[s], node );
     stateCommitRaw( state, &nodeP );
     ntab->count++;
-    
-    if( ntab->count*3 >= ntab->map.cap )
-        growMap( state, ntab );
     
     return node->loc;
 }

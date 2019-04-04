@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #define BUF_TYPE char
 #define BUF_NAME CharBuf
@@ -296,9 +297,14 @@ lexNum( State* state ) {
     takeAll( maybeChar( state, false, '_' ) || maybeType( state, true, isdigit ) );
     if( !maybeChar( state, true, '.' ) ) {
         *putCharBuf( state, &com->lex.chars ) = '\0';
-        IntT in = strtoll( com->lex.chars.buf, NULL, 10 );
+        
+        errno = 0;
+        long i = strtol( com->lex.chars.buf, NULL, 10 );
+        if( errno == ERANGE || i < INT32_MIN || i > INT32_MAX )
+            errLex( state, "Int literal is too large" );
+        
         com->tok.type  = TOK_CONST;
-        com->tok.value = tvInt( in );
+        com->tok.value = tvInt( i );
         com->tok.line  = line;
         return true;
     }
@@ -307,9 +313,16 @@ lexNum( State* state ) {
     if( maybeChar( state, true, '.' ) )
         errLex( state, "Extra decimal point" );
     *putCharBuf( state, &com->lex.chars ) = '\0';
-    DecT dec = strtod( com->lex.chars.buf, NULL );
+    
+    errno = 0;
+    double d = strtod( com->lex.chars.buf, NULL );
+    if( errno == ERANGE && d == 0.0 )
+        errLex( state, "Dec literal is too small" );
+    if( errno == ERANGE && d != 0.0 )
+        errLex( state, "Dec literal is too large" );
+    
     com->tok.type  = TOK_CONST;
-    com->tok.value = tvDec( dec );
+    com->tok.value = tvDec( d );
     com->tok.line  = line;
     return true;
 }
@@ -1524,13 +1537,15 @@ parUnaryOper(
     ParseCb     sub
 ) {
     OpCode opc = matchOpCode( state, opers );
-    if( opc != OPC_LAST )
-        parDelim( state );
-    
-    sub( state, udat );
-    if( opc != OPC_LAST ) {
-        genInstr( state, opc, 0 );
+    if( opc == OPC_LAST ) {
+        sub( state, udat );
+        return;
     }
+    
+    parDelim( state );
+    parUnaryOper( state, opers, udat, sub );
+    genInstr( state, opc, 0 );
+    
     state->comState->popc = 0;
 }
 
@@ -1590,9 +1605,9 @@ parShift( State* state, void* udat ) {
 
 static bool
 parLogical( State* state, void* udat ) {
-    OperCode andOper = { '&', OPC_MUL };
-    OperCode xorOper = { '\\', OPC_DIV };
-    OperCode orOper  = { '|', OPC_MOD };
+    OperCode andOper = { '&', OPC_AND };
+    OperCode xorOper = { '\\', OPC_XOR };
+    OperCode orOper  = { '|', OPC_OR };
     
     OperCode* opers[] = { &andOper, &xorOper, &orOper, NULL };
     parBinaryOper( state, opers, udat, parShift );

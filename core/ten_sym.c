@@ -139,6 +139,9 @@ SymT
 symGet( State* state, char const* buf, size_t len ) {
     SymState* symState = state->symState;
     
+    if( symState->count*3 >= symState->map.cap )
+        growMap( state );
+    
     // Encode short symbols directly in the int value.
     if( len <= SYM_SHORT_LIM ) {
         SymBuf u;
@@ -206,9 +209,6 @@ symGet( State* state, char const* buf, size_t len ) {
     node->hash = h;
     symState->nodes.buf[node->loc] = node;
     symState->count++;
-    
-    if( symState->count*3 >= symState->map.cap )
-        growMap( state );
     
     return node->loc;
 }

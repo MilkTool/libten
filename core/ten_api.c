@@ -966,33 +966,35 @@ ten_newFun( ten_State* s, ten_FunParams* p, ten_Var* dst ) {
     
     uint nParams = 0;
     bool vParams = false;
-    for( uint i = 0 ; p->params[i] != NULL ; i++ ) {
-        if( i > TUP_MAX )
-            stateErrFmtA( state, ten_ERR_USER, "Too many parameters, max is %u", (uint)TUP_MAX );
-        if( vParams )
-            stateErrFmtA( state, ten_ERR_USER, "Extra parameters after '...'" );
-        
-        size_t len = 0;
-        if( !isalpha( p->params[i][0] ) && p->params[i][0] != '_' )
-            stateErrFmtA( state, ten_ERR_USER, "Invalid parameter name" );
-        
-        for( uint j = 0 ; p->params[i][j] != '\0' && p->params[i][j] != '.' ; j++ ) {
-            if( !isalnum( p->params[i][j] ) && p->params[i][j] != '_' )
+    if( p->params ) {
+        for( uint i = 0 ; p->params[i] != NULL ; i++ ) {
+            if( i > TUP_MAX )
+                stateErrFmtA( state, ten_ERR_USER, "Too many parameters, max is %u", (uint)TUP_MAX );
+            if( vParams )
+                stateErrFmtA( state, ten_ERR_USER, "Extra parameters after '...'" );
+            
+            size_t len = 0;
+            if( !isalpha( p->params[i][0] ) && p->params[i][0] != '_' )
                 stateErrFmtA( state, ten_ERR_USER, "Invalid parameter name" );
-            len++;
+            
+            for( uint j = 0 ; p->params[i][j] != '\0' && p->params[i][j] != '.' ; j++ ) {
+                if( !isalnum( p->params[i][j] ) && p->params[i][j] != '_' )
+                    stateErrFmtA( state, ten_ERR_USER, "Invalid parameter name" );
+                len++;
+            }
+            
+            if( p->params[i][len] == '.' ) {
+                if( !strcmp( &p->params[i][len], "..." ) )
+                    vParams = true;
+                else
+                    stateErrFmtA( state, ten_ERR_USER, "Invalid parameter name" );
+            }
+            else {
+                nParams++;
+            }
+            
+            sparams[i] = symGet( state, p->params[i], len );
         }
-        
-        if( p->params[i][len] == '.' ) {
-            if( !strcmp( &p->params[i][len], "..." ) )
-                vParams = true;
-            else
-                stateErrFmtA( state, ten_ERR_USER, "Invalid parameter name" );
-        }
-        else {
-            nParams++;
-        }
-        
-        sparams[i] = symGet( state, p->params[i], len );
     }
     
     Part paramsP;

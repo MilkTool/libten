@@ -119,10 +119,11 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         state->config.memGrowth = MEM_LIMIT_GROWTH;
     
     fmtInit( state ); CHECK_STATE;
+    symInit( state ); CHECK_STATE;
+    ptrInit( state ); CHECK_STATE;
     genInit( state ); CHECK_STATE;
     comInit( state ); CHECK_STATE;
     envInit( state ); CHECK_STATE;
-    symInit( state ); CHECK_STATE;
     strInit( state ); CHECK_STATE;
     idxInit( state ); CHECK_STATE;
     recInit( state ); CHECK_STATE;
@@ -131,7 +132,6 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     fibInit( state ); CHECK_STATE;
     upvInit( state ); CHECK_STATE;
     datInit( state ); CHECK_STATE;
-    ptrInit( state ); CHECK_STATE;
     libInit( state ); CHECK_STATE;
     apiInit( state ); CHECK_STATE;
 }
@@ -340,10 +340,11 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         
         // Run component tests.
         fmtTest( state ); CHECK_STATE; fmtPassed = true;
+        symTest( state ); CHECK_STATE;
+        ptrTest( state ); CHECK_STATE;
         genTest( state ); CHECK_STATE;
         comTest( state ); CHECK_STATE;
         envTest( state ); CHECK_STATE;
-        symTest( state ); CHECK_STATE;
         strTest( state ); CHECK_STATE;
         idxTest( state ); CHECK_STATE;
         recTest( state ); CHECK_STATE;
@@ -352,7 +353,6 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         fibTest( state ); CHECK_STATE;
         upvTest( state ); CHECK_STATE;
         datTest( state ); CHECK_STATE;
-        ptrTest( state ); CHECK_STATE;
         libTest( state ); CHECK_STATE;
         apiTest( state ); CHECK_STATE;
         

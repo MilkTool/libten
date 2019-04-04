@@ -20,6 +20,20 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+
+// For detecting UTF-8 character type.
+#define isSingleChr( c ) ( (unsigned char)(c) >> 7 == 0  )
+#define isDoubleChr( c ) ( (unsigned char)(c) >> 5 == 6  )
+#define isTripleChr( c ) ( (unsigned char)(c) >> 4 == 14 )
+#define isQuadChr( c )   ( (unsigned char)(c) >> 3 == 30 )
+#define isAfterChr( c )  ( (unsigned char)(c) >> 6 == 2  )
+
+// UTF-8 character ranges.
+#define SINGLE_END 0x80L
+#define DOUBLE_END 0x800L
+#define TRIPLE_END 0x10000L
+#define QUAD_END   0x10FFFL
 
 typedef enum {
     IDENT_require,
@@ -78,6 +92,8 @@ typedef enum {
     IDENT_status,
     
     IDENT_tag,
+    IDENT_car,
+    IDENT_cdr,
     
     IDENT_LAST
 } Ident;
@@ -106,6 +122,11 @@ struct LibState {
     SymT idents[IDENT_LAST];
     SymT opers[OPER_LAST];
     SymT types[OBJ_LAST];
+    
+    ten_DatInfo recIterInfo;
+    ten_DatInfo strIterInfo;
+    ten_DatInfo streamInfo;
+    ten_DatInfo listIterInfo;
 };
 
 static void
@@ -528,17 +549,691 @@ libStr( State* state, TVal val ) {
     return tvObj( strNew( state, buf, len ) );
 }
 
+typedef struct {
+    IdxIter* iter;
+} RecIter;
+
+typedef enum {
+    RecIter_REC,
+    RecIter_LAST
+} RecIterMem;
+
+static void
+recIterDestr( ten_State* ten, void* dat ) {
+    RecIter* iter = dat;
+    if( iter->iter )
+        idxIterFree( (State*)ten, iter->iter );
+}
+
+static void
+keyIterNext( ten_PARAMS ) {
+    State*   state = (State*)ten;
+    RecIter* iter  = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( !iter->iter )
+        return;
+    
+    ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
+    Record* rec  = tvGetObj( ref(&recVar) );
+    uint    cap  = tpGetTag( rec->vals );
+    TVal*   vals = tpGetPtr( rec->vals );
+    
+    TVal key;
+    uint loc;
+    
+    loop: {
+        bool has = idxIterNext( (State*)ten, iter->iter, &key, &loc );
+        if( !has ) {
+            idxIterFree( state, iter->iter );
+            iter->iter = NULL;
+            return;
+        }
+        
+        if( loc >= cap )
+            goto loop;
+        if( tvIsUdf( vals[loc] ) )
+            goto loop;
+    }
+    
+    ref(&retVar) = key;
+}
+
+Closure*
+libKeys( State* state, Record* rec ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var recVar = { .tup = &varTup, .loc = 0 };
+    ten_Var datVar = { .tup = &varTup, .loc = 1 };
+    ten_Var funVar = { .tup = &varTup, .loc = 2 };
+    ten_Var clsVar = { .tup = &varTup, .loc = 3 };
+    
+    RecIter* iter = ten_newDat( ten, &lib->recIterInfo, &datVar );
+    iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
+    
+    ref(&recVar) = tvObj( rec );
+    ten_setMember( ten, &datVar, RecIter_REC, &recVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "keys#%llu", (ullong)iter ),
+        .params = NULL,
+        .cb     = keyIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+static void
+valIterNext( ten_PARAMS ) {
+    State*   state = (State*)ten;
+    RecIter* iter  = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( !iter->iter )
+        return;
+    
+    ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
+    Record* rec  = tvGetObj( ref(&recVar) );
+    uint    cap  = tpGetTag( rec->vals );
+    TVal*   vals = tpGetPtr( rec->vals );
+    
+    TVal key;
+    uint loc;
+
+    loop: {
+        bool has = idxIterNext( (State*)ten, iter->iter, &key, &loc );
+        if( !has ) {
+            idxIterFree( state, iter->iter );
+            iter->iter = NULL;
+            return;
+        }
+        
+        if( loc >= cap )
+            goto loop;
+        if( tvIsUdf( vals[loc] ) )
+            goto loop;
+    }
+    
+    ref(&retVar) = vals[loc];
+}
+
+Closure*
+libVals( State* state, Record* rec ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var recVar = { .tup = &varTup, .loc = 0 };
+    ten_Var datVar = { .tup = &varTup, .loc = 1 };
+    ten_Var funVar = { .tup = &varTup, .loc = 2 };
+    ten_Var clsVar = { .tup = &varTup, .loc = 3 };
+    
+    RecIter* iter = ten_newDat( ten, &lib->recIterInfo, &datVar );
+    iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
+    
+    ref(&recVar) = tvObj( rec );
+    ten_setMember( ten, &datVar, RecIter_REC, &recVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "vals#%llu", (ullong)iter ),
+        .params = NULL,
+        .cb     = valIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+static void
+pairIterNext( ten_PARAMS ) {
+    State*   state = (State*)ten;
+    RecIter* iter  = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "UU" );
+    ten_Var keyVar = { .tup = &retTup, .loc = 0 };
+    ten_Var valVar = { .tup = &retTup, .loc = 1 };
+    if( !iter->iter )
+        return;
+    
+    ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
+    Record* rec  = tvGetObj( ref(&recVar) );
+    uint    cap  = tpGetTag( rec->vals );
+    TVal*   vals = tpGetPtr( rec->vals );
+    
+    TVal key;
+    uint loc;
+
+    loop: {
+        bool has = idxIterNext( (State*)ten, iter->iter, &key, &loc );
+        if( !has ) {
+            idxIterFree( state, iter->iter );
+            iter->iter = NULL;
+            return;
+        }
+        
+        if( loc >= cap )
+            goto loop;
+        if( tvIsUdf( vals[loc] ) )
+            goto loop;
+    }
+    
+    ref(&keyVar) = key;
+    ref(&valVar) = vals[loc];
+}
+
+Closure*
+libPairs( State* state, Record* rec ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var recVar = { .tup = &varTup, .loc = 0 };
+    ten_Var datVar = { .tup = &varTup, .loc = 1 };
+    ten_Var funVar = { .tup = &varTup, .loc = 2 };
+    ten_Var clsVar = { .tup = &varTup, .loc = 3 };
+    
+    RecIter* iter = ten_newDat( ten, &lib->recIterInfo, &datVar );
+    iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
+    
+    ref(&recVar) = tvObj( rec );
+    ten_setMember( ten, &datVar, RecIter_REC, &recVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "pairs#%llu", (ullong)iter ),
+        .params = NULL,
+        .cb     = pairIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+
+typedef struct {
+    llong next;
+} Stream;
+
+typedef enum {
+    Stream_VALS,
+    Stream_LAST
+} StreamMem;
+
+static void
+streamNext( ten_PARAMS ) {
+    State*  state  = (State*)ten;
+    Stream* stream = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( stream->next < 0 )
+        return;
+    
+    ten_Var valsVar = {.tup = mems, .loc = Stream_VALS };
+    Record* vals = tvGetObj( ref(&valsVar) );
+    
+    TVal next = recGet( (State*)ten, vals, tvInt( stream->next++ ) );
+    ref(&retVar) = next;
+    if( tvIsUdf( next ) )
+        stream->next = -1;
+}
+
+Closure*
+libStream( State* state, Record* vals ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var valsVar = { .tup = &varTup, .loc = 0 };
+    ten_Var datVar  = { .tup = &varTup, .loc = 1 };
+    ten_Var funVar  = { .tup = &varTup, .loc = 2 };
+    ten_Var clsVar  = { .tup = &varTup, .loc = 3 };
+    
+    Stream* stream = ten_newDat( ten, &lib->streamInfo, &datVar );
+    stream->next = 0;
+    
+    ref(&valsVar) = tvObj( vals );
+    ten_setMember( ten, &datVar, Stream_VALS, &valsVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "stream#%llu", (ullong)stream ),
+        .params = NULL,
+        .cb     = streamNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+typedef struct {
+    llong loc;
+} StrIter;
+
+typedef enum {
+    StrIter_STR,
+    StrIter_LAST
+} StrIterMem;
+
+static void
+byteIterNext( ten_PARAMS ) {
+    State*   state = (State*)ten;
+    StrIter* iter  = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( iter->loc < 0 )
+        return;
+    
+    ten_Var strVar = {.tup = mems, .loc = StrIter_STR };
+    String* str = tvGetObj( ref(&strVar) );
+    
+    if( iter->loc < str->len )
+        ref(&retVar) = tvInt( str->buf[iter->loc++] );
+    else
+        iter->loc = -1;
+}
+
+Closure*
+libBytes( State* state, String* str ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var strVar = { .tup = &varTup, .loc = 0 };
+    ten_Var datVar = { .tup = &varTup, .loc = 1 };
+    ten_Var funVar = { .tup = &varTup, .loc = 2 };
+    ten_Var clsVar = { .tup = &varTup, .loc = 3 };
+    
+    StrIter* iter = ten_newDat( ten, &lib->strIterInfo, &datVar );
+    iter->loc = 0;
+    
+    ref(&strVar) = tvObj( str );
+    ten_setMember( ten, &datVar, StrIter_STR, &strVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "bytes#%llu", (ullong)iter ),
+        .params = NULL,
+        .cb     = byteIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+static inline void
+cnext( State* state, char const** str, size_t* len, SymT* next ) {
+    uint n = 0;
+    if( isSingleChr( (*str)[0] ) ) {
+        if( *len < 1 )
+            goto fail;
+        n = 1;
+    }
+    
+    if( isDoubleChr( (*str)[0] ) ) {
+        if( *len < 2 )
+            goto fail;
+        n = 2;
+    }
+    else
+    if( isTripleChr( (*str)[0] ) ) {
+        if( *len < 3 )
+            goto fail;
+        n = 3;
+    }
+    else
+    if( isQuadChr( (*str)[0] ) ) {
+        if( *len < 4 )
+            goto fail;
+        n = 4;
+    }
+    
+    *next = symGet( state, *str, n );
+    *str += n;
+    *len -= n;
+    return;
+    
+    fail: panic( "Format is not UTF-8" );
+}
+
+static void
+charIterNext( ten_PARAMS ) {
+    State*   state = (State*)ten;
+    StrIter* iter  = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( iter->loc < 0 )
+        return;
+    
+    ten_Var strVar = {.tup = mems, .loc = StrIter_STR };
+    String* str = tvGetObj( ref(&strVar) );
+    
+    if( iter->loc < str->len ) {
+        char const* buf = str->buf + iter->loc;
+        size_t      len = str->len - iter->loc;
+        SymT        chr;
+        cnext( (State*)ten, &buf, &len, &chr );
+        iter->loc = buf - str->buf;
+        ref(&retVar) = tvSym( chr );
+    }
+    else {
+        iter->loc = -1;
+    }
+}
+
+Closure*
+libChars( State* state, String* str ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var strVar = { .tup = &varTup, .loc = 0 };
+    ten_Var datVar = { .tup = &varTup, .loc = 1 };
+    ten_Var funVar = { .tup = &varTup, .loc = 2 };
+    ten_Var clsVar = { .tup = &varTup, .loc = 3 };
+    
+    StrIter* iter = ten_newDat( ten, &lib->strIterInfo, &datVar );
+    iter->loc = 0;
+    
+    ref(&strVar) = tvObj( str );
+    ten_setMember( ten, &datVar, StrIter_STR, &strVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "chars#%llu", (ullong)iter ),
+        .params = NULL,
+        .cb     = charIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+typedef struct {
+    bool finished;
+} ListIter;
+
+typedef enum {
+    ListIter_CELL,
+    ListIter_LAST
+} ListIterMem;
+
+static void
+listIterNext( ten_PARAMS ) {
+    State*    state = (State*)ten;
+    LibState* lib   = state->libState;
+    
+    ListIter* iter = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( iter->finished )
+        return;
+    
+    ten_Var cellVar = {.tup = mems, .loc = ListIter_CELL };
+    Record* cell = tvGetObj( ref(&cellVar) );
+    
+    TVal car = recGet( state, cell, tvSym( lib->idents[IDENT_car] ) );
+    TVal cdr = recGet( state, cell, tvSym( lib->idents[IDENT_cdr] ) );
+    if( tvIsNil( cdr ) ) {
+        iter->finished = true;
+    }
+    else
+    if( !tvIsObjType( cdr, OBJ_REC ) ) {
+        panic( "Iteration over malformed list" );
+    }
+    
+    ref(&cellVar) = cdr;
+    ref(&retVar)  = car;
+}
+
+Closure*
+libItems( State* state, Record* list ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var listVar = { .tup = &varTup, .loc = 0 };
+    ten_Var datVar  = { .tup = &varTup, .loc = 1 };
+    ten_Var funVar  = { .tup = &varTup, .loc = 2 };
+    ten_Var clsVar  = { .tup = &varTup, .loc = 3 };
+    
+    ListIter* iter = ten_newDat( ten, &lib->listIterInfo, &datVar );
+    iter->finished = false;
+    
+    ref(&listVar) = tvObj( list );
+    ten_setMember( ten, &datVar, ListIter_CELL, &listVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "items#%llu", (ullong)iter ),
+        .params = NULL,
+        .cb     = listIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( ref(&clsVar) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
 void
-libShow( State* state, Record* rec ) {
+libShow( State* state, Record* vals ) {
     fmtA( state, false, "" );
     
     uint  i = 0;
-    TVal  v = recGet( state, rec, tvInt( i++ ) );
+    TVal  v = recGet( state, vals, tvInt( i++ ) );
     while( !tvIsUdf( v ) ) {
         fmtA( state, true, "%v", v );
-        v = recGet( state, rec, tvInt( i++ ) );
+        v = recGet( state, vals, tvInt( i++ ) );
     }
     fwrite( fmtBuf( state ), 1, fmtLen( state ), stdout );
+}
+
+void
+libWarn( State* state, Record* vals ) {
+    fmtA( state, false, "" );
+    
+    uint  i = 0;
+    TVal  v = recGet( state, vals, tvInt( i++ ) );
+    while( !tvIsUdf( v ) ) {
+        fmtA( state, true, "%v", v );
+        v = recGet( state, vals, tvInt( i++ ) );
+    }
+    fwrite( fmtBuf( state ), 1, fmtLen( state ), stderr );
+}
+
+#define BUF_TYPE char
+#define BUF_NAME CharBuf
+    #include "inc/buf.inc"
+#undef BUF_NAME
+#undef BUF_TYPE
+
+String*
+libInput( State* state ) {
+    CharBuf buf; initCharBuf( state, &buf );
+    
+    char next = getc( stdin );
+    while( next != '\n' && next != '\r' ) {
+        *putCharBuf( state, &buf ) = next;
+        next = getc( stdin );
+    }
+    
+    String* str = strNew( state, buf.buf, buf.top );
+    finlCharBuf( state, &buf );
+    
+    return str;
+}
+
+static inline void
+unext( State* state, char const** str, size_t* len, uint32_t* next ) {
+    uint n = 0;
+    if( isSingleChr( (*str)[0] ) ) {
+        if( *len < 1 )
+            goto fail;
+        n = 1;
+        *next = (*str)[0];
+    }
+    
+    if( isDoubleChr( (*str)[0] ) ) {
+        if( *len < 2 )
+            goto fail;
+        n = 2;
+        *next = (*str)[0] & 0x1F;
+    }
+    else
+    if( isTripleChr( (*str)[0] ) ) {
+        if( *len < 3 )
+            goto fail;
+        n = 3;
+        *next = (*str)[0] & 0xF;
+    }
+    else
+    if( isQuadChr( (*str)[0] ) ) {
+        if( *len < 4 )
+            goto fail;
+        n = 4;
+        *next = (*str)[0] & 0x7;
+    }
+    
+    for( uint i = 1 ; i < n ; i++ ) {
+        *next <<= 6;
+        *next |= (*str)[i] & 0x3F;
+    }
+    
+    *str += n;
+    *len -= n;
+    return;
+    
+    fail: panic( "Format is not UTF-8" );
+}
+
+TVal
+libUcode( State* state, SymT chr ) {
+    size_t len = symLen( state, chr );
+    if( len > 4 )
+        return tvUdf();
+    
+    char buf[len];
+    memcpy( buf, symBuf( state, chr ), len );
+    
+    char const* str  = buf;
+    uint32_t    code = 0;
+    unext( state, &str, &len, &code );
+    
+    return tvInt( code );
+}
+
+TVal
+libUchar( State* state, IntT code ) {
+    char     buf[4];
+    size_t   len = 0;
+    uint32_t u   = code;
+    
+    if( u < SINGLE_END ) {
+        buf[0] = u;
+        len = 1;
+    }
+    else
+    if( u < DOUBLE_END ) {
+        buf[0] = 6 << 5 | u >> 6;
+        buf[1] = 2 << 6 | ( u & 63 );
+        len = 2;
+    }
+    else
+    if( u < TRIPLE_END ) {
+        buf[0] = 14 << 4 | u >> 12;
+        buf[1] =  2 << 6 | ( u >> 6 & 63 );
+        buf[2] =  2 << 6 | ( u & 63 );
+        len = 3;
+    }
+    else
+    if( u < QUAD_END ) {
+        buf[0] = 30 << 3 | u >> 18;
+        buf[1] =  2 << 6 | ( u >> 12 & 63 );
+        buf[2] =  2 << 6 | ( u >>  6 & 63 );
+        buf[3] =  2 << 6 | ( u & 63 );
+        len = 4;
+    }
+    else {
+        return tvUdf();
+    }
+    
+    return tvSym( symGet( state, buf, len ) );
+}
+
+String*
+libCat( State* state, Record* vals ) {
+    CharBuf buf; initCharBuf( state, &buf );
+    
+    uint  i = 0;
+    TVal  v = recGet( state, vals, tvInt( i++ ) );
+    while( !tvIsUdf( v ) ) {
+        char const* str = fmtA( state, false, "%v", v );
+        size_t      len = fmtLen( state );
+        for( uint i = 0 ; i < len ; i++ )
+            *putCharBuf( state, &buf ) = str[i];
+        
+        v = recGet( state, vals, tvInt( i++ ) );
+    }
+    
+    String* str = strNew( state, buf.buf, buf.top );
+    finlCharBuf( state, &buf );
+    return str;
+}
+
+String*
+libJoin( State* state, Closure* stream ) {
+    ten_State* ten = (ten_State*)ten;
+    
+    CharBuf buf; initCharBuf( state, &buf );
+    
+    ten_Tup argTup = ten_pushA( ten, "" );
+    ten_Tup retTup = ten_call( ten, stateTmp( state, tvObj( stream ) ), &argTup );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( ten_size( ten, &retTup ) != 1 )
+        panic( "Stream returned tuple" );
+    
+    while( !tvIsUdf( ref(&retVar) ) ) {
+        char const* str = fmtA( state, false, "%v", ref(&retVar) );
+        size_t      len = fmtLen( state );
+        for( uint i = 0 ; i < len ; i++ )
+            *putCharBuf( state, &buf ) = str[i];
+        
+        retTup = ten_call( ten, stateTmp( state, tvObj( stream ) ), &argTup );
+    }
+    
+    String* str = strNew( state, buf.buf, buf.top );
+    finlCharBuf( state, &buf );
+    return str;
 }
 
 TVal
@@ -547,6 +1242,55 @@ libBcmp( State* state, String* str1, SymT opr, String* str2 ) {
     
     size_t len = str2->len < str1->len ? str2->len : str1->len;
     int r = memcmp( str1->buf, str2->buf, len + 1 );
+    
+    if( opr == lib->opers[OPER_ILT] )
+        return  tvLog( r < 0 );
+    if( opr == lib->opers[OPER_IMT] )
+        return tvLog( r > 0 );
+    if( opr == lib->opers[OPER_IET] )
+        return tvLog( r == 0 );
+    if( opr == lib->opers[OPER_ILE] )
+        return tvLog( r <= 0 );
+    if( opr == lib->opers[OPER_IME] )
+        return tvLog( r >= 0 );
+    if( opr == lib->opers[OPER_NET] )
+        return tvLog( r != 0 );
+    
+    return tvUdf();
+}
+
+static int
+ucmp( State* state, char const* str1, size_t len1, char const* str2, size_t len2 ) {
+    char const* end1  = str1 + len1;
+    char const* end2  = str2 + len1;
+    
+    while( str1 < end1 && str2 < end2 ) {
+        uint32_t char1 = 0;
+        unext( state, &str1, &len1, &char1 );
+        
+        uint32_t char2 = 0;
+        unext( state, &str2, &len2, &char2 );
+        
+        if( char1 < char2 )
+            return -1;
+        if( char1 > char2 )
+            return 1;
+    }
+    
+    if( str1 == end1  && str2 != end2 )
+        return -1;
+    if( str2 == end2 && str1 != end1 )
+        return 1;
+    
+    return 0;
+}
+
+TVal
+libCcmp( State* state, String* str1, SymT opr, String* str2 ) {
+    LibState* lib = state->libState;
+    
+    size_t len = str2->len < str1->len ? str2->len : str1->len;
+    int r = ucmp( state, str1->buf, str1->len, str2->buf, str2->len );
     
     if( opr == lib->opers[OPER_ILT] )
         return  tvLog( r < 0 );
@@ -731,6 +1475,104 @@ strFun( ten_PARAMS ) {
 }
 
 static void
+keysFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var recArg = { .tup = args, .loc = 0 };
+    expectArg( rec, OBJ_REC );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libKeys( (State*)ten, tvGetObj( ref(&recArg) ) );
+    ref(&retVar) = tvObj( cls );
+}
+
+static void
+valsFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var recArg = { .tup = args, .loc = 0 };
+    expectArg( rec, OBJ_REC );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libVals( (State*)ten, tvGetObj( ref(&recArg) ) );
+    ref(&retVar) = tvObj( cls );
+}
+
+static void
+pairsFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var recArg = { .tup = args, .loc = 0 };
+    expectArg( rec, OBJ_REC );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libPairs( (State*)ten, tvGetObj( ref(&recArg) ) );
+    ref(&retVar) = tvObj( cls );
+}
+
+static void
+streamFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valsArg = { .tup = args, .loc = 0 };
+    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libStream( (State*)ten, tvGetObj( ref(&valsArg) ) );
+    ref(&retVar) = tvObj( cls );
+}
+
+static void
+bytesFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libBytes( (State*)ten, tvGetObj( ref(&strArg) ) );
+    ref(&retVar) = tvObj( cls );
+}
+
+static void
+charsFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libChars( (State*)ten, tvGetObj( ref(&strArg) ) );
+    ref(&retVar) = tvObj( cls );
+}
+
+static void
+itemsFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var listArg = { .tup = args, .loc = 0 };
+    expectArg( list, OBJ_REC );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libItems( (State*)ten, tvGetObj( ref(&listArg) ) );
+    ref(&retVar) = tvObj( cls );
+}
+
+static void
 showFun( ten_PARAMS ) {
     State* state = (State*)ten;
     ten_Var valsArg = { .tup = args, .loc = 0 };
@@ -740,6 +1582,81 @@ showFun( ten_PARAMS ) {
     libShow( state, tvGetObj( ref(&valsArg) ) );
     
     statePush( state, 0 );
+}
+
+static void
+warnFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    ten_Var valsArg = { .tup = args, .loc = 0 };
+    
+    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    
+    libWarn( state, tvGetObj( ref(&valsArg) ) );
+    
+    statePush( state, 0 );
+}
+
+static void
+inputFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    String* str = libInput( state );
+    ref(&retVar) = tvObj( str );
+}
+
+static void
+ucodeFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var chrArg = { .tup = args, .loc = 0 };
+    expectArg( chr, VAL_SYM );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ref(&retVar) = libUcode( state, tvGetSym( ref(&chrArg) ) );
+}
+
+static void
+ucharFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var codeArg = { .tup = args, .loc = 0 };
+    expectArg( code, VAL_INT );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ref(&retVar) = libUchar( state, tvGetInt( ref(&codeArg) ) );
+}
+
+static void
+catFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valsArg = { .tup = args, .loc = 0 };
+    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    String* str = libCat( state, tvGetObj( ref(&valsArg) ) );
+    ref(&retVar) = tvObj( str );
+}
+
+static void
+joinFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var streamArg = { .tup = args, .loc = 0 };
+    expectArg( stream, OBJ_CLS );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    String* str = libJoin( state, tvGetObj( ref(&streamArg) ) );
+    ref(&retVar) = tvObj( str );
 }
 
 static void
@@ -759,6 +1676,27 @@ bcmpFun( ten_PARAMS ) {
     String* str2 = tvGetObj( ref(&str2Arg) );
     
     TVal r = libBcmp( state, str1, opr, str2 );
+    
+    ten_pushA( ten, "V", stateTmp( state, r ) );
+}
+
+static void
+ccmpFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var str1Arg = { .tup = args, .loc = 0 };
+    ten_Var oprArg  = { .tup = args, .loc = 1 };
+    ten_Var str2Arg = { .tup = args, .loc = 2 };
+    
+    expectArg( str1, OBJ_STR );
+    expectArg( opr, VAL_SYM );
+    expectArg( str2, OBJ_STR );
+    
+    String* str1 = tvGetObj( ref(&str1Arg) );
+    SymT    opr  = tvGetSym( ref(&oprArg) );
+    String* str2 = tvGetObj( ref(&str2Arg) );
+    
+    TVal r = libCcmp( state, str1, opr, str2 );
     
     ten_pushA( ten, "V", stateTmp( state, r ) );
 }
@@ -852,6 +1790,8 @@ libInit( State* state ) {
     IDENT( status );
     
     IDENT( tag );
+    IDENT( car );
+    IDENT( cdr );
     
 
     #define OPER( N, O ) \
@@ -914,10 +1854,70 @@ libInit( State* state ) {
     FUN( dec, 1, false );
     FUN( sym, 1, false );
     FUN( str, 1, false );
+    FUN( keys, 1, false );
+    FUN( vals, 1, false );
+    FUN( pairs, 1, false );
+    FUN( stream, 0, true );
+    FUN( bytes, 1, false );
+    FUN( chars, 1, false );
+    FUN( items, 1, false );
     FUN( show, 0, true );
+    FUN( warn, 0, true );
+    FUN( input, 0, false );
+    FUN( ucode, 1, false );
+    FUN( uchar, 1, false );
+    FUN( cat, 0, true );
+    FUN( join, 1, false );
     FUN( bcmp, 3, false );
+    FUN( ccmp, 3, false );
     
     ten_def( s, ten_sym( s, "N" ), ten_sym( s, "\n" ) );
+    ten_def( s, ten_sym( s, "R" ), ten_sym( s, "\r" ) );
+    ten_def( s, ten_sym( s, "L" ), ten_sym( s, "\r\n" ) );
+    ten_def( s, ten_sym( s, "T" ), ten_sym( s, "\t" ) );
+    ten_def( s, ten_sym( s, "NULL" ), ten_ptr( s, NULL ) );
+    
+    
+    ten_initDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "RecIter",
+            .size  = sizeof(RecIter),
+            .mems  = RecIter_LAST,
+            .destr = recIterDestr
+        },
+        &lib->recIterInfo
+    );
+    ten_initDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "Stream",
+            .size  = sizeof(Stream),
+            .mems  = Stream_LAST,
+            .destr = NULL
+        },
+        &lib->streamInfo
+    );
+    ten_initDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "StrIter",
+            .size  = sizeof(StrIter),
+            .mems  = StrIter_LAST,
+            .destr = NULL
+        },
+        &lib->strIterInfo
+    );
+    ten_initDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "ListIter",
+            .size  = sizeof(ListIter),
+            .mems  = ListIter_LAST,
+            .destr = NULL
+        },
+        &lib->listIterInfo
+    );
     
     statePop( state ); // varTup
     

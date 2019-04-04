@@ -193,10 +193,11 @@ struct State {
     
     // Pointers to the states of all other components.
     FmtState* fmtState;
+    SymState* symState;
+    PtrState* ptrState;
     GenState* genState;
     ComState* comState;
     EnvState* envState;
-    SymState* symState;
     StrState* strState;
     IdxState* idxState;
     RecState* recState;
@@ -205,7 +206,6 @@ struct State {
     FibState* fibState;
     UpvState* upvState;
     DatState* datState;
-    PtrState* ptrState;
     LibState* libState;
     ApiState* apiState;
     

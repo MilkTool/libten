@@ -49,11 +49,10 @@ if( argc > parc ) {
     if( cls->fun->vargIdx == NULL )
         errTooManyArgs( state, cls->fun, argc );
     
-    // Put the varg record on the stack to keep it
-    // from getting garbage collected.
-    ensureStack( state, fib, 1 );
+    // Put the varg record in a temporary to keep
+    // if from being collected.
     Record* rec = recNew( state, cls->fun->vargIdx );
-    *(fib->rPtr->sp++) = tvObj( rec );
+    stateTmp( state, tvObj( rec ) );
     
     uint  diff  = argc - parc;
     TVal* extra = &argv[1 + parc];

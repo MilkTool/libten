@@ -59,7 +59,7 @@ Closure*
 libPairs( State* state, Record* rec );
 
 Closure*
-libStream( State* state, Record* rec );
+libStream( State* state, Record* vals );
 
 Closure*
 libBytes( State* state, String* str );
@@ -68,46 +68,28 @@ Closure*
 libChars( State* state, String* str );
 
 Closure*
-libItems( State* state, Record* rec );
+libItems( State* state, Record* list );
 
 void
-libShow( State* state, Record* rec );
+libShow( State* state, Record* vals );
 
 void
-libWarn( State* state, Record* rec );
+libWarn( State* state, Record* vals );
 
 String*
 libInput( State* state );
 
-SymT
-libT( State* state );
-
-SymT
-libN( State* state );
-
-SymT
-libR( State* state );
-
-SymT
-libL( State* state );
-
-SymT
-libA( State* state );
-
-SymT
-libQ( State* state );
-
-SymT
-libZ( State* state );
-
-IntT
+TVal
 libUcode( State* state, SymT chr );
 
-SymT
+TVal
 libUchar( State* state, IntT code );
 
 String*
 libCat( State* state, Record* rec );
+
+String*
+libJoin( State* state, Closure* stream );
 
 TVal
 libBcmp( State* state, String* str1, SymT opr, String* str2 );
@@ -115,8 +97,6 @@ libBcmp( State* state, String* str1, SymT opr, String* str2 );
 TVal
 libCcmp( State* state, String* str1, SymT opr, String* str2 );
 
-String*
-libJoin( State* state, Closure* stream );
 
 void
 libEach( State* state, Closure* stream, Closure* what );
