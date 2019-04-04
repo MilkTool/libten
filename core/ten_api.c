@@ -2,6 +2,7 @@
 #include "ten_state.h"
 #include "ten_assert.h"
 #include "ten_macros.h"
+#include "ten_math.h"
 #include "ten_api.h"
 #include "ten_com.h"
 #include "ten_gen.h"
@@ -23,6 +24,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
+
 
 struct ApiState {
     Scanner   scan;
@@ -208,9 +210,11 @@ ten_pushV( ten_State* s, char const* pat, va_list ap ) {
             case 'I':
                 tupAt( tup, i ) = tvInt( va_arg( ap, long ) );
             break;
-            case 'D':
-                tupAt( tup, i ) = tvDec( va_arg( ap, double ) );
-            break;
+            case 'D': {
+                double d = va_arg( ap, double );
+                funAssert( !isnan( d ), "NaN given as Dec value", NULL );
+                tupAt( tup, i ) = tvDec( d );
+            } break;
             case 'S': {
                 char const* str = va_arg( ap, char const* );
                 SymT        sym = symGet( state, str, strlen( str ) );
@@ -438,12 +442,13 @@ ten_compileFile( ten_State* s, FILE* file, ten_ComScope scope, ten_ComType out, 
     ApiState* api   = state->apiState;
     
     Closure* cls = compileFile( state, file, scope );
-    if( out == ten_COM_CLS )
+    if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
-    else
-        api->val1 = tvObj( cls );
+        return;
+    }
+    api->val1 = tvObj( cls );
     
-    Fiber* fib = fibNew( state, cls );
+    Fiber* fib = fibNew( state, cls, NULL );
     ref(dst) = tvObj( fib );
     
     api->val1 = tvUdf();
@@ -488,15 +493,20 @@ ten_compilePath( ten_State* s, char const* path, ten_ComScope scope, ten_ComType
     ApiState* api   = state->apiState;
     
     Closure* cls = compilePath( state, path, scope );
-    if( out == ten_COM_CLS )
+    if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
-    else
-        api->val1 = tvObj( cls );
+        return;
+    }
+    api->val1 = tvObj( cls );
     
-    Fiber* fib = fibNew( state, cls );
+    SymT tag = symGet( state, path, strlen(path) );
+    api->val2 = tvSym( tag );
+    
+    Fiber* fib = fibNew( state, cls, &tag );
     ref(dst) = tvObj( fib );
     
     api->val1 = tvUdf();
+    api->val2 = tvUdf();
 }
 
 typedef struct {
@@ -539,12 +549,13 @@ ten_compileScript( ten_State* s, char const* script, ten_ComScope scope, ten_Com
     ApiState* api   = state->apiState;
     
     Closure* cls = compileScript( state, script, scope );
-    if( out == ten_COM_CLS )
+    if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
-    else
-        api->val1 = tvObj( cls );
+        return;
+    }
+    api->val1 = tvObj( cls );
     
-    Fiber* fib = fibNew( state, cls );
+    Fiber* fib = fibNew( state, cls, NULL );
     ref(dst) = tvObj( fib );
     
     api->val1 = tvUdf();
@@ -575,12 +586,13 @@ ten_compileExpr( ten_State* s, char const** pnames, char const* expr, ten_ComTyp
     ApiState* api   = state->apiState;
     
     Closure* cls = compileExpr( state, pnames, expr );
-    if( out == ten_COM_CLS )
+    if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
-    else
-        api->val1 = tvObj( cls );
+        return;
+    }
+    api->val1 = tvObj( cls );
     
-    Fiber* fib = fibNew( state, cls );
+    Fiber* fib = fibNew( state, cls, NULL );
     ref(dst) = tvObj( fib );
     
     api->val1 = tvUdf();
@@ -593,7 +605,7 @@ ten_executeFile( ten_State* s, FILE* file, ten_ComScope scope ) {
     
     Closure* cls = compileFile( state, file, scope );
     api->val1 = tvObj( cls );
-    Fiber* fib = fibNew( state, cls );
+    Fiber* fib = fibNew( state, cls, NULL );
     api->val1 = tvObj( fib );
     
     Tup args = statePush( state, 0 );
@@ -611,7 +623,11 @@ ten_executePath( ten_State* s, char const* path, ten_ComScope scope ) {
     
     Closure* cls = compilePath( state, path, scope );
     api->val1 = tvObj( cls );
-    Fiber* fib = fibNew( state, cls );
+    
+    SymT tag = symGet( state, path, strlen(path) );
+    api->val2 = tvSym( tag );
+    
+    Fiber* fib = fibNew( state, cls, &tag );
     api->val1 = tvObj( fib );
     
     Tup args = statePush( state, 0 );
@@ -619,6 +635,7 @@ ten_executePath( ten_State* s, char const* path, ten_ComScope scope ) {
     statePop( state );
     
     api->val1 = tvUdf();
+    api->val2 = tvUdf();
     fibPropError( state, fib );
 }
 
@@ -629,7 +646,7 @@ ten_executeScript( ten_State* s, char const* script, ten_ComScope scope ) {
     
     Closure* cls = compileScript( state, script, scope );
     api->val1 = tvObj( cls );
-    Fiber* fib = fibNew( state, cls );
+    Fiber* fib = fibNew( state, cls, NULL );
     api->val1 = tvObj( fib );
     
     Tup args = statePush( state, 0 );
@@ -647,7 +664,7 @@ ten_executeExpr( ten_State* s, char const* expr ) {
     
     Closure* cls = compileExpr( state, NULL, expr );
     api->val1 = tvObj( cls );
-    Fiber* fib = fibNew( state, cls );
+    Fiber* fib = fibNew( state, cls, NULL );
     api->val1 = tvObj( fib );
     
     Tup args = statePush( state, 0 );
@@ -666,6 +683,16 @@ bool
 ten_isUdf( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
     return tvIsUdf( ref(var) );
+}
+
+bool
+ten_areUdf( ten_State* s, ten_Tup* tup ) {
+    Tup* t = (Tup*)tup;
+    for( uint i = 0 ; i < t->size ; i++ ) {
+        if( !tvIsUdf( tupAt( *t, i ) ) )
+            return false;
+    }
+    return true;
 }
 
 void
@@ -975,7 +1002,7 @@ ten_newFun( ten_State* s, ten_FunParams* p, ten_Var* dst ) {
             
             size_t len = 0;
             if( !isalpha( p->params[i][0] ) && p->params[i][0] != '_' )
-                stateErrFmtA( state, ten_ERR_USER, "Invalid parameter name" );
+                stateErrFmtA( state, ten_ERR_USER, "Invalid parameter name '%s'", p->params[i] );
             
             for( uint j = 0 ; p->params[i][j] != '\0' && p->params[i][j] != '.' ; j++ ) {
                 if( !isalnum( p->params[i][j] ) && p->params[i][j] != '_' )
@@ -1054,7 +1081,7 @@ ten_isFib( ten_State* s, ten_Var* var ) {
 }
 
 void
-ten_newFib( ten_State* s, ten_Var* cls, ten_Var* dst ) {
+ten_newFib( ten_State* s, ten_Var* cls, ten_Var* tag, ten_Var* dst ) {
     State* state = (State*)s;
     TVal clsV = ref(cls);
     funAssert(
@@ -1063,7 +1090,20 @@ ten_newFib( ten_State* s, ten_Var* cls, ten_Var* dst ) {
         NULL
     );
     Closure* clsO = tvGetObj( clsV );
-    ref(dst) = tvObj( fibNew( state, clsO ) );
+    
+    if( tag ) {
+        TVal tagV = ref(tag);
+        funAssert(
+            tvIsSym( tagV ),
+            "Wrong type for 'tag', need Sym",
+            NULL
+        );
+        SymT tagS = tvGetSym( tagV );
+        ref(dst) = tvObj( fibNew( state, clsO, &tagS ) );
+    }
+    else {
+        ref(dst) = tvObj( fibNew( state, clsO, NULL ) );
+    }
 }
 
 ten_Tup
@@ -1090,8 +1130,7 @@ ten_yield( ten_State* s, ten_Tup* vals ) {
     
     funAssert( state->fiber, "Yield without running fiber", NULL );
     
-    ten_dup( s, vals );
-    fibYield( state );
+    fibYield( state, (Tup*)vals );
 }
 
 void

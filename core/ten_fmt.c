@@ -138,31 +138,10 @@ fmtType( State* state, TVal val ) {
                 }
             } break;
             case OBJ_FUN: {
-                fmtRaw( state, "Fun:" );
-                
-                Function* fun = obj;
-                fmtStdA(
-                    state,
-                    "%u%s",
-                    (uint)fun->nParams,
-                    fun->vargIdx == NULL ? "" : "+"
-                );
-                if( fun->vargIdx )
-                    fmtRaw( state, "+" );
+                fmtRaw( state, "Fun" );
             } break;
             case OBJ_CLS: {
-                fmtRaw( state, "Cls:" );
-                
-                Closure*  cls = obj;
-                Function* fun = cls->fun;
-                fmtStdA(
-                    state,
-                    "%u%s",
-                    (uint)fun->nParams,
-                    fun->vargIdx == NULL ? "" : "+"
-                );
-                if( fun->vargIdx )
-                    fmtRaw( state, "+" );
+                fmtRaw( state, "Cls" );
             } break;
             case OBJ_FIB:
                 fmtRaw( state, "Fib" );

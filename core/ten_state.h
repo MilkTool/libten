@@ -451,7 +451,7 @@ stateRemoveFinalizer( State* state, Finalizer* finalizer );
 // allows arbitrary components to add more specificity
 // to stack traces.
 void
-statePushTrace( State* state, char const* file, uint line );
+statePushTrace( State* state, char const* fiber, char const* file, uint line );
 
 // This clears the trace list but does not free it, instead
 // returning the list of trace nodes to the caller.  It's

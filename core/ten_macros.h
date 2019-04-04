@@ -42,10 +42,13 @@
     ((Tup*)(VAR)->tup)->size                                                                    \
 )
 
-#define panic( FMT... )                                \
-    do {                                                \
-        statePushTrace( state, __FILE__, __LINE__ );    \
-        stateErrFmtA( state, ten_ERR_PANIC, FMT );      \
+#define panic( FMT... )                                         \
+    do {                                                        \
+        char const* fiber = NULL;                               \
+        if( state->fiber )                                      \
+            fiber = symBuf( state, state->fiber->tag );         \
+        statePushTrace( state, fiber, __FILE__, __LINE__ );     \
+        stateErrFmtA( state, ten_ERR_PANIC, FMT );              \
     } while( 0 )
     
 #endif

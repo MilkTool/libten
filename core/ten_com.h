@@ -5,6 +5,7 @@
 
 typedef struct {
     char const*  file;
+    char const*  name;
     char const** params;
     
     bool debug;

@@ -42,7 +42,7 @@ typedef struct {
 } ten_Var;
 
 #define ten_PARAMS ten_State* ten, ten_Tup* args, ten_Tup* mems, void* dat
-typedef void
+typedef ten_Tup
 (*ten_FunCb)( ten_PARAMS );
 
 typedef struct {
@@ -85,6 +85,7 @@ typedef enum {
 
 typedef struct ten_Trace ten_Trace;
 struct ten_Trace {
+    char const* fiber;
     char const* file;
     unsigned    line;
     ten_Trace*  next;
@@ -206,6 +207,9 @@ ten_executeExpr( ten_State* s, char const* expr );
 // Singleton values.
 bool
 ten_isUdf( ten_State* s, ten_Var* var );
+
+bool
+ten_areUdf( ten_State* s, ten_Tup* tup );
 
 void
 ten_setUdf( ten_State* s, ten_Var* dst );
@@ -336,7 +340,7 @@ bool
 ten_isFib( ten_State* s, ten_Var* var );
 
 void
-ten_newFib( ten_State* s, ten_Var* cls, ten_Var* dst );
+ten_newFib( ten_State* s, ten_Var* cls, ten_Var* tag, ten_Var* dst );
 
 ten_Tup
 ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args );

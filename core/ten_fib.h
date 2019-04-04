@@ -68,6 +68,8 @@ struct Fiber {
         uint   cap;
     } tmpStack;
     
+    SymT tag;
+    
     // Current set of registers, these are allocated as
     // locals but linked here for the sake of GC and
     // stack allocation.  When the fiber isn't running
@@ -112,7 +114,7 @@ fibInit( State* state );
 #endif
 
 Fiber*
-fibNew( State* state, Closure* entry );
+fibNew( State* state, Closure* entry, SymT* tag );
 
 Tup
 fibPush( State* state, Fiber* fib, uint n );
@@ -133,7 +135,7 @@ Tup
 fibCall_( State* state, Closure* cls, Tup* args, char const* file, uint line );
 
 void
-fibYield( State* state );
+fibYield( State* state, Tup* vals );
 
 void
 fibClearError( State* state, Fiber* fib );

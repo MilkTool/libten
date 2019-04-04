@@ -24,7 +24,7 @@ if( tvIsDec( arg1 ) && tvIsDec( arg2 ) ) {
     if( isnan( r ) )
         stateErrFmtA(
             state, ten_ERR_ARITH,
-            "Power function returned NaN"
+            "pow() function returned NaN"
         );
     
     regs.sp[-1] = tvDec( r );

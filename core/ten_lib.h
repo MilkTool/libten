@@ -104,14 +104,7 @@ libEach( State* state, Closure* stream, Closure* what );
 TVal
 libFold( State* state, Closure* stream, TVal agr, Closure* how );
 
-void
-libWhile( State* state, Closure* cond, Closure* what );
 
-void
-libUntil( State* state, Closure* cond, Closure* what );
-
-Record*
-libExpand( State* state, Closure* stream );
 
 Record*
 libCons( State* state, TVal car, TVal cdr );
@@ -119,18 +112,31 @@ libCons( State* state, TVal car, TVal cdr );
 Record*
 libList( State* state, Record* rec );
 
+Record*
+libExplode( State* state, Closure* stream );
+
 Fiber*
-libFiber( State* state, Closure* cls );
+libFiber( State* state, Closure* cls, SymT* tag );
 
 Tup
-libCont( State* state, Fiber* fib, Closure* cls );
+libCont( State* state, Fiber* fib, Record* args );
 
 void
-libYield( State* state, Record* rec );
+libYield( State* state, Record* args );
 
-void
-libStatus( State* state, Fiber* fib, SymT* st, TVal* err );
+SymT
+libState( State* state, Fiber* fib );
 
+TVal
+libErrval( State* state, Fiber* fib );
 
+Record*
+libTrace( State* state, Fiber* fib );
+
+Closure*
+libScript( State* state, String* code );
+
+Closure*
+libClosure( State* state, Record* params, String* code );
 
 #endif

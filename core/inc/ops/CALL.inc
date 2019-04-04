@@ -41,13 +41,8 @@ for( uint i = 1 ; i <= argc ; i++ )
 if( argc < parc )
     errTooFewArgs( state, cls->fun, argc );
 
-// If there are too many arguments and the function
-// doesn't accept variatic arguments then it's an
-// error.  If the function does accept vargs then
-// the extra arguments need to be copied to a record.
-if( argc > parc ) {
-    if( cls->fun->vargIdx == NULL )
-        errTooManyArgs( state, cls->fun, argc );
+// If the function expects a variadic argument record.
+if( cls->fun->vargIdx ) {
     
     // Put the varg record in a temporary to keep
     // if from being collected.
@@ -69,6 +64,11 @@ if( argc > parc ) {
     // Adjust the stack pointer to again point to the
     // slot just after the arguments.
     regs.sp = extra + 1;
+}
+// Otherwise the parameter count must be matched by the arguments.
+else {
+    if( argc > parc )
+        errTooManyArgs( state, cls->fun, argc );
 }
 
 // For a tail call we copy the arguments and the closure
@@ -92,13 +92,6 @@ if( cls->fun->type == FUN_VIR ) {
     regs.ip = cls->fun->u.vir.code;
 }
 else {
-
-    // This is used below to make sure the function call left
-    // a return value on the stack.
-    #ifndef rigK_NDEBUG
-        uint oTop = regs.sp - fib->tmpStack.tmps;
-    #endif
-
     regs.ip = NULL;
     
     // Initialize an argument tuple for the callback.
@@ -111,6 +104,7 @@ else {
     // If a Data object is attached to the closure
     // then we need to initialize a tuple for its
     // members as well, otherwise pass NULL.
+    ten_Tup t;
     if( cls->dat.dat != NULL ) {
         Data* dat = cls->dat.dat;
         Tup mTup = {
@@ -118,13 +112,24 @@ else {
             .offset = 0,
             .size   = dat->info->nMems
         };
-        cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, (ten_Tup*)&mTup, dat->data );
+        t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, (ten_Tup*)&mTup, dat->data );
     }
     else {
-        cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, NULL, NULL );
+        t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, NULL, NULL );
     }
-    // Make sure the call left a return value.
-    tenAssert( oTop < regs.sp - fib->tmpStack.tmps );
-
-    #include "RETURN.inc"
+    
+    Tup*  rets = (Tup*)&t;
+    uint  retc = rets->size;
+    ensureStack( state, fib, retc + 1 );
+    
+    TVal* retv = *rets->base + rets->offset;
+    TVal* dstv = regs.lcl;
+    for( uint i = 0 ; i < retc ; i++ )
+        dstv[i] = retv[i];
+    regs.sp = dstv + retc;
+    if( retc != 1 )
+        *(regs.sp++) = tvTup( retc );
+    
+    if( !tail )
+        popAR( state, fib );
 }

@@ -1,6 +1,7 @@
 #include "ten_fib.h"
 #include "ten_sym.h"
 #include "ten_ptr.h"
+#include "ten_str.h"
 #include "ten_rec.h"
 #include "ten_dat.h"
 #include "ten_upv.h"
@@ -169,7 +170,7 @@ fibTest( State* state ) {
         Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
-        Fiber* fib = fibNew( state, cls );
+        Fiber* fib = fibNew( state, cls, NULL );
         test.fib = fib;
         
         Tup args = statePush( state, 0 );
@@ -225,7 +226,7 @@ fibTest( State* state ) {
         Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
-        Fiber* fib = fibNew( state, cls );
+        Fiber* fib = fibNew( state, cls, NULL );
         test.fib = fib;
         
         Tup args = statePush( state, 0 );
@@ -269,7 +270,7 @@ fibTest( State* state ) {
         Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
-        Fiber* fib = fibNew( state, cls );
+        Fiber* fib = fibNew( state, cls, NULL );
         test.fib = fib;
         
         Tup args = statePush( state, 0 );
@@ -304,7 +305,7 @@ fibTest( State* state ) {
         Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
-        Fiber* fib = fibNew( state, cls );
+        Fiber* fib = fibNew( state, cls, NULL );
         test.fib = fib;
         
         Tup args = statePush( state, 0 );
@@ -340,7 +341,7 @@ fibTest( State* state ) {
         Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
-        Fiber* fib = fibNew( state, cls );
+        Fiber* fib = fibNew( state, cls, NULL );
         test.fib = fib;
         
         Tup args = statePush( state, 0 );
@@ -382,8 +383,7 @@ fibTest( State* state ) {
         Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
-        Fiber* fib = fibNew( state, cls );
-        test.fib = fib;
+        Fiber* fib = fibNew( state, cls, NULL );
         
         Tup args = statePush( state, 0 );
         Tup rets = fibCont( state, fib, &args );
@@ -415,7 +415,7 @@ fibTest( State* state ) {
         Closure* cls = clsNewVir( state, fun, NULL );
         test.cls = cls;
         
-        Fiber* fib = fibNew( state, cls );
+        Fiber* fib = fibNew( state, cls, NULL );
         test.fib = fib;
         
         Tup args = statePush( state, 0 );
@@ -433,7 +433,7 @@ onError( State* state, Defer* defer );
 
 
 Fiber*
-fibNew( State* state, Closure* cls ) {
+fibNew( State* state, Closure* cls, SymT* tag ) {
     Part fibP;
     Fiber* fib = stateAllocObj( state, &fibP, sizeof(Fiber), OBJ_FIB );
     
@@ -461,6 +461,11 @@ fibNew( State* state, Closure* cls ) {
     fib->trace         = NULL;
     fib->errDefer.cb   = onError;
     fib->yieldJmp      = NULL;
+    
+    if( tag )
+        fib->tag = *tag;
+    else
+        fib->tag = symGet( state, "<anon>", 6 );
     
     memset( &fib->rBuf, 0, sizeof(Regs) );
     fib->rPtr->sp = fib->tmpStack.tmps;
@@ -578,7 +583,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         if( err == ten_ERR_MEMORY )
             stateErrProp( state );
         
-        return (Tup){ .base = NULL, .offset = 0, .size = 0 };
+        return (Tup){ .base = &fib->tmpStack.tmps, .offset = 0, .size = 0 };
     }
     
     
@@ -634,11 +639,42 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
 }
 
 void
-fibYield( State* state ) {
-    tenAssert( state->fiber );
+fibYield( State* state, Tup* vals ) {
+    Fiber* fib = state->fiber;
+    tenAssert( fib );
     
-    state->fiber->state = FIB_STOPPED;
-    longjmp( *state->fiber->yieldJmp, 1 );
+    
+    TVal* dstv = NULL;
+    while( fib->rPtr->ip == 0 && fib->arStack.top > 0 ) {
+        dstv = fib->rPtr->lcl;
+        popAR( state, fib );
+    }
+    
+    if( fib->rPtr->ip == 0 && fib->arStack.top == 0 ) {
+        fib->state = FIB_FINISHED;
+    }
+    else {
+        fib->state = FIB_STOPPED;
+    }
+    
+    // Copy yielded values to expected location.
+    uint valc = vals->size;
+    ensureStack( state, fib, valc + 1 );
+    
+    TVal* valv = *vals->base + vals->offset;
+    for( uint i = 0 ; i < valc ; i++ )
+        dstv[i] = valv[i];
+    fib->rPtr->sp = dstv + valc;
+    
+    if( valc != 1 )
+        *(fib->rPtr->sp++) = tvTup( valc );
+    
+
+    // Save register set to buffer.
+    fib->rBuf  = *fib->rPtr;
+    fib->rPtr  = &fib->rBuf;
+    
+    longjmp( *fib->yieldJmp, 1 );
 }
 
 Tup
@@ -711,9 +747,11 @@ fibTraverse( State* state, Fiber* fib ) {
     if( fib->entry )
         stateMark( state, fib->entry );
     if( fib->parent )
-        stateMark( state, fib->parent );
+        stateMark( state, fib->parent );    
     
     tvMark( fib->errVal );
+    if( state->gcFull )
+        symMark( state, fib->tag );
 }
 
 void
@@ -739,6 +777,7 @@ contFirst( State* state, Fiber* fib, Tup* args ) {
     // the fiber.
     Tup cls = fibPush( state, fib, 1 );
     tupAt( cls, 0 ) = tvObj( fib->entry );
+    fib->entry = NULL;
     
     Tup args2 = fibPush( state, fib, args->size );
     for( uint i = 0 ; i < args->size ; i++ )
@@ -754,8 +793,7 @@ contNext( State* state, Fiber* fib, Tup* args ) {
     tenAssert( fib->entry == NULL );
     
     // The previous continuation will have left its
-    // return/yield values on the stack, so we pop
-    // those.
+    // return/yield values on the stack, so pop those.
     fibPop( state, fib );
     
     // And the fiber will expect continuation arguments,
@@ -809,13 +847,8 @@ doCall( State* state, Fiber* fib ) {
     if( argc < parc )
         errTooFewArgs( state, cls->fun, argc );
     
-    // If there are too many arguments and the function
-    // doesn't accept variatic arguments then it's an
-    // error.  If the function does accept vargs then
-    // the extra arguments need to be copied to a record.
-    if( argc > parc ) {
-        if( cls->fun->vargIdx == NULL )
-            errTooManyArgs( state, cls->fun, argc );
+    // If the function expects a variadic argument record.
+    if( cls->fun->vargIdx ) {
         
         // Put the varg record in a temporary to keep
         // if from being collected.
@@ -838,6 +871,11 @@ doCall( State* state, Fiber* fib ) {
         // slot just after the arguments.
         regs->sp = extra + 1;
     }
+    // Otherwise the parameter count must be matched by the arguments.
+    else {
+        if( argc > parc )
+            errTooManyArgs( state, cls->fun, argc );
+    }
     
     regs->lcl = argv;
     regs->cls = cls;
@@ -848,13 +886,19 @@ doCall( State* state, Fiber* fib ) {
         regs->sp += fun->nLocals;
         regs->ip = cls->fun->u.vir.code;
         doLoop( state, fib );
+        
+        uint  retc = 1;
+        TVal* retv = regs->sp - 1;
+        if( tvIsTup( *retv ) ) {
+            retc += tvGetTup( *retv );
+            retv -= retc - 1;
+        }
+        TVal* dstv = regs->lcl;
+        for( uint i = 0 ; i < retc ; i++ )
+            dstv[i] = retv[i];
+        regs->sp = dstv + retc;
     }
     else {
-        // This is used below to make sure the function call left
-        // a return value on the stack.
-        #ifndef rigK_NDEBUG
-            uint oTop = regs->sp - fib->tmpStack.tmps;
-        #endif
         
         regs->ip = NULL;
         
@@ -868,6 +912,7 @@ doCall( State* state, Fiber* fib ) {
         // If a Data object is attached to the closure
         // then we need to initialize a tuple for its
         // members as well, otherwise pass NULL.
+        ten_Tup t;
         if( cls->dat.dat != NULL ) {
             Data* dat = cls->dat.dat;
             Tup mTup = {
@@ -875,30 +920,25 @@ doCall( State* state, Fiber* fib ) {
                 .offset = 0,
                 .size   = dat->info->nMems
             };
-            cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, (ten_Tup*)&mTup, dat->data );
+            t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, (ten_Tup*)&mTup, dat->data );
         }
         else {
-            cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, NULL, NULL );
+            t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, NULL, NULL );
         }
         
-        // Make sure the call left a return value.
-        tenAssert( oTop < regs->sp - fib->tmpStack.tmps );
+        Tup*  rets = (Tup*)&t;
+        uint  retc = rets->size;
+        ensureStack( state, fib, retc + 1 );
+        
+        TVal* retv = *rets->base + rets->offset;
+        TVal* dstv = regs->lcl;
+        for( uint i = 0 ; i < retc ; i++ )
+            dstv[i] = retv[i];
+        regs->sp = dstv + retc;
+        
+        if( retc != 1 )
+            *(regs->sp++) = tvTup( retc );
     }
-    
-    
-    // After the call the return values will be left at
-    // the top of the stack, we need to copy them down
-    // to the start of the call frame.
-    uint  retc = 1;
-    TVal* retv = regs->sp - 1;
-    if( tvIsTup( *retv ) ) {
-        retc += tvGetTup( *retv );
-        retv -= retc - 1;
-    }
-    TVal* dstv = regs->lcl;
-    for( uint i = 0 ; i < retc ; i++ )
-        dstv[i] = retv[i];
-    regs->sp = dstv + retc;
 }
 
 static void
@@ -1424,13 +1464,9 @@ ensureStack( State* state, Fiber* fib, uint n ) {
     fib->rPtr->lcl = fib->tmpStack.tmps + oLcl;
 }
 
-
 static void
-onError( State* state, Defer* defer ) {
-    if( state->errNum == ten_ERR_MEMORY )
-        return;
-    
-    Fiber* fib = (void*)defer - (ullong)&((Fiber*)NULL)->errDefer;
+genTrace( State* state, Fiber* fib ) {
+    char const* tag = symBuf( state, fib->tag );
     
     // Generate stack trace.
     if( state->config.debug ) {
@@ -1444,9 +1480,9 @@ onError( State* state, Defer* defer ) {
             LineInfo* lines  = vir->dbg->lines;
             for( uint i = 0 ; i < nLines ; i++ ) {
                 if( lines[i].start <= place && place < lines[i].end ) {
-                    uint        line = lines[i].line;
-                    char const* file = symBuf( state, vir->dbg->file );
-                    statePushTrace( state, file, line );
+                    uint        line  = lines[i].line;
+                    char const* file  = symBuf( state, vir->dbg->file );
+                    statePushTrace( state, tag, file, line );
                     break;
                 }
             }
@@ -1455,7 +1491,7 @@ onError( State* state, Defer* defer ) {
         for( long i = (long)fib->arStack.top - 1 ; i >= 0 ; i-- ) {
             NatAR* nIt = fib->arStack.ars[i].nats;
             while( nIt ) {
-                statePushTrace( state, nIt->file, nIt->line );
+                statePushTrace( state, tag, nIt->file, nIt->line );
                 nIt = nIt->prev;
             }
             if( !fib->arStack.ars[i].ar.rAddr )
@@ -1471,7 +1507,7 @@ onError( State* state, Defer* defer ) {
                 if( lines[i].start <= place && place < lines[i].end ) {
                     uint        line = lines[i].line;
                     char const* file = symBuf( state, vir->dbg->file );
-                    statePushTrace( state, file, line );
+                    statePushTrace( state, tag, file, line );
                     break;
                 }
             }
@@ -1479,10 +1515,23 @@ onError( State* state, Defer* defer ) {
         
         NatAR* nIt = fib->nats;
         while( nIt ) {
-            statePushTrace( state, nIt->file, nIt->line );
+            statePushTrace( state, tag, nIt->file, nIt->line );
             nIt = nIt->prev;
         }
     }
+    
+    if( fib->parent )
+        genTrace( state, fib->parent );
+}
+
+
+static void
+onError( State* state, Defer* defer ) {
+    if( state->errNum == ten_ERR_MEMORY )
+        return;
+    
+    Fiber* fib = (void*)defer - (ullong)&((Fiber*)NULL)->errDefer;
+    genTrace( state, fib );
     
     // Set the fiber's error values from the state.
     fib->errNum = state->errNum;
@@ -1493,11 +1542,13 @@ onError( State* state, Defer* defer ) {
     
     // Set fiber to a failed state.
     fib->state = FIB_FAILED;
+
+    state->fiber->rBuf  = *state->fiber->rPtr;
+    state->fiber->rPtr  = &state->fiber->rBuf;
 }
 
 static void
 errUdfAsArg( State* state, Function* fun, uint arg ) {
-    popAR( state, state->fiber );
     stateErrFmtA(
         state, ten_ERR_CALL,
         "Passed `udf` for argument %u",
@@ -1513,7 +1564,6 @@ errTooFewArgs( State* state, Function* fun, uint argc ) {
     else
         func = symBuf( state, fun->u.nat.name );
     
-    popAR( state, state->fiber );
     stateErrFmtA(
         state, ten_ERR_CALL,
         "Too few arguments to `%s`",
@@ -1529,7 +1579,6 @@ errTooManyArgs( State* state, Function* fun, uint argc ) {
     else
         func = symBuf( state, fun->u.nat.name );
     
-    popAR( state, state->fiber );
     stateErrFmtA(
         state, ten_ERR_CALL,
         "Too many arguments to `%s`",

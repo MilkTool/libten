@@ -314,9 +314,9 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         }
         
         // Test trace creation and detachment.
-        statePushTrace( state, "file1", 1 );
-        statePushTrace( state, "file2", 2 );
-        statePushTrace( state, "file3", 3 );
+        statePushTrace( state, "fiber1", "file1", 1 );
+        statePushTrace( state, "fiber2", "file2", 2 );
+        statePushTrace( state, "fiber3", "file3", 3 );
         CHECK_STATE;
         
         ten_Trace* trace = stateClaimTrace( state );
@@ -328,8 +328,11 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         ten_Trace* trace1 = trace2->next;
         tenAssert( trace1->next == NULL );
         tenAssert( !strcmp( trace1->file, "file1" ) );
+        tenAssert( !strcmp( trace1->fiber, "fiber1" ) );
         tenAssert( !strcmp( trace2->file, "file2" ) );
+        tenAssert( !strcmp( trace2->fiber, "fiber2" ) );
         tenAssert( !strcmp( trace3->file, "file3" ) );
+        tenAssert( !strcmp( trace3->fiber, "fiber3" ) );
         tenAssert( trace1->line == 1 );
         tenAssert( trace2->line == 2 );
         tenAssert( trace3->line == 3 );
@@ -457,6 +460,7 @@ stateTmp( State* state, TVal val ) {
 
 void
 stateErrStr( State* state, ten_ErrNum err, char const* str ) {
+    stateClearError( state );
     state->errNum = err;
     state->errStr = str;
     state->errVal = tvUdf();
@@ -465,6 +469,8 @@ stateErrStr( State* state, ten_ErrNum err, char const* str ) {
 
 void
 stateErrFmtA( State* state, ten_ErrNum err, char const* fmt, ... ) {
+    stateClearError( state );
+    
     va_list ap;
     va_start( ap, fmt );
     fmtV( state, false, fmt, ap );
@@ -478,6 +484,8 @@ stateErrFmtA( State* state, ten_ErrNum err, char const* fmt, ... ) {
 
 void
 stateErrFmtV( State* state, ten_ErrNum err, char const* fmt, va_list ap ) {
+    stateClearError( state );
+    
     fmtV( state, false, fmt, ap );
     
     state->errNum = err;
@@ -488,6 +496,8 @@ stateErrFmtV( State* state, ten_ErrNum err, char const* fmt, va_list ap ) {
 
 void
 stateErrVal( State* state, ten_ErrNum err, TVal val ) {
+    stateClearError( state );
+    
     state->errNum = err;
     state->errVal = val;
     state->errStr = NULL;
@@ -667,22 +677,39 @@ stateRemoveFinalizer( State* state, Finalizer* finalizer ) {
 }
 
 void
-statePushTrace( State* state, char const* file, uint line ) {
+statePushTrace( State* state, char const* fiber, char const* file, uint line ) {
     Part traceP;
     ten_Trace* trace = stateAllocRaw( state, &traceP, sizeof(ten_Trace) );
     
-    size_t fileLen = strlen( file );
-    Part   fileP;
-    char* fileCpy = stateAllocRaw( state, &fileP, fileLen + 1 );
-    strcpy( fileCpy, file );
+    if( file ) {
+        size_t fileLen = strlen( file );
+        Part   fileP;
+        char* fileCpy = stateAllocRaw( state, &fileP, fileLen + 1 );
+        strcpy( fileCpy, file );
+        trace->file = fileCpy;
+        stateCommitRaw( state, &fileP );
+    }
+    else {
+        trace->file = NULL;
+    }
     
-    trace->file = fileCpy;
-    trace->line = line;
-    trace->next = state->trace;
+    if( fiber ) {
+        size_t fiberLen = strlen( fiber );
+        Part   fiberP;
+        char* fiberCpy = stateAllocRaw( state, &fiberP, fiberLen + 1 );
+        strcpy( fiberCpy, fiber );
+        trace->fiber = fiberCpy;
+        stateCommitRaw( state, &fiberP );
+    }
+    else {
+        trace->fiber = NULL;
+    }
+    
+    trace->line  = line;
+    trace->next  = state->trace;
     state->trace = trace;
     
     stateCommitRaw( state, &traceP );
-    stateCommitRaw( state, &fileP );
 }
 
 ten_Trace*
@@ -706,8 +733,15 @@ stateFreeTrace( State* state, ten_Trace* trace ) {
         ten_Trace* t = tIt;
         tIt = tIt->next;
         
-        size_t fileLen = strlen( t->file );
-        stateFreeRaw( state, (char*)t->file, fileLen + 1 );
+        if( t->file ) {
+            size_t fileLen = strlen( t->file );
+            stateFreeRaw( state, (char*)t->file, fileLen + 1 );
+        }
+        if( t->fiber ) {
+            size_t fiberLen = strlen( t->fiber );
+            stateFreeRaw( state, (char*)t->fiber, fiberLen + 1 );
+        }
+        
         stateFreeRaw( state, t, sizeof(ten_Trace) );
     }
 }

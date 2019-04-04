@@ -16,6 +16,10 @@ char const* tests[] = {
     "type.ten",
     "iter.ten",
     "misc.ten",
+    "loop.ten",
+    "list.ten",
+    "fiber.ten",
+    "compile.ten",
     NULL
 };
 
@@ -34,7 +38,14 @@ main( void ) {
         
         ten_Trace* tIt = ten_getTrace( &s, NULL );
         while( tIt ) {
-            fprintf( stderr, "  %s:%u\n", tIt->file, tIt->line );
+            char const* fiber = "???";
+            if( tIt->fiber )
+                fiber = tIt->fiber;
+            char const* file = "???";
+            if( tIt->file )
+                file = tIt->file;
+            
+            fprintf( stderr, "  %s#%u (%s)\n", tIt->file, tIt->line, tIt->fiber );
             tIt = tIt->next;
         }
         

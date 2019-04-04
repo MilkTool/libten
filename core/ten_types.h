@@ -364,7 +364,7 @@ do {                                                                        \
     #define tvIsInt( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_INT)
     #define tvIsDec( TVAL ) \
-        (((TVAL).nan & (SIGN_BIT | NAN_BITS | TAG_BITS)) <= NAN_BITS)
+        (((TVAL).nan << 1 >> 1) <= NAN_BITS)
     #define tvIsSym( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & TAG_BITS) >> 48 == VAL_SYM)
     #define tvIsPtr( TVAL ) \
@@ -377,7 +377,7 @@ do {                                                                        \
     #define tvGetTag( TVAL ) \
         (tvIsDec( TVAL ) ? VAL_DEC : ((TVAL).nan & TAG_BITS) >> 48)
     #define tvGetVal( TVAL ) \
-        ((ullong)((TVAL).nan & VAL_BITS))
+        (tvIsDec( TVAL ) ? (TVAL).nan : (ullong)((TVAL).nan & VAL_BITS))
     #define tvGetObj( TVAL ) \
         ((ObjT)((TVAL).nan & OBJ_BITS))
     #define tvGetLog( TVAL ) \
@@ -415,6 +415,7 @@ do {                                                                        \
                     ptrMark( state, tvGetPtr(TVAL) );               \
             break;                                                  \
             default:                                                \
+                tenAssert( tvGetTag( TVAL ) < VAL_LAST );           \
             break;                                                  \
         }
 #else

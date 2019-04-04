@@ -8,6 +8,12 @@ if( !tvIsObj( dst ) || datGetTag( tvGetObj( dst ) ) != OBJ_REC )
 TVal key = regs.sp[-2];
 TVal val = regs.sp[-1];
 
+if( tvIsTup( val ) )
+    stateErrFmtA(
+        state, ten_ERR_ASSIGN,
+        "Tuple assignment without tuple pattern"
+    );
+
 recDef( state, tvGetObj( dst ), key, val );
 regs.sp -= 2;
 regs.sp[-1] = tvUdf();

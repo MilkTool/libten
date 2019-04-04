@@ -9,7 +9,14 @@ if( tvIsDec( arg1 ) && tvIsDec( arg2 ) ) {
             "Division by zero"
         );
     
-    regs.sp[-1] = tvDec( fmod( tvGetDec( arg1 ), denom ) );
+    double mod = fmod( tvGetDec( arg1 ), denom );
+    if( isnan( mod ) )
+        stateErrFmtA(
+            state, ten_ERR_ARITH,
+            "fmod() function returned NaN"
+        );
+    
+    regs.sp[-1] = tvDec( mod );
 }
 else
 if( tvIsInt( arg1 ) && tvIsInt( arg2 ) ) {

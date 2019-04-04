@@ -5,7 +5,9 @@
 #include "ten_str.h"
 #include "ten_idx.h"
 #include "ten_fmt.h"
+#include "ten_fun.h"
 #include "ten_cls.h"
+#include "ten_fib.h"
 #include "ten_state.h"
 #include "ten_macros.h"
 #include "ten_opcodes.h"
@@ -83,7 +85,7 @@ errLex( State* state, char const* fmt, ... ) {
     genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
-    statePushTrace( state, state->comState->p.file, state->comState->lex.line );
+    statePushTrace( state, "compiler", state->comState->p.file, state->comState->lex.line );
     stateErrFmtV( state, ten_ERR_SYNTAX, fmt, ap );
     va_end( ap );
 }
@@ -93,7 +95,7 @@ errPar( State* state, char const* fmt, ... ) {
     genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
-    statePushTrace( state, state->comState->p.file, state->comState->tok.line );
+    statePushTrace( state, "compiler", state->comState->p.file, state->comState->tok.line );
     stateErrFmtV( state, ten_ERR_SYNTAX, fmt, ap );
     va_end( ap );
 }
@@ -104,7 +106,7 @@ errLimit( State* state, char const* fmt, ... ) {
     genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
-    statePushTrace( state, state->comState->p.file, state->comState->lex.line );
+    statePushTrace( state, "compiler", state->comState->p.file, state->comState->lex.line );
     stateErrFmtV( state, ten_ERR_LIMIT, fmt, ap );
     va_end( ap );
 }
@@ -123,7 +125,7 @@ errCom( State* state, char const* fmt, ... ) {
     genFree( state, state->comState->gen );
     va_list ap;
     va_start( ap, fmt );
-    statePushTrace( state, state->comState->p.file, state->comState->tok.line );
+    statePushTrace( state, "compiler", state->comState->p.file, state->comState->tok.line );
     stateErrFmtV( state, ten_ERR_COMPILE, fmt, ap );
     va_end( ap );
 }
@@ -1521,6 +1523,8 @@ parBinaryOper(
     while( opc != OPC_LAST ) {
         parDelim( state );
         
+        ((OperDat*)udat)->tail = false;
+        
         sub( state, udat );
         genInstr( state, opc, 0 );
         opc = matchOpCode( state, opers );
@@ -1542,6 +1546,7 @@ parUnaryOper(
         return;
     }
     
+    ((OperDat*)udat)->tail = false;
     parDelim( state );
     parUnaryOper( state, opers, udat, sub );
     genInstr( state, opc, 0 );
@@ -2162,10 +2167,10 @@ comTest( State* state ) {
 #endif
 
 Closure*
-comCompile( State* state, ComParams* params ) {
+comCompile( State* state, ComParams* p ) {
     ComState* com = state->comState;
     
-    com->p = *params;
+    com->p = *p;
     com->obj1    = NULL;
     com->obj2    = NULL;
     com->val1    = tvUdf();
@@ -2173,38 +2178,50 @@ comCompile( State* state, ComParams* params ) {
     com->popc    = 0;
     com->tok.value = tvUdf();
     
-    com->gen = genMake( state, NULL, NULL, params->global, params->debug );
+    com->gen = genMake( state, NULL, NULL, p->global, p->debug );
     
     com->lex.line  = 1;
-    com->lex.nChar = params->src->next( params->src );
+    com->lex.nChar = p->src->next( p->src );
     lex( state );
     
-    if( params->file ) {
-        SymT file = symGet( state, params->file, strlen( params->file ) );
+    if( p->file ) {
+        SymT file = symGet( state, p->file, strlen( p->file ) );
         com->val1 = tvSym( file );
         genSetFile( state, com->gen, file );
         com->val1 = tvUdf();
     }
     
-    bool vpar = false;
-    if( params->params ) {
-        for( uint i = 0 ; params->params[i] != NULL ; i++ ) {
+    if( p->params ) {
+        bool vpar = false;
+        for( uint i = 0 ; p->params[i] != NULL ; i++ ) {
+            if( i > TUP_MAX )
+                panic( "Too many parameters, max is %u", (uint)TUP_MAX );
             if( vpar )
-                errUser( state, "Extra parameters after '...'" );
+                panic( "Extra parameters after '...'" );
             
-            char const* str = params->params[i];
-            size_t      len = strlen( str );
+            size_t len = 0;
+            if( !isalpha( p->params[i][0] ) && p->params[i][0] != '_' )
+                panic( "Invalid parameter name '%s'", p->params[i] );
             
-            SymT sym  = symGet( state, str, len );
-            com->val1 = tvSym( sym );
-            if( len > 3 && !strcmp( str + len - 3, "..." ) ) {
-                vpar = true;
+            for( uint j = 0 ; p->params[i][j] != '\0' && p->params[i][j] != '.' ; j++ ) {
+                if( !isalnum( p->params[i][j] ) && p->params[i][j] != '_' )
+                    panic( "Invalid parameter name '%s'", p->params[i] );
+                len++;
             }
+            
+            if( p->params[i][len] == '.' ) {
+                if( !strcmp( &p->params[i][len], "..." ) )
+                    vpar = true;
+                else
+                    panic( "Invalid parameter name '%s'", p->params[i] );
+            }
+            SymT sym = symGet( state, p->params[i], len );
+            com->val1 = tvSym( sym );
             genAddParam( state, com->gen, sym, vpar );
         }
     }
     
-    if( params->script ) {
+    if( p->script ) {
         parDelim( state );
         while( com->tok.type != TOK_END ) {
             parExpr( state, false );
@@ -2222,6 +2239,15 @@ comCompile( State* state, ComParams* params ) {
     Upvalue** upvals = genGlobalUpvals( state, com->gen );
     Function* fun = genFinish( state, com->gen, false );
     com->obj1 = fun;
+    
+    if( p->debug ) {
+        if( p->name )
+            fun->u.vir.dbg->func = symGet( state, p->name, strlen(p->name) );
+        else
+        if( p->file )
+            fun->u.vir.dbg->func = symGet( state, p->file, strlen(p->file) );
+    }
+    
     Closure* cls = clsNewVir( state, fun, upvals );
     return cls;
 }
