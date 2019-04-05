@@ -152,7 +152,10 @@ apiTest( State* state ) {
     
     ten_Var* fib  = ten_udf( s );
     ten_Tup  args = ten_pushA( s, "" );
-    ten_compileScript( s, script, ten_SCOPE_GLOBAL, ten_COM_FIB, fib );
+    
+    ten_Source* src = ten_stringSource( s, script, "testScript" );
+    ten_compileScript( s, src, ten_SCOPE_GLOBAL, ten_COM_FIB, fib );
+    
     ten_Tup  rets = ten_cont( s, fib, &args );
     ten_pop( s );
     
@@ -160,7 +163,8 @@ apiTest( State* state ) {
     tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var3" ) ), ten_int( s, 3 ) ) );
     tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var4" ) ), ten_int( s, 4 ) ) );
     
-    rets = ten_executeExpr( s, expr );
+    src = ten_stringSource( s, expr, "testExpr" );
+    rets = ten_executeExpr( s, src );
     ten_Var ret = { .tup = &rets, .loc = 0 };
     
     tenAssert( ten_size( s, &rets ) == 1 );
@@ -387,205 +391,193 @@ ten_str( ten_State* s, char const* str ) {
 }
 
 typedef struct {
-    ten_Source source;
+    ten_Source base;
+    Finalizer  finl;
+} Source;
+
+typedef struct {
+    ten_Source base;
+    Finalizer  finl;
     FILE*      file;
 } FileSource;
 
-typedef struct {
-    Defer defer;
-    FILE* file;
-} CloseDefer;
-
 static void
-closeDefer( State* state, Defer* d ) {
-    CloseDefer* defer = (CloseDefer*)d;
-    fclose( defer->file );
+fileSourceFinl( State* state, Finalizer* finl ) {
+    FileSource* src = structFromFinl( FileSource, finl );
+    
+    fclose( src->file );
+    stateFreeRaw( state, (char*)src->base.name, strlen(src->base.name) + 1 );
+    stateFreeRaw( state, src, sizeof(FileSource) );
 }
 
 static int
-fileNext( ten_Source* s ) {
-    FileSource* source = (FileSource*)s;
-    return getc( source->file );
+fileSourceNext( ten_Source* s ) {
+    FileSource* src = (FileSource*)s;
+    return getc( src->file );
 }
 
-static Closure*
-compileFile( State* state, FILE* file, ten_ComScope scope )  {
-    CloseDefer defer = {
-        .defer = { .cb = closeDefer },
-        .file  = file
-    };
-    stateInstallDefer( state, (Defer*)&defer );
+typedef struct {
+    ten_Source  base;
+    Finalizer   finl;
+    char const* str;
+    size_t      loc;
+} StringSource;
+
+static void
+stringSourceFinl( State* state, Finalizer* finl ) {
+    StringSource* src = structFromFinl( StringSource, finl );
     
-    FileSource source = {
-        .source = { .next = fileNext },
-        .file   = file
-    };
-    
-    ComParams params = {
-        .file   = "<unknown>",
-        .params = NULL,
-        .debug  = state->config.debug,
-        .global = (scope == ten_SCOPE_GLOBAL),
-        .script = true,
-        .src    = (ten_Source*)&source
-    };
-    Closure* cls = comCompile( state, &params );
-    
-    stateCommitDefer( state, (Defer*)&defer );
-    
-    return cls;
+    stateFreeRaw( state, (char*)src->base.name, strlen(src->base.name) + 1 );
+    stateFreeRaw( state, (char*)src->str, strlen(src->str) + 1 );
+    stateFreeRaw( state, src, sizeof(StringSource) );
 }
 
-void
-ten_compileFile( ten_State* s, FILE* file, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
-    State*    state = (State*)s;
-    ApiState* api   = state->apiState;
-    
-    Closure* cls = compileFile( state, file, scope );
-    if( out == ten_COM_CLS ) {
-        ref(dst) = tvObj( cls );
-        return;
-    }
-    api->val1 = tvObj( cls );
-    
-    Fiber* fib = fibNew( state, cls, NULL );
-    ref(dst) = tvObj( fib );
-    
-    api->val1 = tvUdf();
+static int
+stringSourceNext( ten_Source* s ) {
+    StringSource* src = (StringSource*)s;
+    if( src->str[src->loc] == '\0' )
+        return -1;
+    else
+        return src->str[src->loc++];
 }
 
-static Closure*
-compilePath( State* state, char const* path, ten_ComScope scope ) {
+ten_Source*
+ten_fileSource( ten_State* s, FILE* file, char const* name ) {
+    State* state = (State*)s;
+    
+    Part nameP;
+    size_t nameLen = strlen(name);
+    char*  nameCpy = stateAllocRaw( state, &nameP, nameLen + 1 );
+    strcpy( nameCpy, name );
+    
+    Part srcP;
+    FileSource* src = stateAllocRaw( state, &srcP, sizeof(FileSource) );
+    src->base.name = nameCpy;
+    src->base.next = fileSourceNext;
+    src->file      = file;
+    src->finl.cb   = fileSourceFinl;
+    
+    stateInstallFinalizer( state, &src->finl );
+    
+    stateCommitRaw( state, &nameP );
+    stateCommitRaw( state, &srcP );
+    
+    return (ten_Source*)src;
+}
+
+ten_Source*
+ten_pathSource( ten_State* s, char const* path ) {
+    State* state = (State*)s;
+    
     FILE* file = fopen( path, "r" );
     if( file == NULL )
         stateErrFmtA( state, ten_ERR_SYSTEM, "%s", strerror( errno ) );
     
-    CloseDefer defer = {
-        .defer = { .cb = closeDefer },
-        .file  = file
+    return ten_fileSource( s, file, path );
+}
+
+ten_Source*
+ten_stringSource( ten_State* s, char const* string, char const* name ) {
+    State* state = (State*)s;
+    
+    Part nameP;
+    size_t nameLen = strlen(name);
+    char*  nameCpy = stateAllocRaw( state, &nameP, nameLen + 1 );
+    strcpy( nameCpy, name );
+    
+    Part stringP;
+    size_t stringLen = strlen(string);
+    char*  stringCpy = stateAllocRaw( state, &stringP, stringLen + 1 );
+    strcpy( stringCpy, string );
+    
+    Part srcP;
+    StringSource* src = stateAllocRaw( state, &srcP, sizeof(StringSource) );
+    src->base.name = nameCpy;
+    src->base.next = stringSourceNext;
+    src->str       = stringCpy;
+    src->loc       = 0;
+    src->finl.cb   = stringSourceFinl;
+    
+    stateInstallFinalizer( state, &src->finl );
+    
+    stateCommitRaw( state, &nameP );
+    stateCommitRaw( state, &stringP );
+    stateCommitRaw( state, &srcP );
+    
+    return (ten_Source*)src;
+}
+
+void
+ten_freeSource( ten_State* s, ten_Source* src ) {
+    State*  state  = (State*)s;
+    Source* source = (Source*)src;
+    source->finl.cb( state, &source->finl );
+}
+
+
+typedef struct {
+    Defer   base;
+    Source* src;
+} FreeSourceDefer;
+
+static void
+freeSourceDefer( State* state, Defer* defer ) {
+    FreeSourceDefer* d = (FreeSourceDefer*)defer;
+    stateRemoveFinalizer( state, &d->src->finl );
+    d->src->finl.cb( state, &d->src->finl );
+}
+
+
+static Closure*
+compileScript( State* state, ten_Source* src, ten_ComScope scope )  {
+    FreeSourceDefer defer = {
+        .base = { .cb = freeSourceDefer },
+        .src  =  (Source*)src
     };
     stateInstallDefer( state, (Defer*)&defer );
     
-    FileSource source = {
-        .source = { .next = fileNext },
-        .file   = file
-    };
-    
     ComParams params = {
-        .file   = path,
+        .file   = src->name,
         .params = NULL,
         .debug  = state->config.debug,
         .global = (scope == ten_SCOPE_GLOBAL),
         .script = true,
-        .src    = (ten_Source*)&source
+        .src    = src
     };
-    
     Closure* cls = comCompile( state, &params );
     
     stateCommitDefer( state, (Defer*)&defer );
-    
     return cls;
 }
 
-void
-ten_compilePath( ten_State* s, char const* path, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
-    State*    state = (State*)s;
-    ApiState* api   = state->apiState;
-    
-    Closure* cls = compilePath( state, path, scope );
-    if( out == ten_COM_CLS ) {
-        ref(dst) = tvObj( cls );
-        return;
-    }
-    api->val1 = tvObj( cls );
-    
-    SymT tag = symGet( state, path, strlen(path) );
-    api->val2 = tvSym( tag );
-    
-    Fiber* fib = fibNew( state, cls, &tag );
-    ref(dst) = tvObj( fib );
-    
-    api->val1 = tvUdf();
-    api->val2 = tvUdf();
-}
-
-typedef struct {
-    ten_Source  source;
-    char const* string;
-    size_t      next;
-} StringSource;
-
-static int
-stringNext( ten_Source* s ) {
-    StringSource* source = (StringSource*)s;
-    if( source->string[source->next] == '\0' )
-        return -1;
-    else
-        return source->string[source->next++];
-}
-
 static Closure*
-compileScript( State* state, char const* script, ten_ComScope scope ) {
-    StringSource source = {
-        .source = { .next = stringNext },
-        .string = script,
-        .next   = 0
+compileExpr( State* state, char const** pnames, ten_Source* src ) {
+    FreeSourceDefer defer = {
+        .base = { .cb = freeSourceDefer },
+        .src  =  (Source*)src
     };
+    stateInstallDefer( state, (Defer*)&defer );
     
     ComParams params = {
-        .file   = "<unknown>",
-        .params = NULL,
-        .debug  = state->config.debug,
-        .global = (scope == ten_SCOPE_GLOBAL),
-        .script = true,
-        .src    = (ten_Source*)&source
-    };
-    return comCompile( state, &params );
-}
-
-void
-ten_compileScript( ten_State* s, char const* script, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
-    State*    state = (State*)s;
-    ApiState* api   = state->apiState;
-    
-    Closure* cls = compileScript( state, script, scope );
-    if( out == ten_COM_CLS ) {
-        ref(dst) = tvObj( cls );
-        return;
-    }
-    api->val1 = tvObj( cls );
-    
-    Fiber* fib = fibNew( state, cls, NULL );
-    ref(dst) = tvObj( fib );
-    
-    api->val1 = tvUdf();
-}
-
-static Closure*
-compileExpr( State* state, char const** pnames, char const* expr ) {
-    StringSource source = {
-        .source = { .next = stringNext },
-        .string = expr,
-        .next   = 0
-    };
-    
-    ComParams params = {
-        .file   = "<unknown>",
+        .file   = src->name,
         .params = pnames,
         .debug  = state->config.debug,
         .global = false,
         .script = false,
-        .src    = (ten_Source*)&source
+        .src    = src
     };
-    return comCompile( state, &params );
+    Closure* cls = comCompile( state, &params );
+    
+    stateCommitDefer( state, (Defer*)&defer );
+    return cls;
 }
 
 void
-ten_compileExpr( ten_State* s, char const** pnames, char const* expr, ten_ComType out, ten_Var* dst ) {
+ten_compileScript( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileExpr( state, pnames, expr );
+    Closure* cls = compileScript( state, src, scope );
     if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
         return;
@@ -599,52 +591,29 @@ ten_compileExpr( ten_State* s, char const** pnames, char const* expr, ten_ComTyp
 }
 
 void
-ten_executeFile( ten_State* s, FILE* file, ten_ComScope scope ) {
+ten_compileExpr( ten_State* s, char const** pnames, ten_Source* src, ten_ComType out, ten_Var* dst ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileFile( state, file, scope );
+    Closure* cls = compileExpr( state, pnames, src );
+    if( out == ten_COM_CLS ) {
+        ref(dst) = tvObj( cls );
+        return;
+    }
     api->val1 = tvObj( cls );
+    
     Fiber* fib = fibNew( state, cls, NULL );
-    api->val1 = tvObj( fib );
-    
-    Tup args = statePush( state, 0 );
-    fibCont( state, fib, &args );
-    statePop( state );
+    ref(dst) = tvObj( fib );
     
     api->val1 = tvUdf();
-    fibPropError( state, fib );
 }
 
 void
-ten_executePath( ten_State* s, char const* path, ten_ComScope scope ) {
+ten_executeScript( ten_State* s, ten_Source* src, ten_ComScope scope ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compilePath( state, path, scope );
-    api->val1 = tvObj( cls );
-    
-    SymT tag = symGet( state, path, strlen(path) );
-    api->val2 = tvSym( tag );
-    
-    Fiber* fib = fibNew( state, cls, &tag );
-    api->val1 = tvObj( fib );
-    
-    Tup args = statePush( state, 0 );
-    fibCont( state, fib, &args );
-    statePop( state );
-    
-    api->val1 = tvUdf();
-    api->val2 = tvUdf();
-    fibPropError( state, fib );
-}
-
-void
-ten_executeScript( ten_State* s, char const* script, ten_ComScope scope ) {
-    State*    state = (State*)s;
-    ApiState* api   = state->apiState;
-    
-    Closure* cls = compileScript( state, script, scope );
+    Closure* cls = compileScript( state, src, scope );
     api->val1 = tvObj( cls );
     Fiber* fib = fibNew( state, cls, NULL );
     api->val1 = tvObj( fib );
@@ -658,11 +627,11 @@ ten_executeScript( ten_State* s, char const* script, ten_ComScope scope ) {
 }
 
 ten_Tup
-ten_executeExpr( ten_State* s, char const* expr ) {
+ten_executeExpr( ten_State* s, ten_Source* src ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileExpr( state, NULL, expr );
+    Closure* cls = compileExpr( state, NULL, src );
     api->val1 = tvObj( cls );
     Fiber* fib = fibNew( state, cls, NULL );
     api->val1 = tvObj( fib );

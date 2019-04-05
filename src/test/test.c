@@ -58,7 +58,7 @@ main( void ) {
     
     for( uint i = 0 ; tests[i] != NULL ; i++ ) {
         fprintf( stderr, "Running '%s'...\n", tests[i] );
-        ten_executePath( &s, tests[i], ten_SCOPE_LOCAL );
+        ten_executeScript( &s, ten_pathSource( &s, tests[i] ), ten_SCOPE_LOCAL );
         fprintf( stderr, "  Finished\n" );
     }
     

@@ -92,7 +92,8 @@ struct ten_Trace {
 };
 
 typedef struct ten_Source {
-    int  (*next)( struct ten_Source* src );
+    char const* name;
+    int        (*next)( struct ten_Source* src );
 } ten_Source;
 
 typedef struct ten_Config {
@@ -177,31 +178,33 @@ ten_ptr( ten_State* s, void* ptr );
 ten_Var*
 ten_str( ten_State* s, char const* str );
 
+// Sources.
+ten_Source*
+ten_fileSource( ten_State* s, FILE* file, char const* name );
+
+ten_Source*
+ten_pathSource( ten_State* s, char const* path );
+
+ten_Source*
+ten_stringSource( ten_State* s, char const* string, char const* name );
+
+void
+ten_freeSource( ten_State* s, ten_Source* src );
+
+
 // Compilation.
 void
-ten_compileFile( ten_State* s, FILE* file, ten_ComScope scope, ten_ComType out, ten_Var* dst );
+ten_compileScript( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
 
 void
-ten_compilePath( ten_State* s, char const* path, ten_ComScope scope, ten_ComType out, ten_Var* dst );
-
-void
-ten_compileScript( ten_State* s, char const* script, ten_ComScope scope, ten_ComType out, ten_Var* dst );
-
-void
-ten_compileExpr( ten_State* s,  char const** pnames, char const* expr, ten_ComType out, ten_Var* dst );
+ten_compileExpr( ten_State* s,  char const** pnames, ten_Source* src, ten_ComType out, ten_Var* dst );
 
 // Execution.
 void
-ten_executeFile( ten_State* s, FILE* file, ten_ComScope scope );
-
-void
-ten_executePath( ten_State* s, char const* path, ten_ComScope scope );
-
-void
-ten_executeScript( ten_State* s, char const* script, ten_ComScope scope );
+ten_executeScript( ten_State* s, ten_Source* src, ten_ComScope scope );
 
 ten_Tup
-ten_executeExpr( ten_State* s, char const* expr );
+ten_executeExpr( ten_State* s, ten_Source* src );
 
 
 // Singleton values.

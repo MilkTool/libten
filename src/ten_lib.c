@@ -1873,7 +1873,8 @@ libScript( State* state, String* script ) {
     ten_Tup varTup = ten_pushA( ten, "U" );
     ten_Var clsVar = { .tup = &varTup, .loc = 0 };
     
-    ten_compileScript( ten, script->buf, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
+    ten_Source* src = ten_stringSource( ten, script->buf, "<unknown>" );
+    ten_compileScript( ten, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
     
     Closure* cls = tvGetObj( ref(&clsVar) );
     ten_pop( ten );
@@ -1905,7 +1906,8 @@ libClosure( State* state, Record* params, String* expr ) {
     ten_Tup varTup = ten_pushA( ten, "U" );
     ten_Var clsVar = { .tup = &varTup, .loc = 0 };
     
-    ten_compileExpr( ten, pnames, expr->buf, ten_COM_CLS, &clsVar );
+    ten_Source* src = ten_stringSource( ten, expr->buf, "<unknown>" );
+    ten_compileExpr( ten, pnames, src, ten_COM_CLS, &clsVar );
     
     Closure* cls = tvGetObj( ref(&clsVar) );
     ten_pop( ten );
