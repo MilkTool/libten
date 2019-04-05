@@ -1,6 +1,7 @@
 #include "ten_dat.h"
 #include "ten_sym.h"
 #include "ten_ptr.h"
+#include "ten_fmt.h"
 #include "ten_macros.h"
 #include "ten_state.h"
 #include "ten_assert.h"

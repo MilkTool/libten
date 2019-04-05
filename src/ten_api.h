@@ -94,6 +94,7 @@ struct ten_Trace {
 typedef struct ten_Source {
     char const* name;
     int        (*next)( struct ten_Source* src );
+    void       (*finl)( struct ten_Source* src );
 } ten_Source;
 
 typedef struct ten_Config {
@@ -104,6 +105,15 @@ typedef struct ten_Config {
     
     double memGrowth;
 } ten_Config;
+
+
+typedef struct {
+    unsigned major;
+    unsigned minor;
+    unsigned patch;
+} ten_Version;
+
+extern ten_Version const ten_VERSION;
 
 // Initialization and finalization.
 void
@@ -152,6 +162,9 @@ ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var );
 // Misc.
 bool
 ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 );
+
+void
+ten_copy( ten_State* s, ten_Var* src, ten_Var* dst );
 
 // Temporary values.
 ten_Var*

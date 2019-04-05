@@ -25,6 +25,12 @@
 #include <ctype.h>
 #include <errno.h>
 
+ten_Version const ten_VERSION = {
+    .major = 0,
+    .minor = 1,
+    .patch = 0
+};
+
 
 struct ApiState {
     Scanner   scan;
@@ -339,6 +345,11 @@ ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 ) {
     return tvEqual( ref(var1), ref(var2) );
 }
 
+void
+ten_copy( ten_State* s, ten_Var* src, ten_Var* dst ) {
+    ref(dst) = ref(src);
+}
+
 ten_Var*
 ten_udf( ten_State* s ) {
     State* state = (State*)s;
@@ -393,21 +404,23 @@ ten_str( ten_State* s, char const* str ) {
 typedef struct {
     ten_Source base;
     Finalizer  finl;
+    State*     state;
 } Source;
 
 typedef struct {
     ten_Source base;
     Finalizer  finl;
+    State*     state;
     FILE*      file;
 } FileSource;
 
 static void
-fileSourceFinl( State* state, Finalizer* finl ) {
-    FileSource* src = structFromFinl( FileSource, finl );
+fileSourceFinl( ten_Source* s ) {
+    FileSource* src = (FileSource*)s;
     
     fclose( src->file );
-    stateFreeRaw( state, (char*)src->base.name, strlen(src->base.name) + 1 );
-    stateFreeRaw( state, src, sizeof(FileSource) );
+    stateFreeRaw( src->state, (char*)src->base.name, strlen(src->base.name) + 1 );
+    stateFreeRaw( src->state, src, sizeof(FileSource) );
 }
 
 static int
@@ -419,17 +432,18 @@ fileSourceNext( ten_Source* s ) {
 typedef struct {
     ten_Source  base;
     Finalizer   finl;
+    State*      state;
     char const* str;
     size_t      loc;
 } StringSource;
 
 static void
-stringSourceFinl( State* state, Finalizer* finl ) {
-    StringSource* src = structFromFinl( StringSource, finl );
+stringSourceFinl( ten_Source* s ) {
+    StringSource* src = (StringSource*)s;
     
-    stateFreeRaw( state, (char*)src->base.name, strlen(src->base.name) + 1 );
-    stateFreeRaw( state, (char*)src->str, strlen(src->str) + 1 );
-    stateFreeRaw( state, src, sizeof(StringSource) );
+    stateFreeRaw( src->state, (char*)src->base.name, strlen(src->base.name) + 1 );
+    stateFreeRaw( src->state, (char*)src->str, strlen(src->str) + 1 );
+    stateFreeRaw( src->state, src, sizeof(StringSource) );
 }
 
 static int
@@ -439,6 +453,13 @@ stringSourceNext( ten_Source* s ) {
         return -1;
     else
         return src->str[src->loc++];
+}
+
+static void
+sourceFinl( State* state, Finalizer* finl ) {
+    Source* src = structFromFinl( Source, finl );
+    if( src->base.finl )
+        src->base.finl( (ten_Source*)src );
 }
 
 ten_Source*
@@ -454,8 +475,10 @@ ten_fileSource( ten_State* s, FILE* file, char const* name ) {
     FileSource* src = stateAllocRaw( state, &srcP, sizeof(FileSource) );
     src->base.name = nameCpy;
     src->base.next = fileSourceNext;
+    src->base.finl = fileSourceFinl;
     src->file      = file;
-    src->finl.cb   = fileSourceFinl;
+    src->state     = state;
+    src->finl.cb   = sourceFinl;
     
     stateInstallFinalizer( state, &src->finl );
     
@@ -494,9 +517,11 @@ ten_stringSource( ten_State* s, char const* string, char const* name ) {
     StringSource* src = stateAllocRaw( state, &srcP, sizeof(StringSource) );
     src->base.name = nameCpy;
     src->base.next = stringSourceNext;
+    src->base.finl = stringSourceFinl;
     src->str       = stringCpy;
     src->loc       = 0;
-    src->finl.cb   = stringSourceFinl;
+    src->state     = state;
+    src->finl.cb   = sourceFinl;
     
     stateInstallFinalizer( state, &src->finl );
     
