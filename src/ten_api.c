@@ -347,6 +347,7 @@ ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 ) {
 
 void
 ten_copy( ten_State* s, ten_Var* src, ten_Var* dst ) {
+    State* state = (State*)s;
     ref(dst) = ref(src);
 }
 

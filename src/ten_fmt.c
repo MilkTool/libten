@@ -270,9 +270,14 @@ static TVal
 nextKey( State* state, IdxIter* iter, uint seqEnd ) {
     TVal  key = tvUdf();
     uint  loc;
-    while( idxIterNext( state, iter, &key, &loc ) && tvIsInt( key ) && tvGetInt( key ) < seqEnd )
-        ;
-    return key;
+    bool  r = idxIterNext( state, iter, &key, &loc );
+    while( r && tvIsInt( key ) && tvGetInt( key ) <= seqEnd )
+        r = idxIterNext( state, iter, &key, &loc );;
+    
+    if( r )
+        return key;
+    else
+        return tvUdf();
 }
 
 static bool
@@ -298,12 +303,12 @@ fmtRec( State* state, Record* rec ) {
     
     // First print all the sequenced values.
     uint loc = 0;
-    TVal key = tvInt( loc );
+    TVal key = tvInt( loc++ );
     TVal val = recGet( state, rec, key );
     while( !tvIsUdf( val ) ) {
         fmtVal( state, val, true );
         
-        key = tvInt( ++loc );
+        key = tvInt( loc++ );
         val = recGet( state, rec, key );
         if( !tvIsUdf( val ) )
             fmtRaw( state, ", " );
