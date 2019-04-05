@@ -50,5 +50,5 @@
         statePushTrace( state, fiber, __FILE__, __LINE__ );     \
         stateErrFmtA( state, ten_ERR_PANIC, FMT );              \
     } while( 0 )
-    
+
 #endif
