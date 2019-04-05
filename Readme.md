@@ -152,6 +152,6 @@ an expression' rule.
           def bar: foo()
         for
           if bar:
-            sig return( bar )
+            sig return: bar
           else
-            sig failed( "It's broken" )
+            sig failed: "It's broken"
