@@ -38,6 +38,8 @@ struct ApiState {
     
     TVal val1;
     TVal val2;
+    
+    Fiber* fib;
 };
 
 void
@@ -53,6 +55,8 @@ apiScan( State* state, Scanner* scan ) {
     
     tvMark( api->val1 );
     tvMark( api->val2 );
+    if( api->fib )
+        stateMark( state, api->fib );
 }
 
 void
@@ -64,6 +68,7 @@ apiInit( State* state ) {
     
     api->val1 = tvUdf();
     api->val2 = tvUdf();
+    api->fib  = NULL;
     
     stateCommitRaw( state, &apiP );
     
@@ -349,6 +354,26 @@ void
 ten_copy( ten_State* s, ten_Var* src, ten_Var* dst ) {
     State* state = (State*)s;
     ref(dst) = ref(src);
+}
+
+char const*
+ten_string( ten_State* s, ten_Tup* tup ) {
+    State* state = (State*)s;
+    Tup*   t     = (Tup*)tup;
+    
+    if( t->size == 0 ) {
+        return fmtA( state, false, "()" );
+    }
+    
+    if( t->size != 1 ) {
+        return fmtA( state, false, "( %q )", tupAt( *t, 0 ) );
+    }
+    
+    fmtA( state, false, "( %q", tupAt( *t, 0 ) );
+    for( uint i = 1 ; i < t->size ; i++ )
+        fmtA( state, true, ", %q", tupAt( *t, i ) );
+    
+    return fmtA( state, true, " )" );
 }
 
 ten_Var*
@@ -682,7 +707,7 @@ ten_executeScript( ten_State* s, ten_Source* src, ten_ComScope scope ) {
     Closure* cls = compileScript( state, src, scope );
     api->val1 = tvObj( cls );
     Fiber* fib = fibNew( state, cls, NULL );
-    api->val1 = tvObj( fib );
+    api->fib = fib;
     
     Tup args = statePush( state, 0 );
     fibCont( state, fib, &args );
@@ -700,7 +725,7 @@ ten_executeExpr( ten_State* s, ten_Source* src, ten_ComScope scope ) {
     Closure* cls = compileExpr( state, src, scope );
     api->val1 = tvObj( cls );
     Fiber* fib = fibNew( state, cls, NULL );
-    api->val1 = tvObj( fib );
+    api->fib = fib;
     
     Tup args = statePush( state, 0 );
     Tup ret  = fibCont( state, fib, &args );

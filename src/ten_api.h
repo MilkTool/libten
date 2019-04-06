@@ -166,6 +166,9 @@ ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 );
 void
 ten_copy( ten_State* s, ten_Var* src, ten_Var* dst );
 
+char const*
+ten_string( ten_State* s, ten_Tup* tup );
+
 // Temporary values.
 ten_Var*
 ten_udf( ten_State* s );
