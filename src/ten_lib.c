@@ -1,5 +1,5 @@
 #include "ten_lib.h"
-#include "ten_api.h"
+#include "ten.h"
 #include "ten_com.h"
 #include "ten_gen.h"
 #include "ten_env.h"

@@ -1,7 +1,7 @@
 #ifndef ten_fun_h
 #define ten_fun_h
+#include "ten.h"
 #include "ten_types.h"
-#include "ten_api.h"
 
 typedef struct {
     uint     line;

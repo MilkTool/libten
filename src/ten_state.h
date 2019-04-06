@@ -5,8 +5,8 @@
 
 #ifndef ten_state_h
 #define ten_state_h
+#include "ten.h"
 #include "ten_types.h"
-#include "ten_api.h"
 #include <setjmp.h>
 #include <stddef.h>
 #include <stdarg.h>

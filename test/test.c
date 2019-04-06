@@ -1,5 +1,5 @@
 #include "../src/ten_state.h"
-#include "../src/ten_api.h"
+#include "../src/ten.h"
 
 #include <stdlib.h>
 

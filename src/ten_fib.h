@@ -5,9 +5,9 @@
 // the Fiber is where all the execution state will be stored.
 #ifndef ten_fib_h
 #define ten_fib_h
+#include "ten.h"
 #include "ten_types.h"
 #include "ten_state.h"
-#include "ten_api.h"
 
 typedef struct {
     Closure*  cls;

@@ -1,7 +1,7 @@
 #ifndef ten_ptr_h
 #define ten_ptr_h
+#include "ten.h"
 #include "ten_types.h"
-#include "ten_api.h"
 #include <stddef.h>
 #include <stdbool.h>
 

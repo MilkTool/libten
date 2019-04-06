@@ -1,7 +1,7 @@
 #ifndef ten_com_h
 #define ten_com_h
+#include "ten.h"
 #include "ten_types.h"
-#include "ten_api.h"
 
 typedef struct {
     char const*  file;

@@ -1,7 +1,7 @@
 #ifndef ten_dat_h
 #define tan_dat_h
+#include "ten.h"
 #include "ten_types.h"
-#include "ten_api.h"
 
 typedef struct DatInfo DatInfo;
 struct DatInfo {
