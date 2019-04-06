@@ -170,7 +170,7 @@ apiTest( State* state ) {
     tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var4" ) ), ten_int( s, 4 ) ) );
     
     src = ten_stringSource( s, expr, "testExpr" );
-    rets = ten_executeExpr( s, src );
+    rets = ten_executeExpr( s, src, ten_SCOPE_LOCAL );
     ten_Var ret = { .tup = &rets, .loc = 0 };
     
     tenAssert( ten_size( s, &rets ) == 1 );
@@ -577,7 +577,29 @@ compileScript( State* state, ten_Source* src, ten_ComScope scope )  {
 }
 
 static Closure*
-compileExpr( State* state, char const** pnames, ten_Source* src ) {
+compileExpr( State* state, ten_Source* src, ten_ComScope scope ) {
+    FreeSourceDefer defer = {
+        .base = { .cb = freeSourceDefer },
+        .src  =  (Source*)src
+    };
+    stateInstallDefer( state, (Defer*)&defer );
+    
+    ComParams params = {
+        .file   = src->name,
+        .params = NULL,
+        .debug  = state->config.debug,
+        .global = ( scope == ten_SCOPE_GLOBAL),
+        .script = false,
+        .src    = src
+    };
+    Closure* cls = comCompile( state, &params );
+    
+    stateCommitDefer( state, (Defer*)&defer );
+    return cls;
+}
+
+static Closure*
+compileCls( State* state, char const** pnames, ten_Source* src ) {
     FreeSourceDefer defer = {
         .base = { .cb = freeSourceDefer },
         .src  =  (Source*)src
@@ -617,11 +639,29 @@ ten_compileScript( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComTyp
 }
 
 void
-ten_compileExpr( ten_State* s, char const** pnames, ten_Source* src, ten_ComType out, ten_Var* dst ) {
+ten_compileExpr( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileExpr( state, pnames, src );
+    Closure* cls = compileExpr( state, src, scope );
+    if( out == ten_COM_CLS ) {
+        ref(dst) = tvObj( cls );
+        return;
+    }
+    api->val1 = tvObj( cls );
+    
+    Fiber* fib = fibNew( state, cls, NULL );
+    ref(dst) = tvObj( fib );
+    
+    api->val1 = tvUdf();
+}
+
+void
+ten_compileCls( ten_State* s, char const** pnames, ten_Source* src, ten_ComType out, ten_Var* dst ) {
+    State*    state = (State*)s;
+    ApiState* api   = state->apiState;
+    
+    Closure* cls = compileCls( state, pnames, src );
     if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
         return;
@@ -653,11 +693,11 @@ ten_executeScript( ten_State* s, ten_Source* src, ten_ComScope scope ) {
 }
 
 ten_Tup
-ten_executeExpr( ten_State* s, ten_Source* src ) {
+ten_executeExpr( ten_State* s, ten_Source* src, ten_ComScope scope ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileExpr( state, NULL, src );
+    Closure* cls = compileExpr( state, src, scope );
     api->val1 = tvObj( cls );
     Fiber* fib = fibNew( state, cls, NULL );
     api->val1 = tvObj( fib );

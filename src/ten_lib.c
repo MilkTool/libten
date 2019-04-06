@@ -1907,7 +1907,7 @@ libClosure( State* state, Record* params, String* expr ) {
     ten_Var clsVar = { .tup = &varTup, .loc = 0 };
     
     ten_Source* src = ten_stringSource( ten, expr->buf, "<unknown>" );
-    ten_compileExpr( ten, pnames, src, ten_COM_CLS, &clsVar );
+    ten_compileCls( ten, pnames, src, ten_COM_CLS, &clsVar );
     
     Closure* cls = tvGetObj( ref(&clsVar) );
     ten_pop( ten );

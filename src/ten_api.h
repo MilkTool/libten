@@ -210,14 +210,17 @@ void
 ten_compileScript( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
 
 void
-ten_compileExpr( ten_State* s,  char const** pnames, ten_Source* src, ten_ComType out, ten_Var* dst );
+ten_compileExpr( ten_State* s,  ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
+
+void
+ten_compileCls( ten_State* s,  char const** params, ten_Source* src, ten_ComType out, ten_Var* dst );
 
 // Execution.
 void
 ten_executeScript( ten_State* s, ten_Source* src, ten_ComScope scope );
 
 ten_Tup
-ten_executeExpr( ten_State* s, ten_Source* src );
+ten_executeExpr( ten_State* s, ten_Source* src, ten_ComScope scope );
 
 
 // Singleton values.
