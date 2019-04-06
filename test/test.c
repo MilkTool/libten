@@ -52,7 +52,7 @@ main( void ) {
             if( tIt->file )
                 file = tIt->file;
             
-            fprintf( stderr, "  %s#%u (%s)\n", tIt->file, tIt->line, tIt->fiber );
+            fprintf( stderr, "  %s#%u (%s)\n", file, tIt->line, fiber );
             tIt = tIt->next;
         }
         

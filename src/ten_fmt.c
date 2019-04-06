@@ -323,7 +323,7 @@ fmtRec( State* state, Record* rec ) {
     // were added to the format buffer, and if `val != udf`
     // then we know that at least one more field will be
     // added, so we add a comma to delimit the two.
-    if( loc != 0 && !tvIsUdf( val ) )
+    if( loc > 1 && !tvIsUdf( val ) )
         fmtRaw( state, ", " );
     
      
