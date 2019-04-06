@@ -429,13 +429,11 @@ ten_str( ten_State* s, char const* str ) {
 
 typedef struct {
     ten_Source base;
-    Finalizer  finl;
     State*     state;
 } Source;
 
 typedef struct {
     ten_Source base;
-    Finalizer  finl;
     State*     state;
     FILE*      file;
 } FileSource;
@@ -457,7 +455,6 @@ fileSourceNext( ten_Source* s ) {
 
 typedef struct {
     ten_Source  base;
-    Finalizer   finl;
     State*      state;
     char const* str;
     size_t      loc;
@@ -481,13 +478,6 @@ stringSourceNext( ten_Source* s ) {
         return src->str[src->loc++];
 }
 
-static void
-sourceFinl( State* state, Finalizer* finl ) {
-    Source* src = structFromFinl( Source, finl );
-    if( src->base.finl )
-        src->base.finl( (ten_Source*)src );
-}
-
 ten_Source*
 ten_fileSource( ten_State* s, FILE* file, char const* name ) {
     State* state = (State*)s;
@@ -504,9 +494,6 @@ ten_fileSource( ten_State* s, FILE* file, char const* name ) {
     src->base.finl = fileSourceFinl;
     src->file      = file;
     src->state     = state;
-    src->finl.cb   = sourceFinl;
-    
-    stateInstallFinalizer( state, &src->finl );
     
     stateCommitRaw( state, &nameP );
     stateCommitRaw( state, &srcP );
@@ -547,22 +534,12 @@ ten_stringSource( ten_State* s, char const* string, char const* name ) {
     src->str       = stringCpy;
     src->loc       = 0;
     src->state     = state;
-    src->finl.cb   = sourceFinl;
-    
-    stateInstallFinalizer( state, &src->finl );
     
     stateCommitRaw( state, &nameP );
     stateCommitRaw( state, &stringP );
     stateCommitRaw( state, &srcP );
     
     return (ten_Source*)src;
-}
-
-void
-ten_freeSource( ten_State* s, ten_Source* src ) {
-    State*  state  = (State*)s;
-    Source* source = (Source*)src;
-    source->finl.cb( state, &source->finl );
 }
 
 
@@ -574,8 +551,7 @@ typedef struct {
 static void
 freeSourceDefer( State* state, Defer* defer ) {
     FreeSourceDefer* d = (FreeSourceDefer*)defer;
-    stateRemoveFinalizer( state, &d->src->finl );
-    d->src->finl.cb( state, &d->src->finl );
+    d->src->base.finl( (ten_Source*)d->src );
 }
 
 

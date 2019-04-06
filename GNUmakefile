@@ -21,24 +21,33 @@ endif
 ifeq ($(PROFILE),debug)
     CCFLAGS += -g -O0 -D ten_DEBUG
     POSTFIX := -debug
+	POSTDLL := 
+	POSTLIB := 
 else
     ifeq ($(PROFILE),release)
         CCFLAGS += -O3 -D NDEBUG
         POSTFIX := 
+        POSTDLL := strip -w -K "ten_*" libten.o
+        POSTLIB := strip -w -K "ten_*" libten.o
     else
         $(error "Invalid build profile")
     endif
 endif
 
-libten$(DLL): $(HEADERS) $(INCLUDE) $(SOURCES)
-	$(CC) $(CCFLAGS) -shared -fpic $(SOURCES) $(LINK) -o libten$(POSTFIX)$(DLL)
-	strip -w -K "ten_*" libten$(POSTFIX)$(DLL)
 
-libten$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
+build: libten$(POSTFIX)$(DLL) libten$(POSTFIX)$(LIB) ten.h
+
+libten$(POSTFIX)$(DLL): $(HEADERS) $(INCLUDE) $(SOURCES)
+	$(CC) $(CCFLAGS) -shared -fpic $(SOURCES) $(LINK) -o libten$(POSTFIX)$(DLL)
+    ifeq ($(PROFILE),release)
+	    strip -w -K "ten_*" libten$(POSTFIX)$(DLL)
+    endif
+
+libten$(POSTFIX)$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
 	$(CC) $(CCFLAGS) -c $(SOURCES) $(LINK)
 	ld -r *.o -o libten.o
-    ifneq ($(PROFILE),debug)
-		strip -w -K "ten_*" libten.o
+    ifeq ($(PROFILE),release)
+	    strip -w -K "ten_*" libten.o
     endif
 	ar rcs libten$(POSTFIX)$(LIB) libten.o
 	rm *.o
@@ -55,7 +64,7 @@ test:
 
 .PHONY: test
 clean:
-	- rm libten$(DLL)
-	- rm libten$(LIB)
+	- rm *$(DLL)
+	- rm *$(LIB)
 	- rm ten.h
 	- rm *.o
