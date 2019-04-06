@@ -333,6 +333,7 @@ lexNum( State* state ) {
 #define notEOF()     (state->comState->lex.nChar >= 0)
 #define hasEOF()     (state->comState->lex.nChar <  0)
 #define notNewline() (state->comState->lex.nChar != '\n' && state->comState->lex.nChar != '\r')
+#define hasNewline() (state->comState->lex.nChar == '\n' || state->comState->lex.nChar == '\r')
 #define untilOne( B, Q ) \
     takeAll( notEOF() && notNewline() && !takeChar( state, B, Q ) )
 #define untilPair( B, F, S ) \
@@ -356,7 +357,10 @@ lexSym( State* state ) {
     }
     else {
         untilOne( true, '\'' );
-        trim = 1;
+        if( com->lex.chars.buf[com->lex.chars.top-1] == '\'' )
+            trim = 1;
+        else
+            trim = 0;
     }
     
     if( hasEOF() )
@@ -386,7 +390,10 @@ lexStr( State* state ) {
     }
     else {
         untilOne( true, '"' );
-        trim = 1;
+        if( com->lex.chars.buf[com->lex.chars.top-1] == '"' )
+            trim = 1;
+        else
+            trim = 0;
     }
     
     if( hasEOF() )
