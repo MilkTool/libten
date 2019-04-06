@@ -25,6 +25,12 @@ for( uint i = 0 ; i < opr ; i++ ) {
 uint cnt = 0;
 TVal val = recGet( state, src, tvInt( cnt ) );
 while( !tvIsUdf( val ) ) {
+    if( cnt > TUP_MAX )
+        stateErrFmtA(
+            state, ten_ERR_TUPLE,
+            "Tuple exceeds max size"
+        );
+    
     regs.sp++;
     regs.sp[-1] = regs.sp[-2];
     regs.sp[-2] = val;

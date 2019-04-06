@@ -130,6 +130,8 @@ else {
     if( retc != 1 )
         *(regs.sp++) = tvTup( retc );
     
-    if( !tail )
+    if( fib->arStack.top == 0 || fib->arStack.ars[fib->arStack.top-1].nats )
+        goto end;
+    else
         popAR( state, fib );
 }
