@@ -806,7 +806,7 @@ reallocRaw( State* state, void* old, size_t osz, size_t nsz ) {
     
     void* mem = state->config.frealloc( state->config.udata, old, osz, nsz );
     if( nsz > 0 && !mem )
-        stateErrStr( state, ten_ERR_MEMORY, "Allocation failed" );
+        stateErrStr( state, ten_ERR_FATAL, "Allocation failed" );
     
     state->memUsed += nsz;
     state->memUsed -= osz;

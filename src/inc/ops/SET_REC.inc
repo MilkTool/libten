@@ -10,6 +10,11 @@ for( uint i = 0 ; i < opr ; i++ ) {
     TVal var = pairs[i][0];
     TVal key = pairs[i][1];
     TVal val = recGet( state, rec, key );
+    if( tvIsUdf( val ) )
+        stateErrFmtA(
+            state, ten_ERR_ASSIGN,
+            "Set to udf"
+        );
     
     tenAssert( tvIsRef( var ) );
     RefT  ref = tvGetRef( var );

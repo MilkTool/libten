@@ -56,7 +56,7 @@ typedef enum {
     #ifdef ten_TEST
         ten_ERR_TEST,
     #endif
-    ten_ERR_MEMORY,
+    ten_ERR_FATAL,
     ten_ERR_SYSTEM,
     ten_ERR_RECORD,
     ten_ERR_STRING,
@@ -397,7 +397,7 @@ void
 ten_clearError( ten_State* s, ten_Var* fib );
 
 void
-ten_propError( ten_State* s );
+ten_propError( ten_State* s, ten_Var* fib );
 
 jmp_buf*
 ten_swapErrJmp( ten_State* s, jmp_buf* errJmp );

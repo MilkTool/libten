@@ -14,6 +14,11 @@ TVal* vars = vals - opr;
 for( uint i = 0 ; i < cnt ; i++ ) {
     TVal var = vars[i];
     TVal val = vals[i];
+    if( tvIsUdf( val ) )
+        stateErrFmtA(
+            state, ten_ERR_ASSIGN,
+            "Set to udf"
+        );
     
     tenAssert( tvIsRef( var ) );
 

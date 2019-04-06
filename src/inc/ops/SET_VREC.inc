@@ -33,6 +33,12 @@ for( uint i = 0 ; i < opr ; i++ ) {
         recMrk[loc] = true;
     }
     
+    if( tvIsUdf( val ) )
+        stateErrFmtA(
+            state, ten_ERR_ASSIGN,
+            "Set to udf"
+        );
+    
     tenAssert( tvIsRef( var ) );
     RefT  ref = tvGetRef( var );
     refSet( ref, val );
@@ -46,6 +52,12 @@ TVal key;
 uint loc;
 while( idxIterNext( state, iter, &key, &loc ) ) {
     TVal val = loc >= recCap ? tvUdf() : recVals[loc];
+    
+    if( tvIsUdf( val ) )
+        stateErrFmtA(
+            state, ten_ERR_ASSIGN,
+            "Set to udf"
+        );
     
     if( !tvIsUdf( val ) && !recMrk[loc] )
         recDef( state, vRec, key, val );

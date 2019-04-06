@@ -7,6 +7,11 @@ if( tvIsTup( val ) )
         state, ten_ERR_ASSIGN,
         "Tuple assignment without tuple pattern"
     );
+if( tvIsUdf( val ) )
+    stateErrFmtA(
+        state, ten_ERR_ASSIGN,
+        "Set to udf"
+    );
 
 RefT  ref = tvGetRef( var );
 refSet( ref, val );

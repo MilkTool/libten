@@ -580,7 +580,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         // Critical errors are re-thrown, these will be caught
         // by each parent fiber, allowing them to cleanup, but
         // will ultimately propegate back to the user.
-        if( fib->errNum == ten_ERR_MEMORY )
+        if( fib->errNum == ten_ERR_FATAL )
             stateErrProp( state );
         
         return (Tup){ .base = &fib->tmpStack.tmps, .offset = 0, .size = 0 };
@@ -1527,7 +1527,7 @@ genTrace( State* state, Fiber* fib ) {
 
 static void
 onError( State* state, Defer* defer ) {
-    if( state->errNum == ten_ERR_MEMORY )
+    if( state->errNum == ten_ERR_FATAL )
         return;
     
     Fiber* fib = (void*)defer - (ullong)&((Fiber*)NULL)->errDefer;

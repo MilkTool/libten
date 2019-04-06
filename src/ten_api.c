@@ -1270,8 +1270,21 @@ ten_clearError( ten_State* s, ten_Var* fib ) {
 }
 
 void
-ten_propError( ten_State* s ) {
-    stateErrProp( (State*)s );
+ten_propError( ten_State* s, ten_Var* fib ) {
+    State* state = (State*)s;
+    if( fib ) {
+        TVal fibV = ref(fib);
+        funAssert(
+            tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
+            "Wrong type for 'fib', need Fib",
+            NULL
+        );
+        Fiber* fibO = tvGetObj( fibV );
+        fibPropError( state, fibO );
+    }
+    else {
+        stateErrProp( state );
+    }
 }
 
 jmp_buf*
