@@ -1,0 +1,27 @@
+def v1:
+  when
+    v1(): 'v1'
+    v2(): 'v2'
+    v3(): 'v3'
+  in
+    sig v1: ()
+
+assert( v1 = 'v1', "1" )
+
+
+def v2:
+  when
+    res( val ): val
+  in
+    sig res: 'v2'
+
+assert( v2 = 'v2', "2" )
+
+def ( v3, v4 ):
+  when
+    res( vals... ): ( vals@0, vals@1 )
+  in
+    sig res: ( 'v3', 'v4' )
+
+assert( v3 = 'v3', "3" )
+assert( v4 = 'v4', "4" )

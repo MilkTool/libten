@@ -1,0 +1,35 @@
+def n: nil
+assert( n = nil, "1" )
+
+def l: true
+assert( l = true, "2" )
+
+def i: 123
+assert( i = 123, "3" )
+
+def d: 1.2
+assert( d = 1.2, "4" )
+
+def s1: 'hello'
+def s2: 'hello
+def s3: '|hello|'
+assert( s1 = s2, "5" )
+assert( s1 = s3, "6" )
+
+def t1: "hello"
+def t2: "hello
+def t3: "|hello|"
+assert( bcmp( t1, '=', t2 ), "7" )
+assert( bcmp( t1, '=', t3 ), "8" )
+
+`line comment
+`span comment` def test: true
+assert( test = true, "9" )
+`|
+    multiline comment
+    assert( false, "10" )
+|`
+
+set test: false
+assert( test = false, "11" )
+

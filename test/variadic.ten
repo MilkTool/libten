@@ -1,0 +1,9 @@
+def f: [ p1, p2, ps... ] do
+    assert( p1 = 'p1', "1" )
+    assert( p2 = 'p2', "2" )
+    assert( ps@0 = 'p3', "3" )
+    assert( ps@1 = 'p4', "4" )
+for()
+f( 'p1', 'p2', 'p3', 'p4' )
+f( 'p1', ...{ 'p2', 'p3', 'p4' } )
+f( 'p1', ...{ 'p2', ...{ nil, 'p3', 'p4' } } )

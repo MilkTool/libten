@@ -1,0 +1,75 @@
+def s: stream( 1, 2, 3 )
+assert( s() = 1, "1" )
+assert( s() = 2, "2" )
+assert( s() = 3, "3" )
+assert( s() != udf, "4" )
+
+def rec: { .k1: 'v1', .k2: 'v2', .k3: 'v3' }
+
+def keySet: { .k1: false, .k2: false, .k3: false }
+def k: keys( rec )
+def keySet@(k()): true
+def keySet@(k()): true
+def keySet@(k()): true
+assert( k() != udf, "5" )
+
+assert( keySet.k1, "6" )
+assert( keySet.k2, "7" )
+assert( keySet.k3, "8" )
+
+def valSet: { .v1: false, .v2: false, .v3: false }
+def v: vals( rec )
+def valSet@(v()): true
+def valSet@(v()): true
+def valSet@(v()): true
+assert( v() != udf, "9" )
+
+assert( valSet.v1, "10" )
+assert( valSet.v2, "11" )
+assert( valSet.v3, "12" )
+
+def pairSet: {
+  .k1: { .v1: false }
+  .k2: { .v2: false }
+  .k3: { .v3: false }
+}
+def p: pairs( rec )
+def ( k1, v1 ): p()
+def ( k2, v2 ): p()
+def ( k3, v3 ): p()
+def ( k4, v4 ): p()
+
+def pairSet@k1@v1: true
+def pairSet@k2@v2: true
+def pairSet@k3@v3: true
+assert( k4 != udf &? v4 != udf, "13" )
+
+assert( pairSet.k1.v1, "14" )
+assert( pairSet.k2.v2, "16" )
+assert( pairSet.k3.v3, "17" )
+
+def b: bytes"abc"
+assert( b() = 97, "18" )
+assert( b() = 98, "19" )
+assert( b() = 99, "20" )
+assert( b() != udf, "21" )
+
+def c: chars"ガはラ"
+assert( c() = 'ガ', "22" )
+assert( c() = 'は', "23" )
+assert( c() = 'ラ', "24" )
+assert( c() != udf, "25" )
+
+def l: items{ .car: 1, .cdr: { .car: 2, .cdr: { .car: 3, .cdr: nil } } }
+assert( l() = 1, "26" )
+assert( l() = 2, "27" )
+assert( l() = 3, "28" )
+assert( l() != udf, "29" )
+
+def d: drange( 1.0, -5.0, -0.5 )
+assert( d() = 1.0, "30" )
+assert( d() = 0.5, "31" )
+
+def i: irange( 1, 5, 2 )
+assert( i() = 1, "32" )
+assert( i() = 3, "33" )

@@ -1,0 +1,28 @@
+def v1: if true: 'v1' else assert( false, "1" )
+assert( v1 = 'v1', "2" )
+
+def v2: if false: assert( false, "3" ) else 'v2'
+assert( v2 = 'v2', "4" )
+assert( true, "5" )
+assert( ~false, "6" )
+
+def v3: nil &? 'v3'
+assert( v3 = nil, "7" )
+def v3: 'v3' &? nil
+assert( v3 = nil, "8" )
+def v3: true &? 'v3'
+assert( v3 = 'v3', "9" )
+
+def v4: nil |? 'v4'
+assert( v4 = 'v4', "10" )
+def v4: 'v4' |? nil
+assert( v4 = 'v4', "11" )
+def v4: nil |? false
+assert( v4 = false, "12" )
+
+def v5: udf !? 'v5'
+assert( v5 = 'v5', "13" )
+def v5: 'v5' !? nil
+assert( v5 = 'v5', "14" )
+def v5: udf !? udf
+assert( !v5 = nil, "15" )
