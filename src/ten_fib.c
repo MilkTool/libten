@@ -562,8 +562,8 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     // errors to the fiber.
     jmp_buf  errJmp;
     jmp_buf* oldJmp = stateSwapErrJmp( state, &errJmp );
-    int err = setjmp( errJmp );
-    if( err ) {
+    int eSig = setjmp( errJmp );
+    if( eSig ) {
         
         // When an error actually occurs replace the original
         // handler, so any further errors go to the right place.
@@ -580,7 +580,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         // Critical errors are re-thrown, these will be caught
         // by each parent fiber, allowing them to cleanup, but
         // will ultimately propegate back to the user.
-        if( err == ten_ERR_MEMORY )
+        if( fib->errNum == ten_ERR_MEMORY )
             stateErrProp( state );
         
         return (Tup){ .base = &fib->tmpStack.tmps, .offset = 0, .size = 0 };
@@ -593,8 +593,8 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     // at the end.
     jmp_buf yieldJmp;
     fib->yieldJmp = &yieldJmp;
-    int sig = setjmp( yieldJmp );
-    if( sig ) {
+    int ySig = setjmp( yieldJmp );
+    if( ySig ) {
         
         // Restore old error jump.
         stateSwapErrJmp( state, oldJmp );

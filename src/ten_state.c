@@ -972,7 +972,7 @@ onError( State* state ) {
     state->defers = NULL;
     freeParts( state );
     
-    longjmp( *state->errJmp, state->errNum );
+    longjmp( *state->errJmp, 1 );
 }
 
 #ifdef ten_DEBUG

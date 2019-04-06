@@ -37,8 +37,9 @@ main( void ) {
     ten_Config c = { .debug = true };
     
     jmp_buf errJmp;
-    int err = setjmp( errJmp );
-    if( err ) {
+    int sig = setjmp( errJmp );
+    if( sig ) {
+        ten_ErrNum  err = ten_getErrNum( &s, NULL );
         char const* msg = ten_getErrStr( &s, NULL );
         fprintf( stderr, "Error: %s\n", msg );
         
