@@ -366,7 +366,7 @@ ten_string( ten_State* s, ten_Tup* tup ) {
     }
     
     if( t->size != 1 ) {
-        return fmtA( state, false, "( %q )", tupAt( *t, 0 ) );
+        return fmtA( state, false, "%q", tupAt( *t, 0 ) );
     }
     
     fmtA( state, false, "( %q", tupAt( *t, 0 ) );
