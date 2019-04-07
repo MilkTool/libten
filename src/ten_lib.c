@@ -1876,7 +1876,7 @@ libScript( State* state, String* script ) {
     ten_Var clsVar = { .tup = &varTup, .loc = 0 };
     
     ten_Source* src = ten_stringSource( ten, script->buf, "<unknown>" );
-    ten_compileScript( ten, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
+    ten_compileScript( ten, NULL, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
     
     Closure* cls = tvGetObj( ref(&clsVar) );
     ten_pop( ten );

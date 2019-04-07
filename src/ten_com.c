@@ -2198,6 +2198,23 @@ comCompile( State* state, ComParams* p ) {
         com->val1 = tvUdf();
     }
     
+    if( p->upvals ) {
+        for( uint i = 0 ; p->upvals[i] != NULL ; i++ ) {
+            size_t len = 0;
+            if( !isalpha( p->upvals[i][0] ) && p->upvals[i][0] != '_' )
+                panic( "Invalid upvalue name '%s'", p->params[i] );
+            
+            for( uint j = 0 ; p->upvals[i][j] != '\0' ; j++ ) {
+                if( !isalnum( p->upvals[i][j] ) && p->upvals[i][j] != '_' )
+                    panic( "Invalid upvalue name '%s'", p->upvals[i] );
+                len++;
+            }
+            SymT sym = symGet( state, p->upvals[i], len );
+            com->val1 = tvSym( sym );
+            tenAssert( genAddUpv( state, gen, sym )->which == i );
+        }
+    }
+    
     if( p->params ) {
         bool vpar = false;
         for( uint i = 0 ; p->params[i] != NULL ; i++ ) {

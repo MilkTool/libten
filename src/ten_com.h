@@ -7,6 +7,7 @@ typedef struct {
     char const*  file;
     char const*  name;
     char const** params;
+    char const** upvals;
     
     bool debug;
     bool global;

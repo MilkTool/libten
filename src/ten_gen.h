@@ -75,6 +75,9 @@ GenVar*
 genAddVar( State* state, Gen* gen, SymT name );
 
 GenVar*
+genAddUpv( State* state, Gen* gen, SymT name );
+
+GenVar*
 genGetVar( State* state, Gen* gen, SymT name );
 
 

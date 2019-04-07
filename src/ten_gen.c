@@ -530,6 +530,11 @@ genAddVar( State* state, Gen* gen, SymT name ) {
 }
 
 GenVar*
+genAddUpv( State* state, Gen* gen, SymT name ) {
+    return addUpval( state, gen, name );
+}
+
+GenVar*
 genGetVar( State* state, Gen* gen, SymT name ) {
     GenVar* var;
     

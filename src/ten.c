@@ -164,7 +164,7 @@ apiTest( State* state ) {
     ten_Tup  args = ten_pushA( s, "" );
     
     ten_Source* src = ten_stringSource( s, script, "testScript" );
-    ten_compileScript( s, src, ten_SCOPE_GLOBAL, ten_COM_FIB, fib );
+    ten_compileScript( s, NULL, src, ten_SCOPE_GLOBAL, ten_COM_FIB, fib );
     
     ten_Tup  rets = ten_cont( s, fib, &args );
     ten_pop( s );
@@ -555,7 +555,7 @@ freeSourceDefer( State* state, Defer* defer ) {
 
 
 static Closure*
-compileScript( State* state, ten_Source* src, ten_ComScope scope )  {
+compileScript( State* state, char const** upvals, ten_Source* src, ten_ComScope scope )  {
     FreeSourceDefer defer = {
         .base = { .cb = freeSourceDefer },
         .src  =  (Source*)src
@@ -565,6 +565,7 @@ compileScript( State* state, ten_Source* src, ten_ComScope scope )  {
     ComParams params = {
         .file   = src->name,
         .params = NULL,
+        .upvals = upvals,
         .debug  = state->config.debug,
         .global = (scope == ten_SCOPE_GLOBAL),
         .script = true,
@@ -577,7 +578,7 @@ compileScript( State* state, ten_Source* src, ten_ComScope scope )  {
 }
 
 static Closure*
-compileExpr( State* state, ten_Source* src, ten_ComScope scope ) {
+compileExpr( State* state, char const** upvals, ten_Source* src, ten_ComScope scope ) {
     FreeSourceDefer defer = {
         .base = { .cb = freeSourceDefer },
         .src  =  (Source*)src
@@ -587,6 +588,7 @@ compileExpr( State* state, ten_Source* src, ten_ComScope scope ) {
     ComParams params = {
         .file   = src->name,
         .params = NULL,
+        .upvals = upvals,
         .debug  = state->config.debug,
         .global = ( scope == ten_SCOPE_GLOBAL),
         .script = false,
@@ -609,6 +611,7 @@ compileCls( State* state, char const** pnames, ten_Source* src ) {
     ComParams params = {
         .file   = src->name,
         .params = pnames,
+        .upvals = NULL,
         .debug  = state->config.debug,
         .global = false,
         .script = false,
@@ -621,11 +624,11 @@ compileCls( State* state, char const** pnames, ten_Source* src ) {
 }
 
 void
-ten_compileScript( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
+ten_compileScript( ten_State* s, char const** upvals, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileScript( state, src, scope );
+    Closure* cls = compileScript( state, upvals, src, scope );
     if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
         return;
@@ -639,11 +642,11 @@ ten_compileScript( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComTyp
 }
 
 void
-ten_compileExpr( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
+ten_compileExpr( ten_State* s, char const** upvals, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileExpr( state, src, scope );
+    Closure* cls = compileExpr( state, upvals, src, scope );
     if( out == ten_COM_CLS ) {
         ref(dst) = tvObj( cls );
         return;
@@ -679,7 +682,7 @@ ten_executeScript( ten_State* s, ten_Source* src, ten_ComScope scope ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileScript( state, src, scope );
+    Closure* cls = compileScript( state, NULL, src, scope );
     api->val1 = tvObj( cls );
     Fiber* fib = fibNew( state, cls, NULL );
     api->fib = fib;
@@ -697,7 +700,7 @@ ten_executeExpr( ten_State* s, ten_Source* src, ten_ComScope scope ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    Closure* cls = compileExpr( state, src, scope );
+    Closure* cls = compileExpr( state, NULL, src, scope );
     api->val1 = tvObj( cls );
     Fiber* fib = fibNew( state, cls, NULL );
     api->fib = fib;
@@ -1095,6 +1098,54 @@ ten_newCls( ten_State* s, ten_Var* fun, ten_Var* dat, ten_Var* dst ) {
         ref(dst) = tvObj( clsNewNat( state, funO, datO ) );
     else
         ref(dst) = tvObj( clsNewVir( state, funO, NULL ) );
+}
+
+void
+ten_getUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* dst ) {
+    State* state = (State*)s;
+    TVal clsV = ref(cls);
+    funAssert(
+        tvIsObjType( clsV, OBJ_CLS ),
+        "Wrong type for 'cls', need Cls",
+        NULL
+    );
+    Closure* clsO = tvGetObj( clsV );
+    funAssert(
+        clsO->fun->type == FUN_VIR, 
+        "Can't get upvalue of native closure 'cls'",
+        NULL
+    );
+    funAssert(
+        upv < clsO->fun->u.vir.nUpvals,
+        "Closure 'cls' has no upvalue %u",
+        upv,
+        NULL
+    );
+    ref(dst) = clsO->dat.upvals[upv]->val;
+}
+
+void
+ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src ) {
+    State* state = (State*)s;
+    TVal clsV = ref(cls);
+    funAssert(
+        tvIsObjType( clsV, OBJ_CLS ),
+        "Wrong type for 'cls', need Cls",
+        NULL
+    );
+    Closure* clsO = tvGetObj( clsV );
+    funAssert(
+        clsO->fun->type == FUN_VIR, 
+        "Can't set upvalue of native closure 'cls'",
+        NULL
+    );
+    funAssert(
+        upv < clsO->fun->u.vir.nUpvals,
+        "Closure 'cls' has no upvalue %u",
+        upv,
+        NULL
+    );
+    clsO->dat.upvals[upv] = upvNew( state, ref(src) );
 }
 
 bool

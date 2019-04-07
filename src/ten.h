@@ -293,10 +293,10 @@ ten_freeSource( ten_State* s, ten_Source* src );
 
 // Compilation.
 void
-ten_compileScript( ten_State* s, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
+ten_compileScript( ten_State* s, char const** upvals, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
 
 void
-ten_compileExpr( ten_State* s,  ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
+ten_compileExpr( ten_State* s,  char const** upvals, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
 
 void
 ten_compileCls( ten_State* s,  char const** params, ten_Source* src, ten_ComType out, ten_Var* dst );
@@ -439,6 +439,12 @@ ten_isCls( ten_State* s, ten_Var* var );
 
 void
 ten_newCls( ten_State* s, ten_Var* fun, ten_Var* dat, ten_Var* dst );
+
+void
+ten_getUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* dst );
+
+void
+ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src );
 
 // Fiber objects.
 bool
