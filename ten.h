@@ -18,10 +18,8 @@ typedef struct {
     char pri[2048];
 } ten_State;
 
-/* Represents a type of user data object, one of these should be
- * initialized with <ten_initDatInfo> before being passed to
- * <ten_newDat> to create a new Data object with the respective
- * info.
+/* Represents a type of user data object, created
+ * with <ten_addDatInfo>.
  */
 typedef struct ten_DatInfo ten_DatInfo;
 
@@ -56,9 +54,8 @@ typedef struct {
 } ten_DatConfig;
 
 
-/* Represents the type of a pointer object.  One of these should
- * be initialized with <ten_initPtrInfo> before being passed to
- * <ten_setPtr> to create a pointer with the respective info.
+/* Represents the type of a pointer object, created
+ * with <ten_addPtrInfo>.
  */
 typedef struct ten_PtrInfo ten_PtrInfo;
 
