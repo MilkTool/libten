@@ -229,8 +229,10 @@ load( State* state, String* mod ) {
         if( rets.size != 1 )
             panic( "Import translator returned tuple" );
         TVal ret = tupAt( rets, 0 );
+        if( tvIsUdf( ret ) )
+            return tvUdf();
         if( !tvIsObjType( ret, OBJ_STR ) )
-            panic( "Import translator return is not Str" );
+            panic( "Import translator return is not Str or Udf" );
         
         pathS = tvGetObj( ret );
         tupAt( parts, pathL ) = tvObj( pathS );

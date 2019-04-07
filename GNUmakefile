@@ -52,7 +52,7 @@ libten$(POSTFIX)$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
 	ar rcs libten$(POSTFIX)$(LIB) libten.o
 	rm *.o
 
-ten.h: src/ten_api.h
+ten.h: src/ten.h
 	cp src/ten.h ten.h
 
 .PHONY: test
