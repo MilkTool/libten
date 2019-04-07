@@ -8,9 +8,6 @@
 typedef struct PtrInfo PtrInfo;
 
 struct PtrInfo {
-    #define PTR_MAGIC ((ulong)'P' << 16 | (ulong)'T' << 8 | 'R') 
-    uint  magic;
-    
     PtrInfo* next;
     
     SymT  type;
@@ -20,8 +17,8 @@ struct PtrInfo {
 void
 ptrInit( State* state );
 
-void
-ptrInitInfo( State* state, ten_PtrConfig* config, PtrInfo* info );
+PtrInfo*
+ptrAddInfo( State* state, ten_PtrConfig* config );
 
 #ifdef ten_TEST
     void

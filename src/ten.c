@@ -910,10 +910,9 @@ ten_getPtrType( ten_State* s, ten_Var* var ) {
         return "Ptr";
 }
 
-void
-ten_initPtrInfo( ten_State* s, ten_PtrConfig* config, ten_PtrInfo* info ) {
-    tenAssert( sizeof(ten_PtrInfo) >= sizeof(PtrInfo) );
-    ptrInitInfo( (State*)s, config, (PtrInfo*)info );
+ten_PtrInfo*
+ten_addPtrInfo( ten_State* s, ten_PtrConfig* config ) {
+    return (ten_PtrInfo*)ptrAddInfo( (State*)s, config );
 }
 
 bool
@@ -1481,9 +1480,8 @@ ten_getDatBuf( ten_State* s, ten_Var* dat ) {
     return datO->data;
 }
 
-void
-ten_initDatInfo( ten_State* s, ten_DatConfig* config, ten_DatInfo* info ) {
-    tenAssert( sizeof(ten_DatInfo) >= sizeof(DatInfo) );
-    datInitInfo( (State*)s, config, (DatInfo*)info );
+ten_DatInfo*
+ten_addDatInfo( ten_State* s, ten_DatConfig* config ) {
+    return (ten_DatInfo*)datAddInfo( (State*)s, config );
 }
 

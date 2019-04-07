@@ -5,9 +5,6 @@
 
 typedef struct DatInfo DatInfo;
 struct DatInfo {
-    #define DAT_MAGIC ((ulong)'D' << 16 | (ulong)'A' << 8 | 'T') 
-    uint  magic;
-    
     DatInfo* next;
     
     SymT   type;
@@ -29,8 +26,8 @@ struct Data {
 void
 datInit( State* state );
 
-void
-datInitInfo( State* state, ten_DatConfig* config, DatInfo* info );
+DatInfo*
+datAddInfo( State* state, ten_DatConfig* config );
 
 #ifdef ten_TEST
     void

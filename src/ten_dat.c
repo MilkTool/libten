@@ -34,6 +34,14 @@ datFinl( State* state, Finalizer* finl ) {
     DatState* dat = structFromFinl( DatState, finl );
     
     stateRemoveScanner( state, &dat->scan );
+    
+    DatInfo* dIt = dat->infos;
+    while( dIt ) {
+        DatInfo* d = dIt;
+        dIt = dIt->next;
+        
+        stateFreeRaw( state, d, sizeof(DatInfo) );
+    }
     stateFreeRaw( state, dat, sizeof(DatState) );
 }
 
@@ -52,21 +60,26 @@ datInit( State* state ) {
     state->datState = dat;
 }
 
-void
-datInitInfo( State* state, ten_DatConfig* config, DatInfo* info ) {
+DatInfo*
+datAddInfo( State* state, ten_DatConfig* config ) {
     char const* type;
     if( config->tag )
         type = fmtA( state, false, "Dat:%s", config->tag );
     else
         type = "Dat";
     
+    Part infoP;
+    DatInfo* info = stateAllocRaw( state, &infoP, sizeof(DatInfo ) );
+    
     info->type  = symGet( state, type, strlen( type ) );
     info->size  = config->size;
     info->nMems = config->mems;
     info->destr = config->destr;
-    info->magic = DAT_MAGIC;
     info->next  = state->datState->infos;
     state->datState->infos = info;
+    
+    stateCommitRaw( state, &infoP );
+    return info;
 }
 
 #ifdef ten_TEST

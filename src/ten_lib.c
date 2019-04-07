@@ -147,12 +147,12 @@ struct LibState {
     SymT opers[OPER_LAST];
     SymT types[OBJ_LAST];
     
-    ten_DatInfo recIterInfo;
-    ten_DatInfo strIterInfo;
-    ten_DatInfo streamInfo;
-    ten_DatInfo listIterInfo;
-    ten_DatInfo dRangeInfo;
-    ten_DatInfo iRangeInfo;
+    ten_DatInfo* recIterInfo;
+    ten_DatInfo* strIterInfo;
+    ten_DatInfo* streamInfo;
+    ten_DatInfo* listIterInfo;
+    ten_DatInfo* dRangeInfo;
+    ten_DatInfo* iRangeInfo;
 };
 
 static void
@@ -776,7 +776,7 @@ libKeys( State* state, Record* rec ) {
     ten_Var funVar = { .tup = &varTup, .loc = 2 };
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
-    RecIter* iter = ten_newDat( ten, &lib->recIterInfo, &datVar );
+    RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
     iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
     
     ref(&recVar) = tvObj( rec );
@@ -843,7 +843,7 @@ libVals( State* state, Record* rec ) {
     ten_Var funVar = { .tup = &varTup, .loc = 2 };
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
-    RecIter* iter = ten_newDat( ten, &lib->recIterInfo, &datVar );
+    RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
     iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
     
     ref(&recVar) = tvObj( rec );
@@ -912,7 +912,7 @@ libPairs( State* state, Record* rec ) {
     ten_Var funVar = { .tup = &varTup, .loc = 2 };
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
-    RecIter* iter = ten_newDat( ten, &lib->recIterInfo, &datVar );
+    RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
     iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
     
     ref(&recVar) = tvObj( rec );
@@ -974,7 +974,7 @@ libStream( State* state, Record* vals ) {
     ten_Var funVar  = { .tup = &varTup, .loc = 2 };
     ten_Var clsVar  = { .tup = &varTup, .loc = 3 };
     
-    Stream* stream = ten_newDat( ten, &lib->streamInfo, &datVar );
+    Stream* stream = ten_newDat( ten, lib->streamInfo, &datVar );
     stream->next = 0;
     
     ref(&valsVar) = tvObj( vals );
@@ -1035,7 +1035,7 @@ libBytes( State* state, String* str ) {
     ten_Var funVar = { .tup = &varTup, .loc = 2 };
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
-    StrIter* iter = ten_newDat( ten, &lib->strIterInfo, &datVar );
+    StrIter* iter = ten_newDat( ten, lib->strIterInfo, &datVar );
     iter->loc = 0;
     
     ref(&strVar) = tvObj( str );
@@ -1128,7 +1128,7 @@ libChars( State* state, String* str ) {
     ten_Var funVar = { .tup = &varTup, .loc = 2 };
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
-    StrIter* iter = ten_newDat( ten, &lib->strIterInfo, &datVar );
+    StrIter* iter = ten_newDat( ten, lib->strIterInfo, &datVar );
     iter->loc = 0;
     
     ref(&strVar) = tvObj( str );
@@ -1198,7 +1198,7 @@ libItems( State* state, Record* list ) {
     ten_Var funVar  = { .tup = &varTup, .loc = 2 };
     ten_Var clsVar  = { .tup = &varTup, .loc = 3 };
     
-    ListIter* iter = ten_newDat( ten, &lib->listIterInfo, &datVar );
+    ListIter* iter = ten_newDat( ten, lib->listIterInfo, &datVar );
     iter->finished = false;
     
     ref(&listVar) = tvObj( list );
@@ -1261,7 +1261,7 @@ libDrange( State* state, DecT start, DecT end, DecT step ) {
     if( (end < start && step >= 0.0) || ( end > start && step <= 0.0 ) )
         panic( "Range does not progress" );
     
-    DRange* range = ten_newDat( ten, &lib->dRangeInfo, &datVar );
+    DRange* range = ten_newDat( ten, lib->dRangeInfo, &datVar );
     range->start = start;
     range->end   = end;
     range->step  = step;
@@ -1324,7 +1324,7 @@ libIrange( State* state, IntT start, IntT end, IntT step ) {
     if( (end < start && step >= 0.0) || ( end > start && step <= 0.0 ) )
         panic( "Range does not progress" );
     
-    IRange* range = ten_newDat( ten, &lib->iRangeInfo, &datVar );
+    IRange* range = ten_newDat( ten, lib->iRangeInfo, &datVar );
     range->start = start;
     range->end   = end;
     range->step  = step;
@@ -2899,65 +2899,59 @@ libInit( State* state ) {
     ten_def( s, ten_sym( s, "NULL" ), ten_ptr( s, NULL ) );
     
     
-    ten_initDatInfo(
+    lib->recIterInfo = ten_addDatInfo(
         s,
         &(ten_DatConfig){
             .tag   = "RecIter",
             .size  = sizeof(RecIter),
             .mems  = RecIter_LAST,
             .destr = recIterDestr
-        },
-        &lib->recIterInfo
+        }
     );
-    ten_initDatInfo(
+    lib->streamInfo = ten_addDatInfo(
         s,
         &(ten_DatConfig){
             .tag   = "Stream",
             .size  = sizeof(Stream),
             .mems  = Stream_LAST,
             .destr = NULL
-        },
-        &lib->streamInfo
+        }
     );
-    ten_initDatInfo(
+    lib->strIterInfo = ten_addDatInfo(
         s,
         &(ten_DatConfig){
             .tag   = "StrIter",
             .size  = sizeof(StrIter),
             .mems  = StrIter_LAST,
             .destr = NULL
-        },
-        &lib->strIterInfo
+        }
     );
-    ten_initDatInfo(
+    lib->listIterInfo = ten_addDatInfo(
         s,
         &(ten_DatConfig){
             .tag   = "ListIter",
             .size  = sizeof(ListIter),
             .mems  = ListIter_LAST,
             .destr = NULL
-        },
-        &lib->listIterInfo
+        }
     );
-    ten_initDatInfo(
+    lib->dRangeInfo = ten_addDatInfo(
         s,
         &(ten_DatConfig){
             .tag   = "DRange",
             .size  = sizeof(DRange),
             .mems  = 0,
             .destr = NULL
-        },
-        &lib->dRangeInfo
+        }
     );
-    ten_initDatInfo(
+    lib->iRangeInfo = ten_addDatInfo(
         s,
         &(ten_DatConfig){
             .tag   = "IRange",
             .size  = sizeof(IRange),
             .mems  = 0,
             .destr = NULL
-        },
-        &lib->iRangeInfo
+        }
     );
     
     statePop( state ); // varTup

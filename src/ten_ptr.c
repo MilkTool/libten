@@ -63,6 +63,14 @@ ptrFinl( State* state, Finalizer* finl ) {
     
     stateRemoveScanner( state, &ptrState->scan );
     
+    PtrInfo* pIt = ptrState->infos;
+    while( pIt ) {
+        PtrInfo* p = pIt;
+        pIt = pIt->next;
+        
+        stateFreeRaw( state, p, sizeof(PtrInfo) );
+    }
+    
     for( uint i = 0 ; i < ptrState->next ; i++ ) {
         if( ptrState->nodes.buf[i] )
             stateFreeRaw( state, ptrState->nodes.buf[i], sizeof(PtrNode) );
@@ -127,18 +135,24 @@ ptrInit( State* state ) {
     state->ptrState = ptrState;
 }
 
-void
-ptrInitInfo( State* state, ten_PtrConfig* config, PtrInfo* info ) {
+PtrInfo*
+ptrAddInfo( State* state, ten_PtrConfig* config ) {
     char const* type;
     if( config->tag )
         type = fmtA( state, false, "Ptr:%s", config->tag );
     else
         type = "Ptr";
+    
+    Part infoP;
+    PtrInfo* info = stateAllocRaw( state, &infoP, sizeof(PtrInfo) );
+    
     info->type  = symGet( state, type, strlen( type ) );
     info->destr = config->destr;
-    info->magic = PTR_MAGIC;
     info->next  = state->ptrState->infos;
     state->ptrState->infos = info;
+    
+    stateCommitRaw( state, &infoP );
+    return info;
 }
 
 

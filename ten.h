@@ -23,9 +23,7 @@ typedef struct {
  * <ten_newDat> to create a new Data object with the respective
  * info.
  */
-typedef struct {
-    char pri[64];
-} ten_DatInfo;
+typedef struct ten_DatInfo ten_DatInfo;
 
 
 /* Configuration used to initialize <ten_DatInfo> instances, tells
@@ -62,9 +60,7 @@ typedef struct {
  * be initialized with <ten_initPtrInfo> before being passed to
  * <ten_setPtr> to create a pointer with the respective info.
  */
-typedef struct {
-    char pri[64];
-} ten_PtrInfo;
+typedef struct ten_PtrInfo ten_PtrInfo;
 
 /* Configuration for initializing a <ten_PtrInfo>, it tells Ten
  * how to create, maintain, and destroy the associated pointers.
@@ -252,6 +248,9 @@ ten_copy( ten_State* s, ten_Var* src, ten_Var* dst );
 char const*
 ten_string( ten_State* s, ten_Tup* tup );
 
+void
+ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans );
+
 // Temporary values.
 ten_Var*
 ten_udf( ten_State* s );
@@ -384,8 +383,8 @@ ten_getPtrInfo( ten_State* s, ten_Var* var );
 char const*
 ten_getPtrType( ten_State* s, ten_Var* var );
 
-void
-ten_initPtrInfo( ten_State* s, ten_PtrConfig* config, ten_PtrInfo* info );
+ten_PtrInfo*
+ten_addPtrInfo( ten_State* s, ten_PtrConfig* config );
 
 // Strings objects.
 bool
@@ -516,8 +515,8 @@ ten_getDatType( ten_State* s, ten_Var* dat );
 void*
 ten_getDatBuf( ten_State* s, ten_Var* dat );
 
-void
-ten_initDatInfo( ten_State* s, ten_DatConfig* config, ten_DatInfo* info );
+ten_DatInfo*
+ten_addDatInfo( ten_State* s, ten_DatConfig* config );
 
 
 #endif
