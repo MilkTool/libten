@@ -252,6 +252,9 @@ ten_copy( ten_State* s, ten_Var* src, ten_Var* dst );
 char const*
 ten_string( ten_State* s, ten_Tup* tup );
 
+void
+ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans );
+
 // Temporary values.
 ten_Var*
 ten_udf( ten_State* s );

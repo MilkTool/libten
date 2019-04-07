@@ -375,6 +375,34 @@ ten_string( ten_State* s, ten_Tup* tup ) {
     return fmtA( state, true, " )" );
 }
 
+
+void
+ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans ) {
+    State* state = (State*)s;
+    funAssert(
+        tvIsSym( ref(type) ),
+        "Wrong type for 'type', need Sym",
+        NULL
+    );
+    funAssert(
+        tvIsObjType( ref(loadr), OBJ_CLS ),
+        "Wrong type for 'loadr', need Cls",
+        NULL
+    );
+    funAssert(
+        tvIsObjType( ref(trans), OBJ_CLS ),
+        "Wrong type for 'trans', need Cls",
+        NULL
+    );
+    
+    
+    SymT     typeS  = tvGetSym( ref(type) );
+    Closure* loadrO = tvGetObj( ref(loadr) );
+    Closure* transO = tvGetObj( ref(trans) );
+    
+    libLoader( state, typeS, loadrO, transO );
+}
+
 ten_Var*
 ten_udf( ten_State* s ) {
     State* state = (State*)s;
