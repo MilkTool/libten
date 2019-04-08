@@ -740,7 +740,7 @@ keyIterNext( ten_PARAMS ) {
         return retTup;
     
     ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
-    Record* rec  = tvGetObj( ref(&recVar) );
+    Record* rec  = tvGetObj( vget( recVar ) );
     uint    cap  = tpGetTag( rec->vals );
     TVal*   vals = tpGetPtr( rec->vals );
     
@@ -761,7 +761,7 @@ keyIterNext( ten_PARAMS ) {
             goto loop;
     }
     
-    ref(&retVar) = key;
+    vset( retVar, key );
     return retTup;
 }
 
@@ -779,7 +779,7 @@ libKeys( State* state, Record* rec ) {
     RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
     iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
     
-    ref(&recVar) = tvObj( rec );
+    vset( recVar, tvObj( rec ) );
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
@@ -790,7 +790,7 @@ libKeys( State* state, Record* rec ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -807,7 +807,7 @@ valIterNext( ten_PARAMS ) {
         return retTup;
     
     ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
-    Record* rec  = tvGetObj( ref(&recVar) );
+    Record* rec  = tvGetObj( vget( recVar ) );
     uint    cap  = tpGetTag( rec->vals );
     TVal*   vals = tpGetPtr( rec->vals );
     
@@ -828,7 +828,7 @@ valIterNext( ten_PARAMS ) {
             goto loop;
     }
     
-    ref(&retVar) = vals[loc];
+    vset( retVar, vals[loc] );
     return retTup;
 }
 
@@ -846,7 +846,7 @@ libVals( State* state, Record* rec ) {
     RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
     iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
     
-    ref(&recVar) = tvObj( rec );
+    vset( recVar, tvObj( rec ) );
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
@@ -857,7 +857,7 @@ libVals( State* state, Record* rec ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -875,7 +875,7 @@ pairIterNext( ten_PARAMS ) {
         return retTup;
     
     ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
-    Record* rec  = tvGetObj( ref(&recVar) );
+    Record* rec  = tvGetObj( vget( recVar ) );
     uint    cap  = tpGetTag( rec->vals );
     TVal*   vals = tpGetPtr( rec->vals );
     
@@ -896,8 +896,8 @@ pairIterNext( ten_PARAMS ) {
             goto loop;
     }
     
-    ref(&keyVar) = key;
-    ref(&valVar) = vals[loc];
+    vset( keyVar, key );
+    vset( valVar, vals[loc] );
     return retTup;
 }
 
@@ -915,7 +915,7 @@ libPairs( State* state, Record* rec ) {
     RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
     iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
     
-    ref(&recVar) = tvObj( rec );
+    vset( recVar, tvObj( rec ) );
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
@@ -926,7 +926,7 @@ libPairs( State* state, Record* rec ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -953,10 +953,10 @@ streamNext( ten_PARAMS ) {
         return retTup;
     
     ten_Var valsVar = {.tup = mems, .loc = Stream_VALS };
-    Record* vals = tvGetObj( ref(&valsVar) );
+    Record* vals = tvGetObj( vget( valsVar ) );
     
     TVal next = recGet( (State*)ten, vals, tvInt( stream->next++ ) );
-    ref(&retVar) = next;
+    vset( retVar, next );
     if( tvIsUdf( next ) )
         stream->next = -1;
     
@@ -977,7 +977,7 @@ libStream( State* state, Record* vals ) {
     Stream* stream = ten_newDat( ten, lib->streamInfo, &datVar );
     stream->next = 0;
     
-    ref(&valsVar) = tvObj( vals );
+    vset( valsVar, tvObj( vals ) );
     ten_setMember( ten, &datVar, Stream_VALS, &valsVar );
     
     ten_FunParams p = {
@@ -988,7 +988,7 @@ libStream( State* state, Record* vals ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1014,10 +1014,10 @@ byteIterNext( ten_PARAMS ) {
         return retTup;
     
     ten_Var strVar = {.tup = mems, .loc = StrIter_STR };
-    String* str = tvGetObj( ref(&strVar) );
+    String* str = tvGetObj( vget( strVar ) );
     
     if( iter->loc < str->len )
-        ref(&retVar) = tvInt( str->buf[iter->loc++] );
+        vset( retVar, tvInt( str->buf[iter->loc++] ) );
     else
         iter->loc = -1;
     
@@ -1038,7 +1038,7 @@ libBytes( State* state, String* str ) {
     StrIter* iter = ten_newDat( ten, lib->strIterInfo, &datVar );
     iter->loc = 0;
     
-    ref(&strVar) = tvObj( str );
+    vset( strVar, tvObj( str ) );
     ten_setMember( ten, &datVar, StrIter_STR, &strVar );
     
     ten_FunParams p = {
@@ -1049,7 +1049,7 @@ libBytes( State* state, String* str ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1101,7 +1101,7 @@ charIterNext( ten_PARAMS ) {
         return retTup;
     
     ten_Var strVar = {.tup = mems, .loc = StrIter_STR };
-    String* str = tvGetObj( ref(&strVar) );
+    String* str = tvGetObj( vget( strVar ) );
     
     if( iter->loc < str->len ) {
         char const* buf = str->buf + iter->loc;
@@ -1109,7 +1109,7 @@ charIterNext( ten_PARAMS ) {
         SymT        chr = 0;
         cnext( (State*)ten, &buf, &len, &chr );
         iter->loc = buf - str->buf;
-        ref(&retVar) = tvSym( chr );
+        vset(retVar, tvSym( chr ) );
     }
     else {
         iter->loc = -1;
@@ -1131,7 +1131,7 @@ libChars( State* state, String* str ) {
     StrIter* iter = ten_newDat( ten, lib->strIterInfo, &datVar );
     iter->loc = 0;
     
-    ref(&strVar) = tvObj( str );
+    vset( strVar, tvObj( str ) );
     ten_setMember( ten, &datVar, StrIter_STR, &strVar );
     
     ten_FunParams p = {
@@ -1142,7 +1142,7 @@ libChars( State* state, String* str ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1170,7 +1170,7 @@ listIterNext( ten_PARAMS ) {
         return retTup;
     
     ten_Var cellVar = {.tup = mems, .loc = ListIter_CELL };
-    Record* cell = tvGetObj( ref(&cellVar) );
+    Record* cell = tvGetObj( vget( cellVar ) );
     
     TVal car = recGet( state, cell, tvSym( lib->idents[IDENT_car] ) );
     TVal cdr = recGet( state, cell, tvSym( lib->idents[IDENT_cdr] ) );
@@ -1182,8 +1182,8 @@ listIterNext( ten_PARAMS ) {
         panic( "Iteration over malformed list" );
     }
     
-    ref(&cellVar) = cdr;
-    ref(&retVar)  = car;
+    vset( cellVar, cdr );
+    vset( retVar, car );
     return retTup;
 }
 
@@ -1201,7 +1201,7 @@ libItems( State* state, Record* list ) {
     ListIter* iter = ten_newDat( ten, lib->listIterInfo, &datVar );
     iter->finished = false;
     
-    ref(&listVar) = tvObj( list );
+    vset( listVar, tvObj( list ) );
     ten_setMember( ten, &datVar, ListIter_CELL, &listVar );
     
     ten_FunParams p = {
@@ -1212,7 +1212,7 @@ libItems( State* state, Record* list ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1243,7 +1243,7 @@ dRangeNext( ten_PARAMS ) {
         return retTup;
     
     range->next += range->step;
-    ref(&retVar) = tvDec( next );
+    vset( retVar, tvDec( next ) );
     
     return retTup;
 }
@@ -1275,7 +1275,7 @@ libDrange( State* state, DecT start, DecT end, DecT step ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1306,7 +1306,7 @@ iRangeNext( ten_PARAMS ) {
         return retTup;
     
     range->next += range->step;
-    ref(&retVar) = tvInt( next );
+    vset( retVar, tvInt( next ) );
     
     return retTup;
 }
@@ -1338,7 +1338,7 @@ libIrange( State* state, IntT start, IntT end, IntT step ) {
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1521,8 +1521,8 @@ libJoin( State* state, Closure* stream ) {
     if( ten_size( ten, &retTup ) != 1 )
         panic( "Stream returned tuple" );
     
-    while( !tvIsUdf( ref(&retVar) ) ) {
-        char const* str = fmtA( state, false, "%v", ref(&retVar) );
+    while( !tvIsUdf( vget( retVar ) ) ) {
+        char const* str = fmtA( state, false, "%v", vget( retVar ) );
         size_t      len = fmtLen( state );
         for( uint i = 0 ; i < len ; i++ )
             *putCharBuf( state, &buf ) = str[i];
@@ -1636,7 +1636,7 @@ libFold( State* state, Closure* stream, TVal agr, Closure* how ) {
     ten_Var hAgrArg = { .tup = &hArgTup, .loc = 0 };
     ten_Var hValArg = { .tup = &hArgTup, .loc = 1 };
     
-    ref(&hAgrArg) = agr;
+    vset( hAgrArg, agr );
     
     ten_Tup sArgTup = ten_pushA( ten, "" );
     ten_Tup sRetTup = ten_call( ten, stateTmp( state, tvObj( stream ) ), &sArgTup );
@@ -1645,14 +1645,14 @@ libFold( State* state, Closure* stream, TVal agr, Closure* how ) {
         if( ten_size( ten, &sRetTup ) != 1 )
             panic( "Stream returned tuple" );
         
-        ref(&hValArg) = ref(&sRetVar);
+        vset(hValArg, vget( sRetVar ) );
         
         ten_Tup hRetTup = ten_call( ten, stateTmp( state, tvObj( how ) ), &hArgTup );
         ten_Var hRetVar = { .tup = &hRetTup, .loc = 0 };
         if( ten_size( ten, &hRetTup ) != 1 )
             panic( "Aggregator returned tuple" );
         
-        ref(&hAgrArg) = ref(&hRetVar);
+        vset( hAgrArg, vget( hRetVar ));
         
         ten_pop( ten );
         ten_pop( ten );
@@ -1661,7 +1661,7 @@ libFold( State* state, Closure* stream, TVal agr, Closure* how ) {
     ten_pop( ten );
     ten_pop( ten );
     
-    agr = ref(&hAgrArg);
+    agr = vget( hAgrArg );
     ten_pop( ten );
     
     return agr;
@@ -1676,7 +1676,7 @@ libCons( State* state, TVal car, TVal cdr ) {
     ten_Var recVar = { .tup = &varTup, .loc = 0 };
     
     Record* rec = recNew( state, lib->cellIdx );
-    ref(&recVar) = tvObj( rec );
+    vset( recVar, tvObj( rec ) );
     
     recDef( state, rec, tvSym( lib->idents[IDENT_car] ), car );
     recDef( state, rec, tvSym( lib->idents[IDENT_cdr] ), cdr );
@@ -1692,17 +1692,17 @@ libList( State* state, Record* vals ) {
     
     ten_Tup varTup  = ten_pushA( ten, "U" );
     ten_Var listVar = { .tup = &varTup, .loc = 0 };
-    ref(&listVar) = tvNil();
+    vset( listVar, tvNil() );
     
     uint  i = 0;
     TVal  v = recGet( state, vals, tvInt( i++ ) );
     while( !tvIsUdf( v ) ) {
-        Record* cell = libCons( state, v, ref(&listVar) );
-        ref(&listVar) = tvObj( cell );
+        Record* cell = libCons( state, v, vget( listVar ) );
+        vset( listVar, tvObj( cell ) );
         v = recGet( state, vals, tvInt( i++ ) );
     }
     
-    Record* list = tvGetObj( ref(&listVar) );
+    Record* list = tvGetObj( vget( listVar ) );
     ten_pop( ten );
     
     return list;
@@ -1715,7 +1715,7 @@ libExplode( State* state, Closure* stream ) {
     
     ten_Tup varTup  = ten_pushA( ten, "U" );
     ten_Var listVar = { .tup = &varTup, .loc = 0 };
-    ref(&listVar) = tvNil();
+    vset( listVar, tvNil() );
     
     ten_Tup argTup = ten_pushA( ten, "" );
     ten_Tup retTup = ten_call( ten, stateTmp( state, tvObj( stream ) ), &argTup );
@@ -1724,8 +1724,8 @@ libExplode( State* state, Closure* stream ) {
         if( ten_size( ten, &retTup ) != 1 )
             panic( "Stream returned tuple" );
         
-        Record* cell = libCons( state, ref(&retVar), ref(&listVar) );
-        ref(&listVar) = tvObj( cell );
+        Record* cell = libCons( state, vget( retVar ), vget( listVar ) );
+        vset( listVar, tvObj( cell ) );
         
         ten_pop( ten );
         retTup = ten_call( ten, stateTmp( state, tvObj( stream ) ), &argTup );
@@ -1734,7 +1734,7 @@ libExplode( State* state, Closure* stream ) {
     ten_pop( ten );
     ten_pop( ten );
     
-    Record* list = tvGetObj( ref(&listVar) );
+    Record* list = tvGetObj( vget( listVar ) );
     ten_pop( ten );
     
     return list;
@@ -1834,17 +1834,17 @@ libTrace( State* state, Fiber* fib ) {
     ten_Var traceVar = { .tup = &varTup, .loc = 2 };
     
     Index* idx = idxNew( state );
-    ref(&idxVar) = tvObj( idx );
+    vset( idxVar, tvObj( idx ) );
     
     Record* seq = recNew( state, idx );
-    ref(&seqVar) = tvObj( seq );
+    vset( seqVar, tvObj( seq ) );
     
     
     uint loc = 0;
     ten_Trace* tIt = fib->trace;
     while( tIt ) {
         Record* trace = recNew( state, lib->traceIdx );
-        ref(&traceVar) = tvObj(trace);
+        vset( traceVar, tvObj(trace) );
         
         if( tIt->fiber ) {
             TVal key = tvSym( lib->idents[IDENT_fiber] );
@@ -1878,7 +1878,7 @@ libScript( State* state, String* script ) {
     ten_Source* src = ten_stringSource( ten, script->buf, "<unknown>" );
     ten_compileScript( ten, NULL, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1911,7 +1911,7 @@ libClosure( State* state, Record* params, String* expr ) {
     ten_Source* src = ten_stringSource( ten, expr->buf, "<unknown>" );
     ten_compileCls( ten, pnames, src, ten_COM_CLS, &clsVar );
     
-    Closure* cls = tvGetObj( ref(&clsVar) );
+    Closure* cls = tvGetObj( vget( clsVar ) );
     ten_pop( ten );
     
     return cls;
@@ -1919,7 +1919,7 @@ libClosure( State* state, Record* params, String* expr ) {
 
 
 #define expectArg( ARG, TYPE ) \
-    libExpect( state, #ARG, state->libState->types[TYPE], ref(&ARG ## Arg) ) 
+    libExpect( state, #ARG, state->libState->types[TYPE], vget( ARG ## Arg ) ) 
 
 static ten_Tup
 requireFun( ten_PARAMS ) {
@@ -1930,7 +1930,8 @@ requireFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = libRequire( state, tvGetObj( ref(&modArg) ) );;
+    
+    vset( retVar, libRequire( state, tvGetObj( vget( modArg ) ) ) );
     return retTup;
 }
 
@@ -1943,7 +1944,7 @@ importFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = libImport( state, tvGetObj( ref(&modArg) ) );;
+    vset( retVar, libImport( state, tvGetObj( vget( modArg ) ) ) );
     return retTup;
 }
 
@@ -1956,7 +1957,7 @@ typeFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = tvSym( libType( state, ref(&valArg) ) );
+    vset( retVar, tvSym( libType( state, vget( valArg ) ) ) );
     return retTup;
 }
 
@@ -1965,7 +1966,7 @@ panicFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
     ten_Var errArg = { .tup = args, .loc = 0 };
-    panic( "%v", ref(&errArg) );
+    panic( "%v", vget( errArg ) );
     
     return ten_pushA( ten, "" );
 }
@@ -1977,8 +1978,8 @@ assertFun( ten_PARAMS ) {
     ten_Var condArg = { .tup = args, .loc = 0 };
     ten_Var whatArg = { .tup = args, .loc = 1 };
     
-    TVal cond = ref(&condArg);
-    TVal what = ref(&whatArg);
+    TVal cond = vget( condArg );
+    TVal what = vget( whatArg );
     libAssert( state, cond, what );
     
     return ten_pushA( ten, "" );
@@ -1993,12 +1994,12 @@ expectFun( ten_PARAMS ) {
     ten_Var valArg  = { .tup = args, .loc = 2 };
     
     expectArg( what, OBJ_STR );
-    String* what = tvGetObj( ref(&whatArg) );
+    String* what = tvGetObj( vget( whatArg ) );
     
     expectArg( type, VAL_SYM );
-    SymT type = tvGetSym( ref(&typeArg) );
+    SymT type = tvGetSym( vget( typeArg ) );
     
-    libExpect( state, what->buf, type, ref(&valArg) );
+    libExpect( state, what->buf, type, vget( valArg ) );
     
     return ten_pushA( ten, "" );
 }
@@ -2020,13 +2021,13 @@ loaderFun( ten_PARAMS ) {
     ten_Var transArg = { .tup = args, .loc = 2 };
     
     expectArg( type, VAL_SYM );
-    SymT type = tvGetSym( ref(&typeArg) );
+    SymT type = tvGetSym( vget( typeArg ) );
     
     expectArg( loadr, OBJ_CLS );
-    Closure* loadr = tvGetObj( ref(&loadrArg) );
+    Closure* loadr = tvGetObj( vget( loadrArg ) );
     
     expectArg( trans, OBJ_CLS );
-    Closure* trans = tvGetObj( ref(&transArg) );
+    Closure* trans = tvGetObj( vget( transArg ) );
     
     libLoader( state, type, loadr, trans );
     
@@ -2042,7 +2043,7 @@ logFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libLog( state, ref(&valArg) );
+    vset( retVar, libLog( state, vget( valArg ) ) );
     return retTup;
 }
 
@@ -2055,7 +2056,7 @@ intFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libInt( state, ref(&valArg) );
+    vset( retVar, libInt( state, vget( valArg ) ) );
     return retTup;
 }
 
@@ -2068,7 +2069,7 @@ decFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libDec( state, ref(&valArg) );
+    vset( retVar, libDec( state, vget( valArg ) ) );
     return retTup;
 }
 
@@ -2081,7 +2082,7 @@ symFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libSym( state, ref(&valArg) );
+    vset( retVar, libSym( state, vget( valArg ) ) );
     return retTup;
 }
 
@@ -2094,7 +2095,7 @@ strFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libStr( state, ref(&valArg) );
+    vset( retVar, libStr( state, vget( valArg ) ) );
     return retTup;
 }
 
@@ -2108,7 +2109,7 @@ hexFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libHex( state, tvGetObj( ref(&strArg) ) );
+    vset( retVar, libHex( state, tvGetObj( vget( strArg ) ) ) );
     return retTup;
 }
 
@@ -2122,7 +2123,7 @@ octFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libOct( state, tvGetObj( ref(&strArg) ) );
+    vset( retVar, libOct( state, tvGetObj( vget( strArg ) ) ) );
     return retTup;
 }
 
@@ -2136,7 +2137,7 @@ binFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libBin( state, tvGetObj( ref(&strArg) ) );
+    vset( retVar, libBin( state, tvGetObj( vget( strArg ) ) ) );
     return retTup;
 }
 
@@ -2150,8 +2151,8 @@ keysFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libKeys( (State*)ten, tvGetObj( ref(&recArg) ) );
-    ref(&retVar) = tvObj( cls );
+    Closure* cls = libKeys( (State*)ten, tvGetObj( vget( recArg ) ) );
+    vset( retVar, tvObj( cls ) );
     return retTup;
 }
 
@@ -2165,8 +2166,8 @@ valsFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libVals( (State*)ten, tvGetObj( ref(&recArg) ) );
-    ref(&retVar) = tvObj( cls );
+    Closure* cls = libVals( (State*)ten, tvGetObj( vget( recArg ) ) );
+    vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
@@ -2181,8 +2182,8 @@ pairsFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libPairs( (State*)ten, tvGetObj( ref(&recArg) ) );
-    ref(&retVar) = tvObj( cls );
+    Closure* cls = libPairs( (State*)ten, tvGetObj( vget( recArg ) ) );
+    vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
@@ -2192,13 +2193,13 @@ streamFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
     ten_Var valsArg = { .tup = args, .loc = 0 };
-    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libStream( (State*)ten, tvGetObj( ref(&valsArg) ) );
-    ref(&retVar) = tvObj( cls );
+    Closure* cls = libStream( (State*)ten, tvGetObj( vget( valsArg ) ) );
+    vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
@@ -2213,8 +2214,8 @@ bytesFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libBytes( (State*)ten, tvGetObj( ref(&strArg) ) );
-    ref(&retVar) = tvObj( cls );
+    Closure* cls = libBytes( (State*)ten, tvGetObj( vget( strArg ) ) );
+    vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
@@ -2229,8 +2230,8 @@ charsFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libChars( (State*)ten, tvGetObj( ref(&strArg) ) );
-    ref(&retVar) = tvObj( cls );
+    Closure* cls = libChars( (State*)ten, tvGetObj( vget( strArg ) ) );
+    vset( retVar, tvObj( cls ) );
     return retTup;
 }
 
@@ -2244,8 +2245,8 @@ itemsFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libItems( (State*)ten, tvGetObj( ref(&listArg) ) );
-    ref(&retVar) = tvObj( cls );
+    Closure* cls = libItems( (State*)ten, tvGetObj( vget( listArg ) ) );
+    vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
@@ -2260,13 +2261,13 @@ drangeFun( ten_PARAMS ) {
     
     expectArg( start, VAL_DEC );
     expectArg( end, VAL_DEC );
-    tenAssert( tvIsObjType( ref(&optArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( optArg ), OBJ_REC ) );
     
-    DecT start = tvGetDec( ref(&startArg) );
-    DecT end   = tvGetDec( ref(&endArg) );
+    DecT start = tvGetDec( vget( startArg ) );
+    DecT end   = tvGetDec( vget( endArg ) );
     DecT step  = end >= start ? 1.0 : -1.0;
     
-    Record*  opt = tvGetObj( ref(&optArg) );
+    Record*  opt = tvGetObj( vget( optArg ) );
     TVal opt0 = recGet( state, opt, tvInt( 0 ) );
     if( !tvIsUdf( opt0 ) ) {
         if( !tvIsDec( opt0 ) )
@@ -2276,7 +2277,7 @@ drangeFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = tvObj( libDrange( state, start, end, step ) );
+    vset( retVar, tvObj( libDrange( state, start, end, step ) ) );
 
     return retTup;
 }
@@ -2291,13 +2292,13 @@ irangeFun( ten_PARAMS ) {
     
     expectArg( start, VAL_INT );
     expectArg( end, VAL_INT );
-    tenAssert( tvIsObjType( ref(&optArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( optArg ), OBJ_REC ) );
     
-    IntT start = tvGetInt( ref(&startArg) );
-    IntT end   = tvGetInt( ref(&endArg) );
+    IntT start = tvGetInt( vget( startArg ) );
+    IntT end   = tvGetInt( vget( endArg ) );
     IntT step  = end >= start ? 1 : -1;
     
-    Record*  opt = tvGetObj( ref(&optArg) );
+    Record*  opt = tvGetObj( vget( optArg ) );
     TVal opt0 = recGet( state, opt, tvInt( 0 ) );
     if( !tvIsUdf( opt0 ) ) {
         if( !tvIsInt( opt0 ) )
@@ -2307,7 +2308,7 @@ irangeFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = tvObj( libIrange( state, start, end, step ) );
+    vset( retVar, tvObj( libIrange( state, start, end, step ) ) );
 
     return retTup;
 }
@@ -2317,9 +2318,9 @@ showFun( ten_PARAMS ) {
     State* state = (State*)ten;
     ten_Var valsArg = { .tup = args, .loc = 0 };
     
-    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
-    libShow( state, tvGetObj( ref(&valsArg) ) );
+    libShow( state, tvGetObj( vget( valsArg ) ) );
     
     return ten_pushA( ten, "" );
 }
@@ -2329,9 +2330,9 @@ warnFun( ten_PARAMS ) {
     State* state = (State*)ten;
     ten_Var valsArg = { .tup = args, .loc = 0 };
     
-    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
-    libWarn( state, tvGetObj( ref(&valsArg) ) );
+    libWarn( state, tvGetObj( vget( valsArg ) ) );
     
     return ten_pushA( ten, "" );
 }
@@ -2344,7 +2345,7 @@ inputFun( ten_PARAMS ) {
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
     String* str = libInput( state );
-    ref(&retVar) = tvObj( str );
+    vset( retVar, tvObj( str ) );
     
     return retTup;
 }
@@ -2358,7 +2359,7 @@ ucodeFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = libUcode( state, tvGetSym( ref(&chrArg) ) );
+    vset( retVar, libUcode( state, tvGetSym( vget( chrArg ) ) ) );
     return retTup;
 }
 
@@ -2371,7 +2372,7 @@ ucharFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = libUchar( state, tvGetInt( ref(&codeArg) ) );
+    vset( retVar, libUchar( state, tvGetInt( vget( codeArg ) ) ) );
     return retTup;
 }
 
@@ -2380,13 +2381,13 @@ catFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
     ten_Var valsArg = { .tup = args, .loc = 0 };
-    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    String* str = libCat( state, tvGetObj( ref(&valsArg) ) );
-    ref(&retVar) = tvObj( str );
+    String* str = libCat( state, tvGetObj( vget( valsArg ) ) );
+    vset( retVar, tvObj( str ) );
     
     return retTup;
 }
@@ -2401,8 +2402,8 @@ joinFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    String* str = libJoin( state, tvGetObj( ref(&streamArg) ) );
-    ref(&retVar) = tvObj( str );
+    String* str = libJoin( state, tvGetObj( vget( streamArg ) ) );
+    vset( retVar, tvObj( str ) );
     
     return retTup;
 }
@@ -2419,13 +2420,13 @@ bcmpFun( ten_PARAMS ) {
     expectArg( opr, VAL_SYM );
     expectArg( str2, OBJ_STR );
     
-    String* str1 = tvGetObj( ref(&str1Arg) );
-    SymT    opr  = tvGetSym( ref(&oprArg) );
-    String* str2 = tvGetObj( ref(&str2Arg) );
+    String* str1 = tvGetObj( vget( str1Arg ) );
+    SymT    opr  = tvGetSym( vget( oprArg ) );
+    String* str2 = tvGetObj( vget( str2Arg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = libBcmp( state, str1, opr, str2 );
+    vset( retVar, libBcmp( state, str1, opr, str2 ) );
     return retTup;
 }
 
@@ -2441,13 +2442,13 @@ ccmpFun( ten_PARAMS ) {
     expectArg( opr, VAL_SYM );
     expectArg( str2, OBJ_STR );
     
-    String* str1 = tvGetObj( ref(&str1Arg) );
-    SymT    opr  = tvGetSym( ref(&oprArg) );
-    String* str2 = tvGetObj( ref(&str2Arg) );
+    String* str1 = tvGetObj( vget( str1Arg ) );
+    SymT    opr  = tvGetSym( vget( oprArg ) );
+    String* str2 = tvGetObj( vget( str2Arg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = libCcmp( state, str1, opr, str2 );
+    vset( retVar, libCcmp( state, str1, opr, str2 ) );
     return retTup;
 }
 
@@ -2461,7 +2462,7 @@ eachFun( ten_PARAMS ) {
     expectArg( stream, OBJ_CLS );
     expectArg( what, OBJ_CLS );
     
-    libEach( state, tvGetObj( ref(&streamArg) ), tvGetObj( ref(&whatArg) ) );
+    libEach( state, tvGetObj( vget( streamArg ) ), tvGetObj( vget( whatArg ) ) );
     
     return ten_pushA( ten, "" );
 }
@@ -2480,7 +2481,7 @@ foldFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = libFold( state, tvGetObj( ref(&streamArg) ), ref(&agrArg), tvGetObj( ref(&howArg) ) );
+    vset( retVar, libFold( state, tvGetObj( vget( streamArg ) ), vget( agrArg ), tvGetObj( vget( howArg ) ) ) );
     
     return retTup;
 }
@@ -2495,7 +2496,7 @@ consFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = tvObj( libCons( state, ref(&carArg), ref(&cdrArg) ) );
+    vset( retVar, tvObj( libCons( state, vget( carArg ), vget(cdrArg ) ) ) );
     
     return retTup;
 }
@@ -2505,12 +2506,12 @@ listFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
     ten_Var valsArg = { .tup = args, .loc = 0 };
-    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = tvObj( libList( state, tvGetObj( ref(&valsArg) ) ) );
+    vset( retVar, tvObj( libList( state, tvGetObj( vget( valsArg ) ) ) ) );
     
     return retTup;
 }
@@ -2525,7 +2526,7 @@ explodeFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    ref(&retVar) = tvObj( libExplode( state, tvGetObj( ref(&streamArg) ) ) );
+    vset( retVar, tvObj( libExplode( state, tvGetObj( vget( streamArg ) ) ) ) );
     
     return retTup;
 }
@@ -2538,10 +2539,10 @@ fiberFun( ten_PARAMS ) {
     ten_Var optArg = { .tup = args, .loc = 1 };
     
     expectArg( cls, OBJ_CLS );
-    tenAssert( tvIsObjType( ref(&optArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( optArg ), OBJ_REC ) );
     
-    Closure* cls = tvGetObj( ref(&clsArg) );
-    Record*  opt = tvGetObj( ref(&optArg) );
+    Closure* cls = tvGetObj( vget( clsArg ) );
+    Record*  opt = tvGetObj( vget( optArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
@@ -2553,10 +2554,10 @@ fiberFun( ten_PARAMS ) {
     
         SymT tag = tvGetSym( opt0 );
         
-        ref(&retVar) = tvObj( libFiber( state, cls, &tag ) );
+        vset( retVar, tvObj( libFiber( state, cls, &tag ) ) );
     }
     else {
-        ref(&retVar) = tvObj( libFiber( state, cls, NULL ) );
+        vset( retVar, tvObj( libFiber( state, cls, NULL ) ) );
     }
     
     return retTup;
@@ -2572,8 +2573,8 @@ contFun( ten_PARAMS ) {
     expectArg( fib, OBJ_FIB );
     expectArg( args, OBJ_REC );
     
-    Fiber*  fib  = tvGetObj( ref(&fibArg) );
-    Record* rec = tvGetObj( ref(&argsArg) );
+    Fiber*  fib  = tvGetObj( vget( fibArg ) );
+    Record* rec = tvGetObj( vget( argsArg ) );
     
     Tup ret = libCont( state, fib, rec );
     
@@ -2587,9 +2588,9 @@ yieldFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
     ten_Var valsArg = { .tup = args, .loc = 0 };
-    tenAssert( tvIsObjType( ref(&valsArg), OBJ_REC ) );
+    tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
-    Record* vals = tvGetObj( ref(&valsArg) );
+    Record* vals = tvGetObj( vget( valsArg ) );
     
     libYield( state, vals );
     
@@ -2603,11 +2604,11 @@ stateFun( ten_PARAMS ) {
     ten_Var fibArg = { .tup = args, .loc = 0 };
     expectArg( fib, OBJ_FIB );
     
-    Fiber* fib = tvGetObj( ref(&fibArg) );
+    Fiber* fib = tvGetObj( vget( fibArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = tvSym( libState( state, fib ) );
+    vset( retVar, tvSym( libState( state, fib ) ) );
     return retTup;
 }
 
@@ -2618,11 +2619,11 @@ errvalFun( ten_PARAMS ) {
     ten_Var fibArg = { .tup = args, .loc = 0 };
     expectArg( fib, OBJ_FIB );
     
-    Fiber* fib = tvGetObj( ref(&fibArg) );
+    Fiber* fib = tvGetObj( vget( fibArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = libErrval( state, fib );
+    vget( retVar ) = libErrval( state, fib );
     return retTup;
 }
 
@@ -2633,16 +2634,16 @@ traceFun( ten_PARAMS ) {
     ten_Var fibArg = { .tup = args, .loc = 0 };
     expectArg( fib, OBJ_FIB );
     
-    Fiber* fib = tvGetObj( ref(&fibArg) );
+    Fiber* fib = tvGetObj( vget( fibArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
     Record* trace = libTrace( state, fib );
     if( trace )
-        ref(&retVar) = tvObj( trace );
+        vget( retVar ) = tvObj( trace );
     else
-        ref(&retVar) = tvUdf();
+        vget( retVar ) = tvUdf();
     return retTup;
 }
 
@@ -2653,11 +2654,11 @@ scriptFun( ten_PARAMS ) {
     ten_Var codeArg = { .tup = args, .loc = 0 };
     expectArg( code, OBJ_STR );
     
-    String* code = tvGetObj( ref(&codeArg) );
+    String* code = tvGetObj( vget( codeArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = tvObj( libScript( state, code ) );
+    vget( retVar ) = tvObj( libScript( state, code ) );
     
     return retTup;
 }
@@ -2671,12 +2672,12 @@ closureFun( ten_PARAMS ) {
     expectArg( params, OBJ_REC );
     expectArg( code, OBJ_STR );
     
-    Record* params = tvGetObj( ref(&paramsArg) );
-    String* code   = tvGetObj( ref(&codeArg) );
+    Record* params = tvGetObj( vget( paramsArg ) );
+    String* code   = tvGetObj( vget( codeArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    ref(&retVar) = tvObj( libClosure( state, params, code ) );
+    vset( retVar, tvObj( libClosure( state, params, code ) ) );
     
     return retTup;
 }
@@ -2830,17 +2831,17 @@ libInit( State* state ) {
         Index* idx = NULL;                                          \
         if( (V) ) {                                                 \
             idx = idxNew( state );                                  \
-            ref(&idxVar) = tvObj( idx );                            \
+            vset( idxVar, tvObj( idx ) );                           \
         }                                                           \
                                                                     \
         Function* fun = funNewNat( state, (P), idx, N ## Fun );     \
         fun->u.nat.name = lib->idents[IDENT_ ## N];                 \
-        ref(&funVar) = tvObj( fun );                                \
+        vset( funVar, tvObj( fun ) );                               \
                                                                     \
         Closure* cls = clsNewNat( state, fun, NULL );               \
-        ref(&clsVar) = tvObj( cls );                                \
+        vset( clsVar, tvObj( cls ) );                               \
                                                                     \
-        ref(&symVar) = tvSym( lib->idents[IDENT_ ## N] );           \
+        vset( symVar, tvSym( lib->idents[IDENT_ ## N] ) );          \
         ten_def( s, &symVar, &clsVar );                             \
     } while( 0 )
     

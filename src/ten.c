@@ -240,7 +240,7 @@ ten_pushV( ten_State* s, char const* pat, va_list ap ) {
             } break;
             case 'V': {
                 ten_Var* var = va_arg( ap, ten_Var* );
-                tupAt( tup, i ) = ref(var);
+                tupAt( tup, i ) = vget( *var );
             } break;
             default: {
                 strAssert( false, "Invalid type char" );
@@ -287,38 +287,38 @@ ten_size( ten_State* state, ten_Tup* tup ) {
 void
 ten_def( ten_State* s, ten_Var* name, ten_Var* val ) {
     State* state = (State*)s;
-    TVal nameV = ref(name);
+    TVal nameV = vget( *name );
     funAssert( tvIsSym( nameV ), "Wrong type for 'name', need Sym", NULL );
     
     SymT nameS = tvGetSym( nameV );
     uint loc   = envAddGlobal( state, nameS );
     
     TVal* gval = envGetGlobalByLoc( state, loc );
-    *gval = ref(val);
+    *gval = vget( *val );
 }
 
 void
 ten_set( ten_State* s, ten_Var* name, ten_Var* val ) {
     State* state = (State*)s;
-    TVal nameV = ref(name);
+    TVal nameV = vget( *name );
     funAssert( tvIsSym( nameV ), "Wrong type for 'name', need Sym", NULL );
     
     SymT  nameS = tvGetSym( nameV );
     TVal* gval  = envGetGlobalByName( state, nameS );
-    *gval = ref(val);
+    *gval = vget( *val );
 }
 
 ten_Var*
 ten_get( ten_State* s, ten_Var* name ) {
     State* state = (State*)s;
-    TVal nameV = ref(name);
+    TVal nameV = vget( *name );
     funAssert( tvIsSym( nameV ), "Wrong type for 'name', need Sym", NULL );
     
     SymT     nameS = tvGetSym( nameV );
     TVal*    gval  = envGetGlobalByName( state, nameS );
     ten_Var* tmp   = stateTmp( state, tvUdf() );
     if( gval )
-        ref(tmp) = *gval;
+        vset( *tmp, *gval );
     
     return tmp;
 }
@@ -328,7 +328,7 @@ ten_type( ten_State* s, ten_Var* var, ten_Var* dst ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    ref(dst) = tvSym( libType( state, ref(var) ) );
+    vset( *dst, tvSym( libType( state, vget( *var ) ) ) );
 }
 
 void
@@ -336,23 +336,23 @@ ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var ) {
     State*    state = (State*)s;
     ApiState* api   = state->apiState;
     
-    TVal typeV = ref(type);
+    TVal typeV = vget( *type );
     funAssert( tvIsSym( typeV ), "Wrong type for 'type', need Sym", NULL );
     
-    libExpect( state, what, tvGetSym( typeV ), ref(var) );
+    libExpect( state, what, tvGetSym( typeV ), vget( *var ) );
 }
 
 bool
 ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 ) {
     State* state = (State*)s;
     
-    return tvEqual( ref(var1), ref(var2) );
+    return tvEqual( vget( *var1 ), vget( *var2 ) );
 }
 
 void
 ten_copy( ten_State* s, ten_Var* src, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = ref(src);
+    vset( *dst, vget( *src ) );
 }
 
 char const*
@@ -380,25 +380,25 @@ void
 ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans ) {
     State* state = (State*)s;
     funAssert(
-        tvIsSym( ref(type) ),
+        tvIsSym( vget( *type ) ),
         "Wrong type for 'type', need Sym",
         NULL
     );
     funAssert(
-        tvIsObjType( ref(loadr), OBJ_CLS ),
+        tvIsObjType( vget( *loadr ), OBJ_CLS ),
         "Wrong type for 'loadr', need Cls",
         NULL
     );
     funAssert(
-        tvIsObjType( ref(trans), OBJ_CLS ),
+        tvIsObjType( vget( *trans ), OBJ_CLS ),
         "Wrong type for 'trans', need Cls",
         NULL
     );
     
     
-    SymT     typeS  = tvGetSym( ref(type) );
-    Closure* loadrO = tvGetObj( ref(loadr) );
-    Closure* transO = tvGetObj( ref(trans) );
+    SymT     typeS  = tvGetSym( vget( *type ) );
+    Closure* loadrO = tvGetObj( vget( *loadr ) );
+    Closure* transO = tvGetObj( vget( *trans ) );
     
     libLoader( state, typeS, loadrO, transO );
 }
@@ -658,13 +658,13 @@ ten_compileScript( ten_State* s, char const** upvals, ten_Source* src, ten_ComSc
     
     Closure* cls = compileScript( state, upvals, src, scope );
     if( out == ten_COM_CLS ) {
-        ref(dst) = tvObj( cls );
+        vset( *dst, tvObj( cls ) );
         return;
     }
     api->val1 = tvObj( cls );
     
     Fiber* fib = fibNew( state, cls, NULL );
-    ref(dst) = tvObj( fib );
+    vset( *dst, tvObj( fib ) );
     
     api->val1 = tvUdf();
 }
@@ -676,13 +676,13 @@ ten_compileExpr( ten_State* s, char const** upvals, ten_Source* src, ten_ComScop
     
     Closure* cls = compileExpr( state, upvals, src, scope );
     if( out == ten_COM_CLS ) {
-        ref(dst) = tvObj( cls );
+        vset( *dst, tvObj( cls ) );
         return;
     }
     api->val1 = tvObj( cls );
     
     Fiber* fib = fibNew( state, cls, NULL );
-    ref(dst) = tvObj( fib );
+    vset( *dst, tvObj( fib ) );
     
     api->val1 = tvUdf();
 }
@@ -694,13 +694,13 @@ ten_compileCls( ten_State* s, char const** pnames, ten_Source* src, ten_ComType 
     
     Closure* cls = compileCls( state, pnames, src );
     if( out == ten_COM_CLS ) {
-        ref(dst) = tvObj( cls );
+        vset( *dst, tvObj( cls ) );
         return;
     }
     api->val1 = tvObj( cls );
     
     Fiber* fib = fibNew( state, cls, NULL );
-    ref(dst) = tvObj( fib );
+    vset( *dst, tvObj( fib ) );
     
     api->val1 = tvUdf();
 }
@@ -748,7 +748,7 @@ ten_executeExpr( ten_State* s, ten_Source* src, ten_ComScope scope ) {
 bool
 ten_isUdf( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsUdf( ref(var) );
+    return tvIsUdf( vget( *var ) );
 }
 
 bool
@@ -764,139 +764,139 @@ ten_areUdf( ten_State* s, ten_Tup* tup ) {
 void
 ten_setUdf( ten_State* s, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvUdf();
+    vset( *dst, tvUdf() );
 }
 
 bool
 ten_isNil( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsNil( ref(var) );
+    return tvIsNil( vget( *var ) );
 }
 
 void
 ten_setNil( ten_State* s, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvUdf();
+    vset( *dst, tvUdf() );
 }
 
 bool
 ten_isLog( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsLog( ref(var) );
+    return tvIsLog( vget( *var ) );
 }
 
 void
 ten_setLog( ten_State* s, bool log, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvLog( log );
+    vset( *dst, tvLog( log ) );
 }
 
 bool
 ten_getLog( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsLog( ref(var) ), "Wrong type for 'var', need Log", NULL );
-    return tvGetLog( ref(var) );
+    funAssert( tvIsLog( vget( *var ) ), "Wrong type for 'var', need Log", NULL );
+    return tvGetLog( vget( *var ) );
 }
 
 bool
 ten_isInt( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsInt( ref(var) );
+    return tvIsInt( vget( *var ) );
 }
 
 void
 ten_setInt( ten_State* s, long in, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvInt( in );
+    vset( *dst, tvInt( in ) );
 }
 
 long
 ten_getInt( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsInt( ref(var) ), "Wrong type for 'var', need Int", NULL );
-    return tvGetInt( ref(var) );
+    funAssert( tvIsInt( vget( *var ) ), "Wrong type for 'var', need Int", NULL );
+    return tvGetInt( vget( *var ) );
 }
 
 bool
 ten_isDec( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsDec( ref(var) );
+    return tvIsDec( vget( *var ) );
 }
 
 void
 ten_setDec( ten_State* s, double dec, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvDec( dec );
+    vset( *dst, tvDec( dec ) );
 }
 
 double
 ten_getDec( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsDec( ref(var) ), "Wrong type for 'var', need Dec", NULL );
+    funAssert( tvIsDec( vget( *var ) ), "Wrong type for 'var', need Dec", NULL );
     
-    return tvGetDec( ref(var) );
+    return tvGetDec( vget( *var ) );
 }
 
 bool
 ten_isSym( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsSym( ref(var) );
+    return tvIsSym( vget( *var ) );
 }
 
 void
 ten_setSym( ten_State* s, char const* sym, size_t len, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvSym( symGet( state, sym, len ) );
+    vset( *dst, tvSym( symGet( state, sym, len ) ) );
 }
 
 char const*
 ten_getSymBuf( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsSym( ref(var) ), "Wrong type for 'var', need Sym", NULL );
-    return symBuf( state, tvGetSym( ref(var) ) );
+    funAssert( tvIsSym( vget( *var ) ), "Wrong type for 'var', need Sym", NULL );
+    return symBuf( state, tvGetSym( vget( *var ) ) );
 }
 
 size_t
 ten_getSymLen( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsSym( ref(var) ), "Wrong type for 'var', need Sym", NULL );
-    return symLen( state, tvGetSym( ref(var) ) );
+    funAssert( tvIsSym( vget( *var ) ), "Wrong type for 'var', need Sym", NULL );
+    return symLen( state, tvGetSym( vget( *var ) ) );
 }
 
 bool
 ten_isPtr( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    return tvIsPtr( ref(var) );
+    return tvIsPtr( vget( *var ) );
 }
 
 void
 ten_setPtr( ten_State* s, void* addr, ten_PtrInfo* info, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvPtr( ptrGet( state, addr, (PtrInfo*)info ) );
+    vset( *dst, tvPtr( ptrGet( state, addr, (PtrInfo*)info ) ) );
 }
 
 void*
 ten_getPtrAddr( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsPtr( ref(var) ), "Wrong type for 'var', need Ptr", NULL );
+    funAssert( tvIsPtr( vget( *var ) ), "Wrong type for 'var', need Ptr", NULL );
     
-    return ptrAddr( state, tvGetPtr( ref(var) ) );
+    return ptrAddr( state, tvGetPtr( vget( *var ) ) );
 }
 
 ten_PtrInfo*
 ten_getPtrInfo( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsPtr( ref(var) ), "Wrong type for 'var', need Ptr", NULL );
+    funAssert( tvIsPtr( vget( *var ) ), "Wrong type for 'var', need Ptr", NULL );
     
-    return (ten_PtrInfo*)ptrInfo( state, tvGetPtr( ref(var) ) );
+    return (ten_PtrInfo*)ptrInfo( state, tvGetPtr( vget( *var ) ) );
 }
 
 char const*
 ten_getPtrType( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    funAssert( tvIsPtr( ref(var) ), "Wrong type for 'var', need Ptr", NULL );
+    funAssert( tvIsPtr( vget( *var ) ), "Wrong type for 'var', need Ptr", NULL );
     
-    PtrInfo* info = ptrInfo( state, tvGetPtr( ref(var) ) );
+    PtrInfo* info = ptrInfo( state, tvGetPtr( vget( *var ) ) );
     if( info )
         return symBuf( state, info->type );
     else
@@ -911,20 +911,20 @@ ten_addPtrInfo( ten_State* s, ten_PtrConfig* config ) {
 bool
 ten_isStr( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_STR;
 }
 
 void
 ten_newStr( ten_State* s, char const* str, size_t len, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvObj( strNew( state, str, len ) );
+    vset( *dst, tvObj( strNew( state, str, len ) ) );
 }
 
 char const*
 ten_getStrBuf( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     funAssert(
         tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_STR,
         "Wrong type for 'var', need Str",
@@ -936,7 +936,7 @@ ten_getStrBuf( ten_State* s, ten_Var* var ) {
 size_t
 ten_getStrLen( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     funAssert(
         tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_STR,
         "Wrong type for 'var', need Str",
@@ -948,40 +948,40 @@ ten_getStrLen( ten_State* s, ten_Var* var ) {
 bool
 ten_isIdx( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_IDX;
 }
 
 void
 ten_newIdx( ten_State* s, ten_Var* dst ) {
     State* state = (State*)s;
-    ref(dst) = tvObj( idxNew( state ) );
+    vset( *dst, tvObj( idxNew( state ) ) );
 }
 
 bool
 ten_isRec( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_REC;
 }
 
 void
 ten_newRec( ten_State* s, ten_Var* idx, ten_Var* dst ) {
     State* state = (State*)s;
-    TVal idxV = ref(idx);
+    TVal idxV = vget( *idx );
     funAssert(
         tvIsObj( idxV ) && datGetTag( tvGetObj( idxV ) ) == OBJ_IDX,
         "Wrong type for 'idx', need Idx",
         NULL
     );
     
-    ref(dst) = tvObj( recNew( state, tvGetObj( idxV ) ) );
+    vset( *dst, tvObj( recNew( state, tvGetObj( idxV ) ) ) );
 }
 
 void
 ten_recSep( ten_State* s, ten_Var* rec ) {
     State* state = (State*)s;
-    TVal recV = ref(rec);
+    TVal recV = vget( *rec );
     funAssert(
         tvIsObj( recV ) && datGetTag( tvGetObj( recV ) ) == OBJ_REC,
         "Wrong type for 'rec', need Rec",
@@ -993,42 +993,42 @@ ten_recSep( ten_State* s, ten_Var* rec ) {
 void
 ten_recDef( ten_State* s, ten_Var* rec, ten_Var* key, ten_Var* val ) {
     State* state = (State*)s;
-    TVal recV = ref(rec);
+    TVal recV = vget( *rec );
     funAssert(
         tvIsObj( recV ) && datGetTag( tvGetObj( recV ) ) == OBJ_REC,
         "Wrong type for 'rec', need Rec",
         NULL
     );
-    recDef( state, tvGetObj( recV ), ref(key), ref(val) );
+    recDef( state, tvGetObj( recV ), vget( *key ), vget( *val ) );
 }
 void
 ten_recSet( ten_State* s, ten_Var* rec, ten_Var* key, ten_Var* val ) {
     State* state = (State*)s;
-    TVal recV = ref(rec);
+    TVal recV = vget( *rec );
     funAssert(
         tvIsObj( recV ) && datGetTag( tvGetObj( recV ) ) == OBJ_REC,
         "Wrong type for 'rec', need Rec",
         NULL
     );
-    recSet( state, tvGetObj( recV ), ref(key), ref(val) );
+    recSet( state, tvGetObj( recV ), vget( *key ), vget( *val ) );
 }
 
 void
 ten_recGet( ten_State* s, ten_Var* rec, ten_Var* key, ten_Var* dst ) {
     State* state = (State*)s;
-    TVal recV = ref(rec);
+    TVal recV = vget( *rec );
     funAssert(
         tvIsObj( recV ) && datGetTag( tvGetObj( recV ) ) == OBJ_REC,
         "Wrong type for 'rec', need Rec",
         NULL
     );
-    ref(dst) = recGet( state, tvGetObj( recV ), ref(key) );
+    vset( *dst, recGet( state, tvGetObj( recV ), vget( *key ) ) );
 }
 
 bool
 ten_isFun( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_FUN;
 }
 
@@ -1082,20 +1082,20 @@ ten_newFun( ten_State* s, ten_FunParams* p, ten_Var* dst ) {
         fun->u.nat.name = symGet( state, p->name, strlen( p->name ) );
     
     stateCommitRaw( state, &paramsP );
-    ref(dst) = tvObj( fun );
+    vset( *dst, tvObj( fun ) );
 }
 
 bool
 ten_isCls( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_CLS;
 }
 
 void
 ten_newCls( ten_State* s, ten_Var* fun, ten_Var* dat, ten_Var* dst ) {
     State* state = (State*)s;
-    TVal funV = ref(fun);
+    TVal funV = vget( *fun );
     funAssert(
         tvIsObj( funV ) && datGetTag( tvGetObj( funV ) ) == OBJ_FUN,
         "Wrong type for 'fun', need Fun",
@@ -1105,7 +1105,7 @@ ten_newCls( ten_State* s, ten_Var* fun, ten_Var* dat, ten_Var* dst ) {
     
     Data* datO = NULL;
     if( dat ) {
-        TVal datV = ref(dat);
+        TVal datV = vget( *dat );
         funAssert(
             tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
             "Wrong type for 'dat', need Dat",
@@ -1115,15 +1115,15 @@ ten_newCls( ten_State* s, ten_Var* fun, ten_Var* dat, ten_Var* dst ) {
     }
     
     if( funO->type == FUN_NAT )
-        ref(dst) = tvObj( clsNewNat( state, funO, datO ) );
+        vset( *dst, tvObj( clsNewNat( state, funO, datO ) ) );
     else
-        ref(dst) = tvObj( clsNewVir( state, funO, NULL ) );
+        vset( *dst, tvObj( clsNewVir( state, funO, NULL ) ) );
 }
 
 void
 ten_getUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* dst ) {
     State* state = (State*)s;
-    TVal clsV = ref(cls);
+    TVal clsV = vget( *cls );
     funAssert(
         tvIsObjType( clsV, OBJ_CLS ),
         "Wrong type for 'cls', need Cls",
@@ -1141,13 +1141,13 @@ ten_getUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* dst ) {
         upv,
         NULL
     );
-    ref(dst) = clsO->dat.upvals[upv]->val;
+    vset( *dst, clsO->dat.upvals[upv]->val );
 }
 
 void
 ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src ) {
     State* state = (State*)s;
-    TVal clsV = ref(cls);
+    TVal clsV = vget( *cls );
     funAssert(
         tvIsObjType( clsV, OBJ_CLS ),
         "Wrong type for 'cls', need Cls",
@@ -1165,20 +1165,20 @@ ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src ) {
         upv,
         NULL
     );
-    clsO->dat.upvals[upv] = upvNew( state, ref(src) );
+    clsO->dat.upvals[upv] = upvNew( state, vget( *src ) );
 }
 
 bool
 ten_isFib( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_FIB;
 }
 
 void
 ten_newFib( ten_State* s, ten_Var* cls, ten_Var* tag, ten_Var* dst ) {
     State* state = (State*)s;
-    TVal clsV = ref(cls);
+    TVal clsV = vget( *cls );
     funAssert(
         tvIsObj( clsV ) && datGetTag( tvGetObj( clsV ) ) == OBJ_CLS,
         "Wrong type for 'cls', need Cls",
@@ -1187,24 +1187,24 @@ ten_newFib( ten_State* s, ten_Var* cls, ten_Var* tag, ten_Var* dst ) {
     Closure* clsO = tvGetObj( clsV );
     
     if( tag ) {
-        TVal tagV = ref(tag);
+        TVal tagV = vget( *tag );
         funAssert(
             tvIsSym( tagV ),
             "Wrong type for 'tag', need Sym",
             NULL
         );
         SymT tagS = tvGetSym( tagV );
-        ref(dst) = tvObj( fibNew( state, clsO, &tagS ) );
+        vset( *dst, tvObj( fibNew( state, clsO, &tagS ) ) );
     }
     else {
-        ref(dst) = tvObj( fibNew( state, clsO, NULL ) );
+        vset( *dst, tvObj( fibNew( state, clsO, NULL ) ) );
     }
 }
 
 ten_Tup
 ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args ) {
     State* state = (State*)s;
-    TVal fibV = ref(fib);
+    TVal fibV = vget( *fib );
     funAssert(
         tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
         "Wrong type for 'fib', need Fib",
@@ -1231,7 +1231,7 @@ ten_yield( ten_State* s, ten_Tup* vals ) {
 void
 ten_panic( ten_State* s, ten_Var* val ) {
     State* state = (State*)s;
-    stateErrVal( state, ten_ERR_PANIC, ref(val) );
+    stateErrVal( state, ten_ERR_PANIC, vget( *val ) );
 }
 
 ten_Tup
@@ -1240,7 +1240,7 @@ ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned
     
     funAssert( state->fiber, "Call without running fiber", NULL );
     
-    TVal clsV = ref(cls);
+    TVal clsV = vget( *cls );
     funAssert(
         tvIsObj( clsV ) && datGetTag( tvGetObj( clsV ) ) == OBJ_CLS,
         "Wrong type for 'cls', need Cls",
@@ -1259,7 +1259,7 @@ ten_ErrNum
 ten_getErrNum( ten_State* s, ten_Var* fib ) {
     State* state = (State*)s;
     if( fib ) {
-        TVal fibV = ref(fib);
+        TVal fibV = vget( *fib );
         funAssert(
             tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
             "Wrong type for 'fib', need Fib",
@@ -1277,17 +1277,17 @@ void
 ten_getErrVal( ten_State* s, ten_Var* fib, ten_Var* dst ) {
     State* state = (State*)s;
     if( fib ) {
-        TVal fibV = ref(fib);
+        TVal fibV = vget( *fib );
         funAssert(
             tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
             "Wrong type for 'fib', need Fib",
             NULL
         );
         Fiber* fibO = tvGetObj( fibV );
-        ref(dst) = fibO->errVal;
+        vset( *dst, fibO->errVal );
     }
     else {
-        ref(dst) = state->errVal;
+        vset( *dst, state->errVal );
     }
 }
 
@@ -1295,7 +1295,7 @@ char const*
 ten_getErrStr( ten_State* s, ten_Var* fib ) {
     State* state = (State*)s;
     if( fib ) {
-        TVal fibV = ref(fib);
+        TVal fibV = vget( *fib );
         funAssert(
             tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
             "Wrong type for 'fib', need Fib",
@@ -1325,7 +1325,7 @@ void
 ten_clearError( ten_State* s, ten_Var* fib ) {
     State* state = (State*)s;
     if( fib ) {
-        TVal fibV = ref(fib);
+        TVal fibV = vget( *fib );
         funAssert(
             tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
             "Wrong type for 'fib', need Fib",
@@ -1343,7 +1343,7 @@ void
 ten_propError( ten_State* s, ten_Var* fib ) {
     State* state = (State*)s;
     if( fib ) {
-        TVal fibV = ref(fib);
+        TVal fibV = vget( *fib );
         funAssert(
             tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
             "Wrong type for 'fib', need Fib",
@@ -1365,7 +1365,7 @@ ten_swapErrJmp( ten_State* s, jmp_buf* errJmp ) {
 bool
 ten_isDat( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
-    TVal val = ref(var);
+    TVal val = vget( *var );
     return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_DAT;
 }
 
@@ -1375,14 +1375,14 @@ ten_newDat( ten_State* s, ten_DatInfo* info, ten_Var* dst ) {
     funAssert( info, "DatInfo 'info' is required", NULL );
     
     Data* dat = datNew( state, (DatInfo*)info );
-    ref(dst) = tvObj( dat );
+    vset( *dst, tvObj( dat ) );
     return dat->data;
 }
 
 void
 ten_setMember( ten_State* s, ten_Var* dat, unsigned mem, ten_Var* val ) {
     State* state = (State*)s;
-    TVal datV = ref(dat);
+    TVal datV = vget( *dat );
     funAssert(
         tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
         "Wrong type for 'dat', need Dat",
@@ -1391,13 +1391,13 @@ ten_setMember( ten_State* s, ten_Var* dat, unsigned mem, ten_Var* val ) {
     Data* datO = tvGetObj( datV );
     
     funAssert( mem < datO->info->nMems, "No member %u", mem );
-    datO->mems[mem] = ref(val);
+    datO->mems[mem] = vget( *val );
 }
 
 void
 ten_getMember( ten_State* s, ten_Var* dat, unsigned mem, ten_Var* dst ) {
     State* state = (State*)s;
-    TVal datV = ref(dat);
+    TVal datV = vget( *dat );
     funAssert(
         tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
         "Wrong type for 'dat', need Dat",
@@ -1406,13 +1406,13 @@ ten_getMember( ten_State* s, ten_Var* dat, unsigned mem, ten_Var* dst ) {
     Data* datO = tvGetObj( datV );
     
     funAssert( mem < datO->info->nMems, "No member %u", mem );
-    ref(dst) = datO->mems[mem];
+    vset( *dst, datO->mems[mem] );
 }
 
 ten_Tup
 ten_getMembers( ten_State* s, ten_Var* dat ) {
     State* state = (State*)s;
-    TVal datV = ref(dat);
+    TVal datV = vget( *dat );
     funAssert(
         tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
         "Wrong type for 'dat', need Dat",
@@ -1430,7 +1430,7 @@ ten_getMembers( ten_State* s, ten_Var* dat ) {
 ten_DatInfo*
 ten_getDatInfo( ten_State* s, ten_Var* dat ) {
     State* state = (State*)s;
-    TVal datV = ref(dat);
+    TVal datV = vget( *dat );
     funAssert(
         tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
         "Wrong type for 'dat', need Dat",
@@ -1443,7 +1443,7 @@ ten_getDatInfo( ten_State* s, ten_Var* dat ) {
 char const*
 ten_getDatType( ten_State* s, ten_Var* dat ) {
     State* state = (State*)s;
-    TVal datV = ref(dat);
+    TVal datV = vget( *dat );
     funAssert(
         tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
         "Wrong type for 'dat', need Dat",
@@ -1456,7 +1456,7 @@ ten_getDatType( ten_State* s, ten_Var* dat ) {
 void*
 ten_getDatBuf( ten_State* s, ten_Var* dat ) {
     State* state = (State*)s;
-    TVal datV = ref(dat);
+    TVal datV = vget( *dat );
     funAssert(
         tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
         "Wrong type for 'dat', need Dat",

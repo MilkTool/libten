@@ -35,12 +35,38 @@
 
 #define isEmpty( DEF ) (identCat( DEF, 1 ) == 1)
 
-#define ref( VAR ) *expAssert(                                               \
-    (VAR)->loc < ((Tup*)(VAR)->tup)->size,                                  \
-    *((Tup*)(VAR)->tup)->base + ((Tup*)(VAR)->tup)->offset + (VAR)->loc,    \
-    "Variable 'loc' out of tuple bounds, tuple size is %u",                                   \
-    ((Tup*)(VAR)->tup)->size                                                                    \
+// The vget() macro has been implemented to prevent assignement
+// on purpose as this causes issues when the pointers on
+// the left are evaluated before the right hand expression
+// causes changes to the stack or other shared state.  So
+// use the vset() macro for setting variable from values.
+// This macro can still cause issues when used multiple times
+// in an expression with side effects, so we need to be
+// careful about where it's used.
+#define vget( VAR ) expAssert(                                              \
+    (VAR).loc < ((Tup*)(VAR).tup)->size,                                    \
+    *(*((Tup*)(VAR).tup)->base + ((Tup*)(VAR).tup)->offset + (VAR).loc),    \
+    "Variable 'loc' out of tuple bounds, tuple size is %u",                 \
+    ((Tup*)(VAR).tup)->size                                                 \
 )
+
+// The vset() macro overcomes some of the shortcomings of the ref()
+// macro by forcing the right hand side to be evaluated first.
+#define vset( VAR, VAL )                                        \
+    do {                                                        \
+        Tup* tup = (Tup*)(VAR).tup;                             \
+        fmtAssert(                                              \
+            (VAR).loc < tup->size,                              \
+            "Variable 'loc' out of tuple bounds, "              \
+            "tuple size is %u",                                 \
+            tup->size                                           \
+        );                                                      \
+                                                                \
+        TVal rhs = (VAL);                                       \
+                                                                \
+        *(*tup->base + tup->offset + (VAR).loc) = rhs;          \
+    } while( 0 )
+
 
 #define panic( FMT... )                                         \
     do {                                                        \
