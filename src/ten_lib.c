@@ -2623,7 +2623,7 @@ errvalFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    vget( retVar ) = libErrval( state, fib );
+    vset( retVar, libErrval( state, fib ) );
     return retTup;
 }
 
@@ -2641,9 +2641,9 @@ traceFun( ten_PARAMS ) {
     
     Record* trace = libTrace( state, fib );
     if( trace )
-        vget( retVar ) = tvObj( trace );
+        vset( retVar, tvObj( trace ) );
     else
-        vget( retVar ) = tvUdf();
+        vset( retVar, tvUdf() );
     return retTup;
 }
 
@@ -2658,7 +2658,7 @@ scriptFun( ten_PARAMS ) {
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    vget( retVar ) = tvObj( libScript( state, code ) );
+    vset( retVar, tvObj( libScript( state, code ) ) );
     
     return retTup;
 }

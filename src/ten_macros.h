@@ -45,7 +45,7 @@
 // careful about where it's used.
 #define vget( VAR ) expAssert(                                              \
     (VAR).loc < ((Tup*)(VAR).tup)->size,                                    \
-    *(*((Tup*)(VAR).tup)->base + ((Tup*)(VAR).tup)->offset + (VAR).loc),    \
+    ( tvUdf(), *(*((Tup*)(VAR).tup)->base + ((Tup*)(VAR).tup)->offset + (VAR).loc) ), \
     "Variable 'loc' out of tuple bounds, tuple size is %u",                 \
     ((Tup*)(VAR).tup)->size                                                 \
 )
