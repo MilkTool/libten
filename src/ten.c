@@ -872,14 +872,7 @@ ten_isPtr( ten_State* s, ten_Var* var ) {
 void
 ten_setPtr( ten_State* s, void* addr, ten_PtrInfo* info, ten_Var* dst ) {
     State* state = (State*)s;
-    PtrInfo* pInfo = (PtrInfo*)info;
-    funAssert(
-        pInfo == NULL || pInfo->magic == PTR_MAGIC,
-        "PtrInfo 'info' not initialized",
-        NULL
-    );
-    
-    ref(dst) = tvPtr( ptrGet( state, addr, pInfo ) );
+    ref(dst) = tvPtr( ptrGet( state, addr, (PtrInfo*)info ) );
 }
 
 void*
@@ -1381,14 +1374,7 @@ ten_newDat( ten_State* s, ten_DatInfo* info, ten_Var* dst ) {
     State* state = (State*)s;
     funAssert( info, "DatInfo 'info' is required", NULL );
     
-    DatInfo* dInfo = (DatInfo*)info;
-    funAssert(
-        dInfo->magic == DAT_MAGIC,
-        "DatInfo 'info' not initialized",
-        NULL
-    );
-    
-    Data* dat = datNew( state, dInfo );
+    Data* dat = datNew( state, (DatInfo*)info );
     ref(dst) = tvObj( dat );
     return dat->data;
 }

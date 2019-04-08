@@ -2211,7 +2211,7 @@ comCompile( State* state, ComParams* p ) {
             }
             SymT sym = symGet( state, p->upvals[i], len );
             com->val1 = tvSym( sym );
-            tenAssert( genAddUpv( state, gen, sym )->which == i );
+            tenAssert( genAddUpv( state, com->gen, sym )->which == i );
         }
     }
     
