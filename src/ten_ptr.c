@@ -52,7 +52,7 @@ ptrScan( State* state, Scanner* scan ) {
     
     PtrInfo* it = ptrState->infos;
     while( it ) {
-        symMark( state, it->type );
+        tvMark( it->typeVal );
         it = it->next;
     }
 }
@@ -146,7 +146,10 @@ ptrAddInfo( State* state, ten_PtrConfig* config ) {
     Part infoP;
     PtrInfo* info = stateAllocRaw( state, &infoP, sizeof(PtrInfo) );
     
-    info->type  = symGet( state, type, strlen( type ) );
+    info->typeVal = tvSym( symGet( state, type, strlen( type ) ) );
+    info->typePtr = &info->typeVal;
+    info->typeTup = (Tup){ .base = &info->typePtr, .offset = 0, .size = 1 };
+    info->typeVar = (ten_Var){ .tup = (ten_Tup*)&info->typeTup, .loc = 0 };
     info->destr = config->destr;
     info->next  = state->ptrState->infos;
     state->ptrState->infos = info;
@@ -158,15 +161,16 @@ ptrAddInfo( State* state, ten_PtrConfig* config ) {
 
 #ifdef ten_TEST
 #include "ten_sym.h"
-static PtrInfo testInfo;
-
 void
 ptrTest( State* state ) {
-    testInfo.type  = symGet( state, "Ptr:Test", 4 );
-    testInfo.destr = NULL;
+    ten_PtrConfig cfg = {
+        .tag   = "Test",
+        .destr = NULL
+    };
     
+    PtrInfo* testInfo = ptrAddInfo( state, &cfg );
     for( uint i = 0 ; i < 100 ; i++ )
-        ptrGet( state, &testInfo, NULL );
+        ptrGet( state, testInfo, NULL );
 }
 #endif
 

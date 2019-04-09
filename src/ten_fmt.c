@@ -151,7 +151,7 @@ fmtType( State* state, TVal val ) {
             break;
             case OBJ_DAT: {
                 Data* dat = obj;
-                fmtSym( state, dat->info->type, false );
+                fmtSym( state, tvGetSym( dat->info->typeVal ), false );
             } break;
             default:
                 tenAssertNeverReached();
@@ -166,7 +166,7 @@ fmtType( State* state, TVal val ) {
     if( tvIsPtr( val ) ) {
         PtrInfo* info = ptrInfo( state, tvGetPtr( val ) );
         if( info )
-            fmtSym( state, info->type, false );
+            fmtSym( state, tvGetSym( info->typeVal ), false );
         else
             fmtRaw( state, "Ptr" );
     }

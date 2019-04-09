@@ -7,7 +7,10 @@ typedef struct DatInfo DatInfo;
 struct DatInfo {
     DatInfo* next;
     
-    SymT   type;
+    ten_Var typeVar;
+    Tup     typeTup;
+    TVal*   typePtr;
+    TVal    typeVal;
     size_t size;
     uint   nMems;
     void   (*destr)( ten_State* state, void* buf );

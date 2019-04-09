@@ -18,8 +18,10 @@ typedef struct {
     char pri[2048];
 } ten_State;
 
-/* Represents a type of user data object, created
- * with <ten_addDatInfo>.
+/* Represents a type of user data object, one of these should be
+ * initialized with <ten_initDatInfo> before being passed to
+ * <ten_newDat> to create a new Data object with the respective
+ * info.
  */
 typedef struct ten_DatInfo ten_DatInfo;
 
@@ -54,8 +56,9 @@ typedef struct {
 } ten_DatConfig;
 
 
-/* Represents the type of a pointer object, created
- * with <ten_addPtrInfo>.
+/* Represents the type of a pointer object.  One of these should
+ * be initialized with <ten_initPtrInfo> before being passed to
+ * <ten_setPtr> to create a pointer with the respective info.
  */
 typedef struct ten_PtrInfo ten_PtrInfo;
 
@@ -312,14 +315,23 @@ ten_isUdf( ten_State* s, ten_Var* var );
 bool
 ten_areUdf( ten_State* s, ten_Tup* tup );
 
+ten_Var*
+ten_udfType( ten_State* s );
+
 void
 ten_setUdf( ten_State* s, ten_Var* dst );
 
 bool
 ten_isNil( ten_State* s, ten_Var* var );
 
+bool
+ten_areNil( ten_State* s, ten_Tup* tup );
+
 void
 ten_setNil( ten_State* s, ten_Var* dst );
+
+ten_Var*
+ten_nilType( ten_State* s );
 
 // Logical values.
 bool
@@ -331,6 +343,9 @@ ten_setLog( ten_State* s, bool log, ten_Var* dst );
 bool
 ten_getLog( ten_State* s, ten_Var* var );
 
+ten_Var*
+ten_logType( ten_State* s );
+
 // Integral values.
 bool
 ten_isInt( ten_State* s, ten_Var* var );
@@ -341,6 +356,9 @@ ten_setInt( ten_State* s, long in, ten_Var* dst );
 long
 ten_getInt( ten_State* s, ten_Var* var );
 
+ten_Var*
+ten_intType( ten_State* s );
+
 // Decimal values.
 bool
 ten_isDec( ten_State* s, ten_Var* var );
@@ -350,6 +368,9 @@ ten_setDec( ten_State* s, double dec, ten_Var* dst );
 
 double
 ten_getDec( ten_State* s, ten_Var* var );
+
+ten_Var*
+ten_decType( ten_State* s );
 
 // Symbol values.
 bool
@@ -364,6 +385,9 @@ ten_getSymBuf( ten_State* s, ten_Var* var );
 size_t
 ten_getSymLen( ten_State* s, ten_Var* var );
 
+ten_Var*
+ten_symType( ten_State* s );
+
 // Pointer values.
 bool
 ten_isPtr( ten_State* s, ten_Var* var );
@@ -377,11 +401,11 @@ ten_getPtrAddr( ten_State* s, ten_Var* var );
 ten_PtrInfo*
 ten_getPtrInfo( ten_State* s, ten_Var* var );
 
-char const*
-ten_getPtrType( ten_State* s, ten_Var* var );
-
 ten_PtrInfo*
 ten_addPtrInfo( ten_State* s, ten_PtrConfig* config );
+
+ten_Var*
+ten_ptrType( ten_State* s, ten_PtrInfo* info );
 
 // Strings objects.
 bool
@@ -395,6 +419,9 @@ ten_getStrBuf( ten_State* s, ten_Var* var );
 
 size_t
 ten_getStrLen( ten_State* s, ten_Var* var );
+
+ten_Var*
+ten_strType( ten_State* s );
 
 // Index objects.
 bool
@@ -422,12 +449,18 @@ ten_recSet( ten_State* s, ten_Var* rec, ten_Var* key, ten_Var* val );
 void
 ten_recGet( ten_State* s, ten_Var* rec, ten_Var* key, ten_Var* dst );
 
+ten_Var*
+ten_recType( ten_State* s );
+
 // Function objects.
 bool
 ten_isFun( ten_State* s, ten_Var* var );
 
 void
 ten_newFun( ten_State* s, ten_FunParams* p, ten_Var* dst );
+
+ten_Var*
+ten_funType( ten_State* s );
 
 // Closure objects.
 bool
@@ -441,6 +474,9 @@ ten_getUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* dst );
 
 void
 ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src );
+
+ten_Var*
+ten_clsType( ten_State* s );
 
 // Fiber objects.
 bool
@@ -463,6 +499,11 @@ ten_panic( ten_State* s, ten_Var* val );
 
 ten_Tup
 ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned line );
+
+
+ten_Var*
+ten_fibType( ten_State* s );
+
 
 // Errors.
 
@@ -506,14 +547,13 @@ ten_getMembers( ten_State* s, ten_Var* dat );
 ten_DatInfo*
 ten_getDatInfo( ten_State* s, ten_Var* dat );
 
-char const*
-ten_getDatType( ten_State* s, ten_Var* dat );
-
 void*
 ten_getDatBuf( ten_State* s, ten_Var* dat );
 
 ten_DatInfo*
 ten_addDatInfo( ten_State* s, ten_DatConfig* config );
 
+ten_Var*
+ten_datType( ten_State* s, ten_DatInfo* info );
 
 #endif

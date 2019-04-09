@@ -305,7 +305,7 @@ libType( State* state, TVal val ) {
         PtrT     ptr  = tvGetPtr( val );
         PtrInfo* info = ptrInfo( state, ptr );
         if( info )
-            return info->type;
+            return tvGetSym( info->typeVal );
         else
             return lib->types[VAL_PTR];
     }
@@ -332,7 +332,7 @@ libType( State* state, TVal val ) {
         return lib->types[OBJ_FIB];
     if( tag == OBJ_DAT ) {
         Data* dat = tvGetObj( val );
-        return dat->info->type;
+        return tvGetSym( dat->info->typeVal );
     }
     
     char const* str = fmtA( state, false, "%t", val );
@@ -365,7 +365,7 @@ libExpect( State* state, char const* what, SymT type, TVal val ) {
         
         PtrT     ptr  = tvGetPtr( val );
         PtrInfo* info = ptrInfo( state, ptr );
-        if( info && type == info->type )
+        if( info && type == tvGetSym( info->typeVal ) )
             goto good;
         else
             goto bad;
@@ -417,7 +417,7 @@ libExpect( State* state, char const* what, SymT type, TVal val ) {
             goto good;
         
         Data* dat = tvGetObj( val );
-        if( type == dat->info->type )
+        if( type == tvGetSym( dat->info->typeVal ) )
             goto good;
         else
             goto bad;

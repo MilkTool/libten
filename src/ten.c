@@ -38,6 +38,11 @@ struct ApiState {
     TVal val1;
     TVal val2;
     
+    Tup     typeTup;
+    TVal*   typeBase;
+    ten_Var typeVars[OBJ_LAST];
+    TVal    typeVals[OBJ_LAST];
+    
     Fiber* fib;
 };
 
@@ -56,18 +61,49 @@ apiScan( State* state, Scanner* scan ) {
     tvMark( api->val2 );
     if( api->fib )
         stateMark( state, api->fib );
+    
+    if( !state->gcFull )
+        return;
+    
+    for( uint i = 0 ; i < OBJ_LAST ; i++ )
+        tvMark( api->typeVals[i] );
 }
 
 void
 apiInit( State* state ) {
     Part apiP;
     ApiState* api = stateAllocRaw( state, &apiP, sizeof(ApiState) );
-    api->finl.cb = apiFinl; stateInstallFinalizer( state, &api->finl );
-    api->scan.cb = apiScan; stateInstallScanner( state, &api->scan );
-    
     api->val1 = tvUdf();
     api->val2 = tvUdf();
     api->fib  = NULL;
+    for( uint i = 0 ; i < OBJ_LAST ; i++ ) {
+        api->typeVals[i] = tvUdf();
+        api->typeVars[i] = (ten_Var){ (ten_Tup*)&api->typeTup, .loc = i };
+    }
+    
+    api->finl.cb = apiFinl; stateInstallFinalizer( state, &api->finl );
+    api->scan.cb = apiScan; stateInstallScanner( state, &api->scan );
+    
+    #define TYPE( I, N ) \
+        api->typeVals[I] = tvSym( symGet( state, #N, sizeof(#N)-1 ) )
+    
+    TYPE( VAL_SYM, Sym );
+    TYPE( VAL_PTR, Ptr );
+    TYPE( VAL_UDF, Udf );
+    TYPE( VAL_NIL, Nil );
+    TYPE( VAL_LOG, Log );
+    TYPE( VAL_INT, Int );
+    TYPE( VAL_DEC, Dec );
+    TYPE( OBJ_STR, Str );
+    TYPE( OBJ_IDX, Idx );
+    TYPE( OBJ_REC, Rec );
+    TYPE( OBJ_FUN, Fun );
+    TYPE( OBJ_CLS, Cls );
+    TYPE( OBJ_FIB, Fib );
+    TYPE( OBJ_DAT, Dat );
+    
+    api->typeTup  = (Tup){ .base = &api->typeBase, .offset = 0, .size = OBJ_LAST };
+    api->typeBase = api->typeVals;
     
     stateCommitRaw( state, &apiP );
     
@@ -767,16 +803,38 @@ ten_setUdf( ten_State* s, ten_Var* dst ) {
     vset( *dst, tvUdf() );
 }
 
+ten_Var*
+ten_udfType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[VAL_UDF];
+}
+
 bool
 ten_isNil( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
     return tvIsNil( vget( *var ) );
 }
 
+bool
+ten_areNil( ten_State* s, ten_Tup* tup ) {
+    Tup* t = (Tup*)tup;
+    for( uint i = 0 ; i < t->size ; i++ ) {
+        if( !tvIsNil( tupAt( *t, i ) ) )
+            return false;
+    }
+    return true;
+}
+
 void
 ten_setNil( ten_State* s, ten_Var* dst ) {
     State* state = (State*)s;
     vset( *dst, tvUdf() );
+}
+
+ten_Var*
+ten_nilType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[VAL_NIL];
 }
 
 bool
@@ -798,6 +856,12 @@ ten_getLog( ten_State* s, ten_Var* var ) {
     return tvGetLog( vget( *var ) );
 }
 
+ten_Var*
+ten_logType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[VAL_LOG];
+}
+
 bool
 ten_isInt( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
@@ -815,6 +879,12 @@ ten_getInt( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
     funAssert( tvIsInt( vget( *var ) ), "Wrong type for 'var', need Int", NULL );
     return tvGetInt( vget( *var ) );
+}
+
+ten_Var*
+ten_intType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[VAL_INT];
 }
 
 bool
@@ -835,6 +905,12 @@ ten_getDec( ten_State* s, ten_Var* var ) {
     funAssert( tvIsDec( vget( *var ) ), "Wrong type for 'var', need Dec", NULL );
     
     return tvGetDec( vget( *var ) );
+}
+
+ten_Var*
+ten_decType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[VAL_DEC];
 }
 
 bool
@@ -875,6 +951,12 @@ ten_setPtr( ten_State* s, void* addr, ten_PtrInfo* info, ten_Var* dst ) {
     vset( *dst, tvPtr( ptrGet( state, addr, (PtrInfo*)info ) ) );
 }
 
+ten_Var*
+ten_symType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[VAL_SYM];
+}
+
 void*
 ten_getPtrAddr( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
@@ -891,21 +973,18 @@ ten_getPtrInfo( ten_State* s, ten_Var* var ) {
     return (ten_PtrInfo*)ptrInfo( state, tvGetPtr( vget( *var ) ) );
 }
 
-char const*
-ten_getPtrType( ten_State* s, ten_Var* var ) {
-    State* state = (State*)s;
-    funAssert( tvIsPtr( vget( *var ) ), "Wrong type for 'var', need Ptr", NULL );
-    
-    PtrInfo* info = ptrInfo( state, tvGetPtr( vget( *var ) ) );
-    if( info )
-        return symBuf( state, info->type );
-    else
-        return "Ptr";
-}
-
 ten_PtrInfo*
 ten_addPtrInfo( ten_State* s, ten_PtrConfig* config ) {
     return (ten_PtrInfo*)ptrAddInfo( (State*)s, config );
+}
+
+ten_Var*
+ten_ptrType( ten_State* s, ten_PtrInfo* info ) {
+    State* state = (State*)s;
+    if( info )
+        return &((PtrInfo*)info)->typeVar;
+    else
+        return &state->apiState->typeVars[VAL_PTR];
 }
 
 bool
@@ -945,6 +1024,13 @@ ten_getStrLen( ten_State* s, ten_Var* var ) {
     return strLen( state, tvGetObj( val ) );
 }
 
+
+ten_Var*
+ten_strType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[OBJ_STR];
+}
+
 bool
 ten_isIdx( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
@@ -956,6 +1042,12 @@ void
 ten_newIdx( ten_State* s, ten_Var* dst ) {
     State* state = (State*)s;
     vset( *dst, tvObj( idxNew( state ) ) );
+}
+
+ten_Var*
+ten_idxType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[OBJ_IDX];
 }
 
 bool
@@ -1025,6 +1117,12 @@ ten_recGet( ten_State* s, ten_Var* rec, ten_Var* key, ten_Var* dst ) {
     vset( *dst, recGet( state, tvGetObj( recV ), vget( *key ) ) );
 }
 
+ten_Var*
+ten_recType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[OBJ_REC];
+}
+
 bool
 ten_isFun( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
@@ -1083,6 +1181,12 @@ ten_newFun( ten_State* s, ten_FunParams* p, ten_Var* dst ) {
     
     stateCommitRaw( state, &paramsP );
     vset( *dst, tvObj( fun ) );
+}
+
+ten_Var*
+ten_funType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[OBJ_FUN];
 }
 
 bool
@@ -1166,6 +1270,12 @@ ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src ) {
         NULL
     );
     clsO->dat.upvals[upv] = upvNew( state, vget( *src ) );
+}
+
+ten_Var*
+ten_clsType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[OBJ_FUN];
 }
 
 bool
@@ -1253,6 +1363,12 @@ ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned
     ten_Tup t;
     memcpy( &t, &tup, sizeof(Tup) );
     return t;
+}
+
+ten_Var*
+ten_fibType( ten_State* s ) {
+    State* state = (State*)s;
+    return &state->apiState->typeVars[OBJ_FIB];
 }
 
 ten_ErrNum
@@ -1440,19 +1556,6 @@ ten_getDatInfo( ten_State* s, ten_Var* dat ) {
     return (ten_DatInfo*)datO->info;
 }
 
-char const*
-ten_getDatType( ten_State* s, ten_Var* dat ) {
-    State* state = (State*)s;
-    TVal datV = vget( *dat );
-    funAssert(
-        tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
-        "Wrong type for 'dat', need Dat",
-        NULL
-    );
-    Data* datO = tvGetObj( datV );
-    return symBuf( state, datO->info->type );
-}
-
 void*
 ten_getDatBuf( ten_State* s, ten_Var* dat ) {
     State* state = (State*)s;
@@ -1471,3 +1574,12 @@ ten_addDatInfo( ten_State* s, ten_DatConfig* config ) {
     return (ten_DatInfo*)datAddInfo( (State*)s, config );
 }
 
+
+ten_Var*
+ten_datType( ten_State* s, ten_DatInfo* info ) {
+    State* state = (State*)s;
+    if( info )
+        return &((DatInfo*)info)->typeVar;
+    else
+        return &state->apiState->typeVars[OBJ_DAT];
+}

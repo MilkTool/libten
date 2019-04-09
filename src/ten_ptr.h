@@ -10,7 +10,10 @@ typedef struct PtrInfo PtrInfo;
 struct PtrInfo {
     PtrInfo* next;
     
-    SymT  type;
+    ten_Var typeVar;
+    Tup     typeTup;
+    TVal*   typePtr;
+    TVal    typeVal;
     void  (*destr)( ten_State* core, void* addr );
 };
 

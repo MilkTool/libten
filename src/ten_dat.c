@@ -24,7 +24,7 @@ datScan( State* state, Scanner* scan ) {
     
     DatInfo* it = dat->infos;
     while( it ) {
-        symMark( state, it->type );
+        tvMark( it->typeVal );
         it = it->next;
     }
 }
@@ -71,7 +71,10 @@ datAddInfo( State* state, ten_DatConfig* config ) {
     Part infoP;
     DatInfo* info = stateAllocRaw( state, &infoP, sizeof(DatInfo ) );
     
-    info->type  = symGet( state, type, strlen( type ) );
+    info->typeVal = tvSym( symGet( state, type, strlen( type ) ) );
+    info->typePtr = &info->typeVal;
+    info->typeTup = (Tup){ .base = &info->typePtr, .offset = 0, .size = 1 };
+    info->typeVar = (ten_Var){ .tup = (ten_Tup*)&info->typeTup, .loc = 0 };
     info->size  = config->size;
     info->nMems = config->mems;
     info->destr = config->destr;
@@ -84,17 +87,19 @@ datAddInfo( State* state, ten_DatConfig* config ) {
 
 #ifdef ten_TEST
 #include "ten_sym.h"
-static DatInfo testInfo;
 
 void
 datTest( State* state ) {
-    testInfo.type  = symGet( state, "Dat:Test", 4 );
-    testInfo.size  = 50;
-    testInfo.nMems = 10;
-    testInfo.destr = NULL;
+    ten_DatConfig cfg = {
+        .tag   = "Test",
+        .size  = 50,
+        .mems  = 10,
+        .destr = NULL
+    };
     
+    DatInfo* testInfo = datAddInfo( state, &cfg );
     for( uint i = 0 ; i < 100 ; i++ )
-        tenAssert( datNew( state, &testInfo ) );
+        tenAssert( datNew( state, testInfo ) );
 }
 #endif
 
