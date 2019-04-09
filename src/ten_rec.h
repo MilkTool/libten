@@ -55,6 +55,11 @@ recSet( State* state, Record* rec, TVal key, TVal val );
 TVal
 recGet( State* state, Record* rec, TVal key );
 
+typedef void (*RecEntryCb)( State* state, void* udat, TVal key, TVal val );
+
+void
+recForEach( State* state, Record* rec, void* udat, RecEntryCb cb );
+
 void
 recTraverse( State* state, Record* rec );
 

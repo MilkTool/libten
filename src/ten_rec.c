@@ -208,6 +208,43 @@ recGet( State* state, Record* rec, TVal key ) {
         return vals[i];
 }
 
+typedef struct {
+    Defer    base;
+    IdxIter* it;
+} FreeIterDefer;
+
+static void
+freeIterDefer( State* state, Defer* d ) {
+    FreeIterDefer* defer = (FreeIterDefer*)d;
+    idxIterFree( state, defer->it );
+}
+void
+recForEach( State* state, Record* rec, void* dat, RecEntryCb cb ) {
+    Index* idx  = tpGetPtr( rec->idx );
+    uint   cap  = tpGetTag( rec->vals );
+    TVal*  vals = tpGetPtr( rec->vals );
+    
+    IdxIter* it = idxIterMake( state, idx );
+    
+    FreeIterDefer defer = { .base = { .cb = freeIterDefer }, .it = it };
+    stateInstallDefer( state, (Defer*)&defer );
+    
+    TVal key;
+    uint loc;
+    uint cont = idxIterNext( state, it, &key, &loc );
+    while( cont ) {
+        while( cont && loc >= cap && tvIsUdf( vals[loc] ) )
+            cont = idxIterNext( state, it, &key, &loc );
+        
+        if( cont ) {
+            cb( state, dat, key, vals[loc] );
+            cont = idxIterNext( state, it, &key, &loc );
+        }
+    }
+    
+    stateCommitDefer( state, (Defer*)&defer );
+}
+
 
 void
 recTraverse( State* state, Record* rec ) {

@@ -664,29 +664,6 @@ compileExpr( State* state, char const** upvals, ten_Source* src, ten_ComScope sc
     return cls;
 }
 
-static Closure*
-compileCls( State* state, char const** pnames, ten_Source* src ) {
-    FreeSourceDefer defer = {
-        .base = { .cb = freeSourceDefer },
-        .src  =  (Source*)src
-    };
-    stateInstallDefer( state, (Defer*)&defer );
-    
-    ComParams params = {
-        .file   = src->name,
-        .params = pnames,
-        .upvals = NULL,
-        .debug  = state->config.debug,
-        .global = false,
-        .script = false,
-        .src    = src
-    };
-    Closure* cls = comCompile( state, &params );
-    
-    stateCommitDefer( state, (Defer*)&defer );
-    return cls;
-}
-
 void
 ten_compileScript( ten_State* s, char const** upvals, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst ) {
     State*    state = (State*)s;
@@ -711,24 +688,6 @@ ten_compileExpr( ten_State* s, char const** upvals, ten_Source* src, ten_ComScop
     ApiState* api   = state->apiState;
     
     Closure* cls = compileExpr( state, upvals, src, scope );
-    if( out == ten_COM_CLS ) {
-        vset( *dst, tvObj( cls ) );
-        return;
-    }
-    api->val1 = tvObj( cls );
-    
-    Fiber* fib = fibNew( state, cls, NULL );
-    vset( *dst, tvObj( fib ) );
-    
-    api->val1 = tvUdf();
-}
-
-void
-ten_compileCls( ten_State* s, char const** pnames, ten_Source* src, ten_ComType out, ten_Var* dst ) {
-    State*    state = (State*)s;
-    ApiState* api   = state->apiState;
-    
-    Closure* cls = compileCls( state, pnames, src );
     if( out == ten_COM_CLS ) {
         vset( *dst, tvObj( cls ) );
         return;

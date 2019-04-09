@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 
 // For detecting UTF-8 character type.
 #define isSingleChr( c ) ( (unsigned char)(c) >> 7 == 0  )
@@ -45,6 +46,8 @@ typedef enum {
     IDENT_expect,
     IDENT_collect,
     IDENT_loader,
+    IDENT_clock,
+    IDENT_rand,
     
     IDENT_log,
     IDENT_int,
@@ -89,9 +92,11 @@ typedef enum {
     IDENT_each,
     IDENT_fold,
     
-    IDENT_explode,
+    IDENT_sep,
+    
     IDENT_cons,
     IDENT_list,
+    IDENT_explode,
     
     IDENT_fiber,
     IDENT_cont,
@@ -101,7 +106,7 @@ typedef enum {
     IDENT_trace,
     
     IDENT_script,
-    IDENT_closure,
+    IDENT_expr,
     
     IDENT_tag,
     IDENT_car,
@@ -448,6 +453,18 @@ libLoader( State* state, SymT type, Closure* loadr, Closure* trans ) {
         recDef( state, lib->translators, tvSym( type ), tvObj( trans ) );
     else
         recDef( state, lib->translators, tvSym( type ), tvUdf() );
+}
+
+
+DecT
+libClock( State* state ) {
+    return (double)clock()/CLOCKS_PER_SEC;
+}
+
+
+IntT
+libRand( State* state ) {
+    return rand();
 }
 
 TVal
@@ -1667,6 +1684,13 @@ libFold( State* state, Closure* stream, TVal agr, Closure* how ) {
     return agr;
 }
 
+
+Record*
+libSep( State* state, Record* rec ) {
+    recSep( state, rec );
+    return rec;
+}
+
 Record*
 libCons( State* state, TVal car, TVal cdr ) {
     ten_State* ten = (ten_State*)state;
@@ -1868,55 +1892,126 @@ libTrace( State* state, Fiber* fib ) {
     return seq;
 }
 
+static void
+countUpvals( State* state, void* dat, TVal key, TVal val ) {
+    uint* count = dat;
+    
+    if( !tvIsSym( key ) )
+        panic( "Upvalue given with non-Sym key" );
+        
+    *count += 1;
+}
+
+typedef struct {
+    uint   count;
+    char** names;
+    TVal*  vals;
+} UpvalBuf;
+
+static void
+fillUpvals( State* state, void* dat, TVal key, TVal val ) {
+    UpvalBuf* dst = dat;
+    
+    SymT        sym = tvGetSym( key );
+    size_t      len = symLen( state, sym );
+    char const* buf = symBuf( state, sym );
+    
+    Part nameP;
+    char* name = stateAllocRaw( state, &nameP, len + 1 );
+    strcpy( name, buf );
+    name[len] = '\0';
+    stateCommitRaw( state, &nameP );
+    
+    dst->names[dst->count] = name;
+    dst->vals[dst->count]  = val;
+    dst->count++;
+}
+
+typedef struct {
+    Defer  base;
+    char** names;
+} FreeNamesDefer;
+
+static void
+freeNamesDefer( State* state, Defer* d ) {
+    char** names = ((FreeNamesDefer*)d)->names;
+    for( uint i = 0 ; names[i] != NULL ; i++ ) {
+        size_t len = strlen( names[i] );
+        stateFreeRaw( state, names[i], len + 1 );
+    }
+}
+
 Closure*
-libScript( State* state, String* script ) {
+libScript( State* state, Record* upvals, String* script ) {
     ten_State* ten = (ten_State*)state;
+    LibState*  lib = state->libState;
+    
+    uint count = 0;
+    recForEach( state, upvals, &count, countUpvals );
+    
+    
+    char*  names[count+1];
+    TVal   vals[count];
+    UpvalBuf buf = { .count = 0, .names = names, .vals = vals };
+    recForEach( state, upvals, &buf, fillUpvals );
+    names[count] = NULL;
+    
+    FreeNamesDefer defer = { .base = { .cb = freeNamesDefer }, .names = names };
+    stateInstallDefer( state, (Defer*)&defer );
     
     ten_Tup varTup = ten_pushA( ten, "U" );
     ten_Var clsVar = { .tup = &varTup, .loc = 0 };
     
     ten_Source* src = ten_stringSource( ten, script->buf, "<unknown>" );
-    ten_compileScript( ten, NULL, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
+    ten_compileScript( ten, (char const**)names, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
+    
+    stateCommitDefer( state, (Defer*)&defer );
+    
     
     Closure* cls = tvGetObj( vget( clsVar ) );
+    for( uint i = 0 ; i < count ; i++ )
+        cls->dat.upvals[i] = upvNew( state, buf.vals[i] );
+    
     ten_pop( ten );
     
     return cls;
 }
 
 Closure*
-libClosure( State* state, Record* params, String* expr ) {
+libExpr( State* state, Record* upvals, String* script ) {
     ten_State* ten = (ten_State*)state;
+    LibState*  lib = state->libState;
     
     uint count = 0;
-    TVal val   = recGet( state, params, tvInt( count ) );
-    while( !tvIsUdf( val ) ) {
-        val = recGet( state, params, tvInt( ++count ) );
-    }
+    recForEach( state, upvals, &count, countUpvals );
     
-    char const* pnames[count + 1];
-    for( uint i = 0 ; i < count ; i++ ) {
-        val = recGet( state, params, tvInt( i ) );
-        if( !tvIsObjType( val, OBJ_STR ) )
-            panic( "Parameter name is not a string" );
-        
-        String* pname = tvGetObj( val );
-        pnames[i] = pname->buf;
-    }
-    pnames[count] = NULL;
+    
+    char*  names[count+1];
+    TVal   vals[count];
+    UpvalBuf buf = { .count = 0, .names = names, .vals = vals };
+    recForEach( state, upvals, &buf, fillUpvals );
+    names[count] = NULL;
+    
+    FreeNamesDefer defer = { .base = { .cb = freeNamesDefer }, .names = names };
+    stateInstallDefer( state, (Defer*)&defer );
     
     ten_Tup varTup = ten_pushA( ten, "U" );
     ten_Var clsVar = { .tup = &varTup, .loc = 0 };
     
-    ten_Source* src = ten_stringSource( ten, expr->buf, "<unknown>" );
-    ten_compileCls( ten, pnames, src, ten_COM_CLS, &clsVar );
+    ten_Source* src = ten_stringSource( ten, script->buf, "<unknown>" );
+    ten_compileExpr( ten, (char const**)names, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
+    
+    stateCommitDefer( state, (Defer*)&defer );
+    
     
     Closure* cls = tvGetObj( vget( clsVar ) );
+    for( uint i = 0 ; i < count ; i++ )
+        cls->dat.upvals[i] = upvNew( state, buf.vals[i] );
+    
     ten_pop( ten );
     
     return cls;
 }
-
 
 #define expectArg( ARG, TYPE ) \
     libExpect( state, #ARG, state->libState->types[TYPE], vget( ARG ## Arg ) ) 
@@ -2032,6 +2127,20 @@ loaderFun( ten_PARAMS ) {
     libLoader( state, type, loadr, trans );
     
     return ten_pushA( ten, "" );
+}
+
+static ten_Tup
+clockFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    return ten_pushA( ten, "D", libClock( state ) );
+}
+
+static ten_Tup
+randFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    return ten_pushA( ten, "I", libRand( state ) );
 }
 
 static ten_Tup
@@ -2502,6 +2611,19 @@ consFun( ten_PARAMS ) {
 }
 
 static ten_Tup
+sepFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var recArg = { .tup = args, .loc = 1 };
+    expectArg( rec, OBJ_REC );
+    
+    Record* rec = tvGetObj( vget( recArg ) );
+    libSep( state, rec );
+    
+    return ten_pushA( ten, "V", &recArg );
+}
+
+static ten_Tup
 listFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
@@ -2651,33 +2773,36 @@ static ten_Tup
 scriptFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
-    ten_Var codeArg = { .tup = args, .loc = 0 };
+    ten_Var upvalsArg = { .tup = args, .loc = 0 };
+    ten_Var codeArg   = { .tup = args, .loc = 1 };
+    expectArg( upvals, OBJ_REC );
     expectArg( code, OBJ_STR );
     
-    String* code = tvGetObj( vget( codeArg ) );
+    Record* upvals = tvGetObj( vget( upvalsArg ) );
+    String* code   = tvGetObj( vget( codeArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    vset( retVar, tvObj( libScript( state, code ) ) );
+    vset( retVar, tvObj( libScript( state, upvals, code ) ) );
     
     return retTup;
 }
 
 static ten_Tup
-closureFun( ten_PARAMS ) {
+exprFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
-    ten_Var paramsArg = { .tup = args, .loc = 0 };
+    ten_Var upvalsArg = { .tup = args, .loc = 0 };
     ten_Var codeArg   = { .tup = args, .loc = 1 };
-    expectArg( params, OBJ_REC );
+    expectArg( upvals, OBJ_REC );
     expectArg( code, OBJ_STR );
     
-    Record* params = tvGetObj( vget( paramsArg ) );
+    Record* upvals = tvGetObj( vget( upvalsArg ) );
     String* code   = tvGetObj( vget( codeArg ) );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    vset( retVar, tvObj( libClosure( state, params, code ) ) );
+    vset( retVar, tvObj( libExpr( state, upvals, code ) ) );
     
     return retTup;
 }
@@ -2726,6 +2851,8 @@ libInit( State* state ) {
     IDENT( expect );
     IDENT( collect );
     IDENT( loader );
+    IDENT( clock );
+    IDENT( rand );
     
     IDENT( log );
     IDENT( int );
@@ -2770,6 +2897,8 @@ libInit( State* state ) {
     IDENT( each );
     IDENT( fold );
     
+    IDENT( sep );
+    
     IDENT( explode );
     IDENT( cons );
     IDENT( list );
@@ -2781,7 +2910,7 @@ libInit( State* state ) {
     IDENT( errval );
     IDENT( trace );
     IDENT( script );
-    IDENT( closure );
+    IDENT( expr );
     
     IDENT( tag );
     IDENT( car );
@@ -2853,14 +2982,19 @@ libInit( State* state ) {
     FUN( expect, 3, false );
     FUN( collect, 0, false );
     FUN( loader, 3, false );
+    FUN( clock, 0, false );
+    FUN( rand, 0, false );
+    
     FUN( log, 1, false );
     FUN( int, 1, false );
     FUN( dec, 1, false );
     FUN( sym, 1, false );
     FUN( str, 1, false );
+    
     FUN( hex, 1, false );
     FUN( oct, 1, false );
     FUN( bin, 1, false );
+    
     FUN( keys, 1, false );
     FUN( vals, 1, false );
     FUN( pairs, 1, false );
@@ -2870,28 +3004,37 @@ libInit( State* state ) {
     FUN( items, 1, false );
     FUN( drange, 2, true );
     FUN( irange, 2, true );
+    
     FUN( show, 0, true );
     FUN( warn, 0, true );
     FUN( input, 0, false );
+    
     FUN( ucode, 1, false );
     FUN( uchar, 1, false );
+    
     FUN( cat, 0, true );
     FUN( join, 1, false );
     FUN( bcmp, 3, false );
     FUN( ccmp, 3, false );
+    
     FUN( each, 2, false );
     FUN( fold, 3, false );
+    
+    FUN( sep, 1, false );
+    
     FUN( cons, 2, false );
     FUN( list, 0, true );
     FUN( explode, 1, false );
+    
     FUN( fiber, 1, true );
     FUN( cont, 2, false );
     FUN( yield, 0, true );
     FUN( state, 1, false );
     FUN( errval, 1, false );
     FUN( trace, 1, false );
-    FUN( script, 1, false );
-    FUN( closure, 2, false );
+    
+    FUN( script, 2, false );
+    FUN( expr, 2, false );
     
     ten_def( s, ten_sym( s, "N" ), ten_sym( s, "\n" ) );
     ten_def( s, ten_sym( s, "R" ), ten_sym( s, "\r" ) );

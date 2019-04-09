@@ -34,6 +34,9 @@ libCollect( State* state );
 void
 libLoader( State* state, SymT type, Closure* loadr, Closure* trans );
 
+DecT
+libClock( State* state );
+
 TVal
 libLog( State* state, TVal val );
 
@@ -120,6 +123,8 @@ TVal
 libFold( State* state, Closure* stream, TVal agr, Closure* how );
 
 
+Record*
+libSep( State* state, Record* rec );
 
 Record*
 libCons( State* state, TVal car, TVal cdr );
@@ -149,10 +154,9 @@ Record*
 libTrace( State* state, Fiber* fib );
 
 Closure*
-libScript( State* state, String* code );
+libScript( State* state, Record* upvals, String* code );
 
 Closure*
-libClosure( State* state, Record* params, String* code );
-
+libExpr( State* state, Record* upvals, String* code );
 
 #endif

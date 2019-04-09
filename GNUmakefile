@@ -22,7 +22,7 @@ else
 endif
 
 ifeq ($(PROFILE),debug)
-    CCFLAGS += -g -O0 #-D ten_DEBUG
+    CCFLAGS += -g -O0 -D ten_DEBUG
     POSTFIX := -debug
 	POSTDLL := 
 	POSTLIB := 
@@ -56,11 +56,8 @@ libten$(POSTFIX)$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
 	ar rcs libten$(POSTFIX)$(LIB) libten.o
 	rm *.o
 
-.PHONY: test
-test:
-	$(CC) $(CCFLAGS) -D ten_TEST -D TEST_PATH='"test/"' $(SOURCES) $(LINK) test/test.c -o tester$(EXE)
-	./tester$(EXE)
-	rm tester$(EXE)
+tester$(EXE): $(HEADERS) $(INCLUDE) $(SOURCES) test/tester.c
+	$(CC) $(CCFLAGS) -D ten_TEST -D TEST_PATH='"test/"' $(SOURCES) $(LINK) test/tester.c -o tester$(EXE)
 
 .PHONY: install
 install:
@@ -76,3 +73,4 @@ clean:
 	- rm *$(LIB)
 	- rm ten.h
 	- rm *.o
+	- rm tester
