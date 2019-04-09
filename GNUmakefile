@@ -5,6 +5,9 @@ INCLUDE := $(wildcard src/inc/*.inc) $(wildcard src/inc/ops/*.c)
 CCFLAGS := -std=c99 -Wall -Wno-unused -Wno-multichar -D ten_LIBM
 LINK    := -lm
 CC      ?= gcc
+PREFIX  ?= /usr/local/
+LIBDIR ?= $(shell if [ -d $(PREFIX)/lib64 ]; then echo $(PREFIX)/lib64; else echo $(PREFIX)/lib; fi )
+INCDIR ?= $(PREFIX)/include
 
 ifeq ($(OS),Windows_NT)
     EXE := .exe
@@ -19,7 +22,7 @@ else
 endif
 
 ifeq ($(PROFILE),debug)
-    CCFLAGS += -g -O0 -D ten_DEBUG
+    CCFLAGS += -g -O0 #-D ten_DEBUG
     POSTFIX := -debug
 	POSTDLL := 
 	POSTLIB := 
@@ -35,7 +38,8 @@ else
 endif
 
 
-build: libten$(POSTFIX)$(DLL) libten$(POSTFIX)$(LIB) ten.h
+.PHONY: build
+build: libten$(POSTFIX)$(DLL) libten$(POSTFIX)$(LIB)
 
 libten$(POSTFIX)$(DLL): $(HEADERS) $(INCLUDE) $(SOURCES)
 	$(CC) $(CCFLAGS) -shared -fpic $(SOURCES) $(LINK) -o libten$(POSTFIX)$(DLL)
@@ -52,14 +56,18 @@ libten$(POSTFIX)$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
 	ar rcs libten$(POSTFIX)$(LIB) libten.o
 	rm *.o
 
-ten.h: src/ten.h
-	cp src/ten.h ten.h
-
 .PHONY: test
 test:
 	$(CC) $(CCFLAGS) -D ten_TEST -D TEST_PATH='"test/"' $(SOURCES) $(LINK) test/test.c -o tester$(EXE)
 	./tester$(EXE)
 	rm tester$(EXE)
+
+.PHONY: install
+install:
+	mkdir -p $(LIBDIR)
+	cp libten$(POSTFIX)$(DLL) libten$(POSTFIX)$(LIB) $(LIBDIR)
+	mkdir -p $(INCDIR)
+	cp src/ten.h $(INCDIR)
 
 
 .PHONY: test

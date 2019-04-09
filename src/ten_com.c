@@ -201,7 +201,7 @@ lexWord( State* state ) {
     
     ComState* com  = state->comState;
     uint      line = com->lex.line;
-    if( !maybeType( state, true, isalpha ) )
+    if( !maybeType( state, true, isalpha ) && !maybeChar( state, true, '_' ) )
         return false;
     
     takeAll( maybeChar( state, true, '_' ) || maybeType( state, true, isalnum ) );
@@ -2211,7 +2211,8 @@ comCompile( State* state, ComParams* p ) {
             }
             SymT sym = symGet( state, p->upvals[i], len );
             com->val1 = tvSym( sym );
-            tenAssert( genAddUpv( state, com->gen, sym )->which == i );
+            GenVar* upv = genAddUpv( state, com->gen, sym );
+            tenAssert( upv->which == i );
         }
     }
     
