@@ -4,5 +4,4 @@
 **/*.a
 **/build/
 **/vgcore.*
-**/test/test
-ten.h
+tester
