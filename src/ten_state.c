@@ -79,14 +79,6 @@ destructObj( State* state, Object* obj );
 static void
 freeObj( State* state, Object* obj );
 
-static void*
-frealloc( void* _, void* old, size_t osz, size_t nsz ) {
-    if( nsz > 0 )
-        return realloc( old, nsz );
-    free( old );
-    return NULL;
-}
-
 void
 stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     memset( state, 0, sizeof(State) );
@@ -111,11 +103,8 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         };
     }
     
-    
-    if( state->config.frealloc == NULL )
-        state->config.frealloc = frealloc;
-    if( state->config.memGrowth == 0.0 )
-        state->config.memGrowth = MEM_LIMIT_GROWTH;
+    state->gcTop = state->gcBuf;
+    state->gcCap = state->gcBuf + GC_STACK_SIZE;
     
     fmtInit( state ); CHECK_STATE;
     symInit( state ); CHECK_STATE;
@@ -221,7 +210,11 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         State  sbuf;
         State* state = &sbuf;
         
-        ten_Config config = { .frealloc = testFreealloc, .udata = &sbuf };
+        ten_Config config = {
+            .frealloc   = testFreealloc,
+            .udata      = &sbuf,
+            .memGrowth  = 1.5
+        };
         
         bool fmtPassed = false;
         jmp_buf errJmp;
@@ -756,6 +749,24 @@ stateClearError( State* state ) {
     stateClearTrace( state );
 }
 
+static void
+traverseObj( State* state, void* ptr, uint type ) {
+    switch( type ) {
+        case OBJ_STR: strTrav( state, (String*)ptr );    break;
+        case OBJ_IDX: idxTrav( state, (Index*)ptr );     break;
+        case OBJ_REC: recTrav( state, (Record*)ptr );    break;
+        case OBJ_FUN: funTrav( state, (Function*)ptr );  break;
+        case OBJ_CLS: clsTrav( state, (Closure*)ptr );   break;
+        case OBJ_FIB: fibTrav( state, (Fiber*)ptr );     break;
+        case OBJ_UPV: upvTrav( state, (Upvalue*)ptr );   break;
+        case OBJ_DAT: datTrav( state, (Data*)ptr );      break;
+        #ifdef ten_TEST
+            case OBJ_TST: tstTrav( state, (Test*)ptr );  break;
+        #endif
+        default: tenAssertNeverReached();                break;
+    }
+}
+
 void
 stateMark( State* state, void* ptr ) {
     Object* obj  = datGetObj( ptr );
@@ -771,25 +782,14 @@ stateMark( State* state, void* ptr ) {
     // Set the object's mark bit.
     obj->next = tpMake( tag | OBJ_MARK_BIT, next );
     
-    
-    // The traversal functions are wrapped in macros to
-    // keep them flexible, but these should always be
-    // wrap direct function calls for release builds
-    // to allow for tail call optimization.
-    switch( ( tag & OBJ_TAG_BITS ) >> OBJ_TAG_SHIFT ) {
-        case OBJ_STR: strTrav( state, (String*)ptr );    break;
-        case OBJ_IDX: idxTrav( state, (Index*)ptr );     break;
-        case OBJ_REC: recTrav( state, (Record*)ptr );    break;
-        case OBJ_FUN: funTrav( state, (Function*)ptr );  break;
-        case OBJ_CLS: clsTrav( state, (Closure*)ptr );   break;
-        case OBJ_FIB: fibTrav( state, (Fiber*)ptr );     break;
-        case OBJ_UPV: upvTrav( state, (Upvalue*)ptr );   break;
-        case OBJ_DAT: datTrav( state, (Data*)ptr );      break;
-        #ifdef ten_TEST
-            case OBJ_TST: tstTrav( state, (Test*)ptr );  break;
-        #endif
-        default: tenAssertNeverReached();                break;
+    // If the GC stack is full then use the native stack instead.
+    if( state->gcTop >= state->gcCap ) {
+        traverseObj( state, ptr, (tag & OBJ_TAG_BITS) >> OBJ_TAG_SHIFT );
+        return;
     }
+    
+    // Otherwise push the object to the GC stack.
+    *(state->gcTop++) = obj;
 }
 
 void
@@ -881,6 +881,14 @@ adjustMemLimit( State* state, size_t extra ) {
 }
 
 static void
+traverseStack( State* state ) {
+    while( state->gcTop > state->gcBuf ) {
+        Object* obj = *(--state->gcTop);
+        traverseObj( state, objGetDat( obj ), objGetTag( obj ) );
+    }
+}
+
+static void
 collect( State* state, size_t extra ) {
     CHECK_STATE;
     
@@ -898,6 +906,9 @@ collect( State* state, size_t extra ) {
     while( sIt ) {
         sIt->cb( state, sIt );
         sIt = sIt->next;
+        
+        // Traverse the stack after each scanner to keep its height down.
+        traverseStack( state );
     }
     
     // Mark the State owned objects.
@@ -912,6 +923,8 @@ collect( State* state, size_t extra ) {
         if( state->test )
             stateMark( state, state->test );
     #endif
+    
+    traverseStack( state );
     
     // By now we've finished scanning for references,
     // so divide the objects into two lists, marked

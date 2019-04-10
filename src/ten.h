@@ -10,13 +10,10 @@
 
 /* Represents an instance of the Ten runtime.  Since the runtime
  * doesn't keep any global data members, its global state goes in here.
- * A ten_State struct must be instantiated with <ten_init> before it
- * can be passed to any other API functions.  Once finished with it
- * <ten_finl> should be called to release any resources.
+ * A ten_State can be created with <ten_make> and should be released
+ * with <ten_free> when no longer needed.
  */
-typedef struct {
-    char pri[2048];
-} ten_State;
+typedef struct ten_State ten_State;
 
 /* Represents a type of user data object, one of these should be
  * initialized with <ten_initDatInfo> before being passed to
@@ -176,9 +173,10 @@ typedef struct ten_Source {
     void       (*finl)( struct ten_Source* src );
 } ten_Source;
 
+typedef void* (*FreallocFun)( void* udata,  void* old, size_t osz, size_t nsz );
 typedef struct ten_Config {
-    void* udata;
-    void* (*frealloc)( void* udata,  void* old, size_t osz, size_t nsz );
+    void*       udata;
+    FreallocFun frealloc;
     
     bool debug;
     
@@ -194,12 +192,12 @@ typedef struct {
 
 extern ten_Version const ten_VERSION;
 
-// Initialization and finalization.
-void
-ten_init( ten_State* s, ten_Config* config, jmp_buf* errJmp );
+// Ten instance creation and destruction.
+ten_State*
+ten_make( ten_Config* config, jmp_buf* errJmp );
 
 void
-ten_finl( ten_State* s );
+ten_free( ten_State* s );
 
 
 // Stack manipulation.

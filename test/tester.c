@@ -33,17 +33,17 @@ int
 main( void ) {
     stateTest();
     
-    ten_State  s;
-    ten_Config c = { .debug = true };
+    ten_State* ten = NULL;
+    ten_Config cfg = { .debug = true };
     
     jmp_buf errJmp;
     int sig = setjmp( errJmp );
     if( sig ) {
-        ten_ErrNum  err = ten_getErrNum( &s, NULL );
-        char const* msg = ten_getErrStr( &s, NULL );
+        ten_ErrNum  err = ten_getErrNum( ten, NULL );
+        char const* msg = ten_getErrStr( ten, NULL );
         fprintf( stderr, "Error: %s\n", msg );
         
-        ten_Trace* tIt = ten_getTrace( &s, NULL );
+        ten_Trace* tIt = ten_getTrace( ten, NULL );
         while( tIt ) {
             char const* fiber = "???";
             if( tIt->fiber )
@@ -56,17 +56,17 @@ main( void ) {
             tIt = tIt->next;
         }
         
-        ten_finl( &s );
+        ten_free( ten );
         exit( 1 );
     }
-    ten_init( &s, &c, &errJmp );
+    ten = ten_make( &cfg, &errJmp );
     
     for( uint i = 0 ; tests[i] != NULL ; i++ ) {
         fprintf( stderr, "Running '%s'...\n", tests[i] );
-        ten_executeScript( &s, ten_pathSource( &s, tests[i] ), ten_SCOPE_LOCAL );
+        ten_executeScript( ten, ten_pathSource( ten, tests[i] ), ten_SCOPE_LOCAL );
         fprintf( stderr, "  Passed\n" );
     }
     
-    ten_finl( &s );
+    ten_free( ten );
     return 0;
 }

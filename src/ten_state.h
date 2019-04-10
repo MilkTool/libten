@@ -45,11 +45,11 @@ typedef struct {
 // Convert an object pointer to and from a pointer to its data.
 #define OBJ_DAT_OFFSET ((size_t)&((Object*)0)->data)
 #define objGetDat( OBJ ) ((void*)(OBJ) + OBJ_DAT_OFFSET)
+#define objGetTag( OBJ ) ((tpGetTag( (OBJ)->next ) & OBJ_TAG_BITS) >> OBJ_TAG_SHIFT)
+#define objIsDead( OBJ ) ((tpGetTag( (OBJ)->next ) & OBJ_DEAD_BIT) >> OBJ_DEAD_SHIFT)
 #define datGetObj( DAT ) ((Object*)((void*)(DAT) - OBJ_DAT_OFFSET))
-#define datGetTag( DAT ) \
-    ( ( tpGetTag( datGetObj( DAT )->next ) & OBJ_TAG_BITS ) >> OBJ_TAG_SHIFT )
-#define datIsDead( DAT ) \
-( ( tpGetTag( datGetObj( DAT )->next ) & OBJ_DEAD_BIT ) >> OBJ_DEAD_SHIFT )
+#define datGetTag( DAT ) (objGetTag( datGetObj( DAT ) ))
+#define datIsDead( DAT ) (objIsDead( datGetObj( DAT ) ))
 
 
 
@@ -231,7 +231,7 @@ struct State {
     size_t memUsed;
     size_t memLimit;
     #define MEM_LIMIT_INIT   (2048)
-    #define MEM_LIMIT_GROWTH (1.5)
+    #define DEFAULT_MEM_GROWTH (1.5)
     
     // For most garbage collection cycles Ten will only collect
     // heap objects linked into the `objects` list.  This lends
@@ -280,8 +280,9 @@ struct State {
     
     // GC Stack.
     #define GC_STACK_SIZE (128)
-    Object* gcTop;
-    Object* gcBuf[GC_STACK_SIZE];
+    Object** gcCap;
+    Object** gcTop;
+    Object*  gcBuf[GC_STACK_SIZE];
 };
 
 // Initialization, testing, and finalization.

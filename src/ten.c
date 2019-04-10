@@ -220,16 +220,34 @@ apiTest( State* state ) {
 }
 #endif
 
-void
-ten_init( ten_State* s, ten_Config* config, jmp_buf* errJmp ) {
-    State* state = (State*)s;
+static void*
+frealloc( void* _, void* old, size_t osz, size_t nsz ) {
+    if( nsz > 0 )
+        return realloc( old, nsz );
+    free( old );
+    return NULL;
+}
+
+ten_State*
+ten_make( ten_Config* config, jmp_buf* errJmp ) {
+    if( config->frealloc == NULL )
+        config->frealloc = frealloc;
+    if( config->memGrowth == 0.0 )
+        config->memGrowth = DEFAULT_MEM_GROWTH;
+    
+    State* state = config->frealloc( config->udata, NULL, 0, sizeof(State) );
     stateInit( state, config, errJmp );
+    return (ten_State*)state;
 }
 
 void
-ten_finl( ten_State* s ) {
+ten_free( ten_State* s ) {
     State* state = (State*)s;
     stateFinl( state );
+    
+    void*       udata    = state->config.udata;
+    FreallocFun frealloc = state->config.frealloc;
+    frealloc( udata, s, sizeof(State), 0 );
 }
 
 ten_Tup
