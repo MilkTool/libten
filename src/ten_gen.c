@@ -62,6 +62,9 @@ struct Gen {
     LineInfo*   line;
     LineBuf     lines;
     
+    uint      nUpvals;
+    Upvalue** upvals;
+    
     void* misc1;
     void* misc2;
     
@@ -190,6 +193,13 @@ genScan( State* state, Scanner* scan ) {
         symMark( state, gen->file );
     }
     
+    if( gen->upvals ) {
+        for( uint i = 0 ; i < gen->nUpvals ; i++ ) {
+            if( gen->upvals[i] )
+                stateMark( state, gen->upvals[i] );
+        }
+    }
+    
     if( gen->obj1 )
         stateMark( state, gen->obj1 );
     if( gen->obj2 )
@@ -246,6 +256,9 @@ genMake( State* state, Gen* parent, SymT* func, bool global, bool debug ) {
         initLineBuf( state, &gen->lines );
         genSetLine( state, gen, gen->start );
     }
+    
+    gen->nUpvals = 0;
+    gen->upvals  = NULL;
     
     gen->misc1 = NULL;
     gen->misc2 = NULL;
@@ -640,7 +653,7 @@ setUpval( State* state, void* udat, void* edat ) {
     Gen*    gen = udat;
     GenVar* var = edat;
     
-    Upvalue** upvals = gen->misc1;
+    Upvalue** upvals = gen->upvals;
     TVal*     global = envGetGlobalByName( state, var->name );
     if( global )
         upvals[var->which] = upvNew( state, *global );
@@ -653,8 +666,11 @@ genGlobalUpvals( State* state, Gen* gen ) {
     Upvalue** upvals = stateAllocRaw( state, &upvalsP, sizeof(Upvalue*)*n );
     for( uint i = 0 ; i < n ; i++ )
         upvals[i] = NULL;
-    gen->misc1 = upvals;
+    gen->upvals  = upvals;
+    gen->nUpvals = n;
     stabForEach( state, gen->upvs, setUpval );
+    gen->upvals  = NULL;
+    gen->nUpvals = 0;
     stateCommitRaw( state, &upvalsP );
     
     return upvals;

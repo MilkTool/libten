@@ -1,0 +1,21 @@
+def sw: clock()
+each( irange( 0, 1_000_000 )
+  [ _ ]
+    do
+      def r: { .a: 1, .b: 2, .c: 3, .d: 4, .e: 5 }
+    for()
+)
+def dw: clock() - sw
+
+
+def swo: clock()
+each( irange( 0, 1_000_000 )
+  [ _ ]
+    do
+      def r: nil
+    for()
+)
+def dwo: clock() - swo
+
+
+show( "Average delay per record contructed: ", ( dw - dwo ), "us", N )

@@ -262,6 +262,8 @@ do {                                                                        \
 // about the same amount of memory as the struct on
 // a 32bit system; and doesn't come with the extra
 // compute overhead.
+#define TP_TAG_MAX (0xFFFF)
+#define TP_PTR_MAX (0xFFFFFFFFFFFF)
 #ifndef ten_NO_POINTER_TAGS
 
     typedef ullong TPtr;

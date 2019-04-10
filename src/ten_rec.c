@@ -94,7 +94,8 @@ recNew( State* state, Index* idx ) {
         vals[i] = tvUdf();
     
     rec->idx  = tpMake( 0, idx );
-    rec->vals = tpMake( cap, vals );
+    rec->cap  = cap;
+    rec->vals = vals;
     
     stateCommitObj( state, &recP );
     stateCommitRaw( state, &valsP );
@@ -116,8 +117,8 @@ recIndex( State* state, Record* rec ) {
 void
 recDef( State* state, Record* rec, TVal key, TVal val ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = tpGetTag( rec->vals );
-    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = rec->cap;
+    TVal*  vals = rec->vals;
     
     if( tvIsUdf( key ) )
         stateErrFmtA( state, ten_ERR_RECORD, "Use of `udf` as record key" );
@@ -152,7 +153,7 @@ recDef( State* state, Record* rec, TVal key, TVal val ) {
     if( i == UINT_MAX )
         i = idxAddByKey( state, idx, key );
     else
-    if( i < cap && tvIsUdf( vals[i] ) )
+    if( i >= cap || tvIsUdf( vals[i] ) )
         idxAddByLoc( state, idx, i );
     
     
@@ -160,15 +161,16 @@ recDef( State* state, Record* rec, TVal key, TVal val ) {
     if( i >= cap ) {
         Part valsP = {.ptr = vals, .sz = sizeof(TVal)*cap };
         
-        int   ncap  = idx->nextLoc;
+        uint ncap = idx->nextLoc;
+        if( ncap == UINT_MAX )
+            stateErrFmtA( state, ten_ERR_RECORD, "Record exceeds max size" );
         TVal* nvals = stateResizeRaw( state, &valsP, sizeof(TVal)*ncap );
         for( uint j = cap ; j < ncap ; j++ )
             nvals[j] = tvUdf();
         
         stateCommitRaw( state, &valsP );
-        rec->vals = tpMake( ncap, nvals );
-        cap  = ncap;
-        vals = nvals;
+        cap  = rec->cap  = ncap;
+        vals = rec->vals = nvals;
     }
     
     vals[i] = val;
@@ -177,8 +179,8 @@ recDef( State* state, Record* rec, TVal key, TVal val ) {
 void
 recSet( State* state, Record* rec, TVal key, TVal val ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = tpGetTag( rec->vals );
-    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = rec->cap;
+    TVal*  vals = rec->vals;
     
     if( tvIsUdf( key ) )
         stateErrFmtA( state, ten_ERR_RECORD, "Use of `udf` as record key" );
@@ -195,8 +197,8 @@ recSet( State* state, Record* rec, TVal key, TVal val ) {
 TVal
 recGet( State* state, Record* rec, TVal key ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = tpGetTag( rec->vals );
-    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = rec->cap;
+    TVal*  vals = rec->vals;
     
     if( tvIsUdf( key ) )
         stateErrFmtA( state, ten_ERR_RECORD, "Use of `udf` as record key" );
@@ -221,8 +223,8 @@ freeIterDefer( State* state, Defer* d ) {
 void
 recForEach( State* state, Record* rec, void* dat, RecEntryCb cb ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = tpGetTag( rec->vals );
-    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = rec->cap;
+    TVal*  vals = rec->vals;
     
     IdxIter* it = idxIterMake( state, idx );
     
@@ -249,8 +251,8 @@ recForEach( State* state, Record* rec, void* dat, RecEntryCb cb ) {
 void
 recTraverse( State* state, Record* rec ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = tpGetTag( rec->vals );
-    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = rec->cap;
+    TVal*  vals = rec->vals;
     
     stateMark( state, idx );
     for( uint i = 0 ; i < cap ; i++ )
@@ -260,8 +262,8 @@ recTraverse( State* state, Record* rec ) {
 void
 recDestruct( State* state, Record* rec ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = tpGetTag( rec->vals );
-    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = rec->cap;
+    TVal*  vals = rec->vals;
     
     if( !datIsDead( idx ) )
         for( uint i = 0 ; i < cap ; i++ )

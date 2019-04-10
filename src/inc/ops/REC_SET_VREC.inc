@@ -22,8 +22,8 @@ Record* dRec = tvGetObj( dst );
 Record* sRec = tvGetObj( src );
 
 Index* srcIdx  = tpGetPtr( dRec->idx );
-TVal*  srcVals = tpGetPtr( dRec->vals );
-uint   srcCap  = tpGetTag( dRec->vals );
+TVal*  srcVals = dRec->vals;
+uint   srcCap  = dRec->cap;
 bool   srcMrk[srcCap]; memset( srcMrk, 0, sizeof(bool)*srcCap );
 
 for( uint i = 0 ; i < opr ; i++ ) {

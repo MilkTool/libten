@@ -19,9 +19,8 @@ struct Record {
     // its Index being replaced with a copy of the original.
     TPtr idx;
     
-    // The value array, this is tagged with the array's
-    // current capacity.
-    TPtr vals;
+    TVal* vals;
+    uint  cap;
 };
 
 #define recSize( STATE, REC ) (sizeof(Record))

@@ -94,7 +94,8 @@ clsTraverse( State* state, Closure* cls ) {
     }
     
     for( uint i = 0 ; i < cls->fun->u.vir.nUpvals ; i++ )
-        stateMark( state, cls->dat.upvals[i] );
+        if( cls->dat.upvals[i] )
+            stateMark( state, cls->dat.upvals[i] );
 }
 
 void

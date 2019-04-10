@@ -70,6 +70,11 @@ funInit( State* state );
     funTest( State* state  );
 #endif
 
+#ifdef ten_DEBUG
+    void
+    funDump( State* state, Function* fun );
+#endif
+
 Function*
 funNewVir( State* state, uint nParams, Index* vargIdx );
 

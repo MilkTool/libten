@@ -22,6 +22,31 @@ funTest( State* state ) {
 }
 #endif
 
+#ifdef ten_DEBUG
+#include <stdio.h>
+
+#define OP( N, SE ) #N,
+char const* opcnames[] = {
+    #include "inc/ops.inc"
+};
+
+void
+funDump( State* state, Function* fun ) {
+    tenAssert( fun->type == FUN_VIR );
+    
+    VirFun* vir = &fun->u.vir;
+    printf( "constants:\n" );
+    for( uint i = 0 ; i < vir->nConsts; i++ )
+        printf( "  %u: %s\n", i, fmtA( state, false, "%q", vir->consts[i] ) );
+    printf( "code:\n" );
+    for( uint i = 0 ; i < vir->len ; i++ ) {
+        char const* opc = opcnames[inGetOpc( vir->code[i] )];
+        uint        opr = inGetOpr( vir->code[i] );
+        printf( "  %s: %u\n", opc, opr );
+    }
+}
+#endif
+
 Function*
 funNewVir( State* state, uint nParams, Index* vargIdx ) {
     Part funP;

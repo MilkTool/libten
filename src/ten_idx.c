@@ -223,7 +223,8 @@ idxAddByKey( State* state, Index* idx, TVal key ) {
         // has never been assigned a locator, so allocate
         // a new one.
         if( idx->map.locs[i] == UINT_MAX ) {
-            tenAssert( idx->nextLoc < UINT_MAX );
+            if( idx->nextLoc == UINT_MAX )
+                stateErrFmtA( state, ten_ERR_RECORD, "Index exceeds max location count" );
             
             uint loc = idx->nextLoc++;
             idx->map.locs[i] = loc;
