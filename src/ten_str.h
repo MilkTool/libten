@@ -9,8 +9,8 @@ struct String {
 };
 
 #define strSize( STATE, STR ) (sizeof(String) + (STR)->len + 1)
-#define strTrav( STATE, STR ) do{}while(0)
-#define strDest( STATE, STR ) do{}while(0)
+#define strTrav( STATE, STR ) 
+#define strDest( STATE, STR ) 
 
 void
 strInit( State* state );

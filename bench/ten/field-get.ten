@@ -25,27 +25,26 @@ def sw: clock()
 each( irange( 0, 1_000_000 )
   [ _ ]
     do
-      r.f1
-      r.f2
-      r.f3
-      r.f4
-      r.f5
-      r.f6
-      r.f7
-      r.f8
-      r.f9
-      r.f10
-      r.f11
-      r.f12
-      r.f13
-      r.f14
-      r.f15
-      r.f16
-      r.f17
-      r.f18
-      r.f19
-      r.f20
-      rand()
+      def _: r.f1
+      set _: r.f2
+      set _: r.f3
+      set _: r.f4
+      set _: r.f5
+      set _: r.f6
+      set _: r.f7
+      set _: r.f8
+      set _: r.f9
+      set _: r.f10
+      set _: r.f11
+      set _: r.f12
+      set _: r.f13
+      set _: r.f14
+      set _: r.f15
+      set _: r.f16
+      set _: r.f17
+      set _: r.f18
+      set _: r.f19
+      set _: r.f20
     for()
 )
 def dw: clock() - sw
@@ -53,9 +52,31 @@ def dw: clock() - sw
 
 def swo: clock()
 each( irange( 0, 1_000_000 )
-  [ _ ] rand()
+  [ _ ]
+    do
+      def _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+      set _: nil
+    for()
 )
 def dwo: clock() - swo
 
 
-show( "Average delay per field get: ", ( dw - dwo )/10.0, "us", N )
+show( "Average delay per field get: ", ( dw - dwo )/20.0, "us", N )

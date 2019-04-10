@@ -29,6 +29,7 @@ funTest( State* state ) {
 char const* opcnames[] = {
     #include "inc/ops.inc"
 };
+#undef OP
 
 void
 funDump( State* state, Function* fun ) {
@@ -123,8 +124,6 @@ funDestruct( State* state, Function* fun ) {
         stateFreeRaw( state, vir->code,   sizeof(instr)*vir->len );
         if( vir->dbg ) {
             DbgInfo* dbg = vir->dbg;
-            stabFree( state, dbg->upvs );
-            stabFree( state, dbg->lcls );
             stateFreeRaw( state, dbg->lines, sizeof(LineInfo)*dbg->nLines );
             stateFreeRaw( state, dbg, sizeof(DbgInfo) );
         }

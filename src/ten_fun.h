@@ -10,10 +10,6 @@ typedef struct {
 } LineInfo;
 
 typedef struct {
-    STab* lcls;
-    STab* upvs;
-    STab* lbls;
-    
     SymT        func;
     SymT        file;
     uint        start;

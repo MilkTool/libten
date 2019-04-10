@@ -90,7 +90,7 @@
     
     #define expAssert( COND, RES, FMT, ARGS... ) (RES)
     
-    #define tenAssertNeverReached()  
+    #define tenAssertNeverReached()
 #endif
 
 #endif

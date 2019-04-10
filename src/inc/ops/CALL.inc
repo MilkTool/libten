@@ -88,6 +88,10 @@ if( cls->fun->type == FUN_VIR ) {
     VirFun* fun = & cls->fun->u.vir;
     ensureStack( state, fib, fun->nLocals + fun->nTemps );
     
+    TVal* locals = regs.lcl + argc + 1;
+    for( uint i = 0 ; i < fun->nLocals ; i++ )
+        locals[i] = tvUdf();
+    
     regs.sp += fun->nLocals;
     regs.ip = cls->fun->u.vir.code;
 }
@@ -131,7 +135,7 @@ else {
         *(regs.sp++) = tvTup( retc );
     
     if( fib->arStack.top == 0 || fib->arStack.ars[fib->arStack.top-1].nats )
-        goto end;
+        EXIT;
     else
         popAR( state, fib );
 }

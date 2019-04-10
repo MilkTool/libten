@@ -22,7 +22,7 @@ def r: {
 }
 
 def sw: clock()
-each( irange( 0, 1_000 `_000` )
+each( irange( 0, 1_000_000 )
   [ _ ]
     do
       set r.f1:  1
@@ -45,17 +45,16 @@ each( irange( 0, 1_000 `_000` )
       set r.f18: 18
       set r.f19: 19
       set r.f20: 20
-      rand()
     for()
 )
 def dw: clock() - sw
 
 
 def swo: clock()
-each( irange( 0, 1_000 `_000` )
-  [ _ ] rand()
+each( irange( 0, 1_000_000 )
+  [ _ ] ()
 )
 def dwo: clock() - swo
 
 
-show( "Average delay per field set: ", ( dw - dwo )/10.0, "us", N )
+show( "Average delay per field set: ", ( dw - dwo )/20.0, "us", N )

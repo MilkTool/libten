@@ -9,8 +9,8 @@ struct Upvalue {
 };
 
 #define upvSize( STATE, UPV )  (sizeof(Upvalue))
-#define upvTrav( STATE, UPV )  tvMark( (UPV)->val )
-#define upvDest( STATE, UPV )  {}
+#define upvTrav( STATE, UPV )  (upvTraverse( STATE, UPV))
+#define upvDest( STATE, UPV )
 
 void
 upvInit( State* state );
@@ -22,5 +22,8 @@ upvInit( State* state );
 
 Upvalue*
 upvNew( State* state, TVal val );
+
+void
+upvTraverse( State* state, Upvalue* upv );
 
 #endif

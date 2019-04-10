@@ -83,7 +83,6 @@ typedef struct {
 // numbers, which we validate regularly to check for corruption, and
 // add some fields for keeping track of where the struct was installed
 // from.
-
 typedef struct Part {
     #define RAW_PART_BEGIN_NUM \
         ((ulong)'R' << 24 | (ulong)'B' << 16 | (ulong)'M' << 8 | (ulong)'N')
@@ -268,6 +267,8 @@ struct State {
     Scanner*   scanners;
     Finalizer* finalizers;
     
+    
+    
     // Temporary variables.
     #define NUM_TMP_VARS (32)
     uint    tmpNext;
@@ -276,22 +277,11 @@ struct State {
     TVal    tmpVals[NUM_TMP_VARS];
     ten_Var tmpVars[NUM_TMP_VARS];
     
-    // Runtime stats.
-    #ifdef ten_VERBOSE
-        size_t heapInitUsage;
-        size_t heapMaxUsage;
-        size_t gcNumCycles;
-        size_t gcNumObjects;
-        size_t gcMaxObjects;
-        size_t gcMaxFreed;
-        size_t gcAvgFreed;
-        double gcMaxDelay;
-        double gcAvgDelay;
-        double vmInitDelay;
-        double vmFinlDelay;
-        double vmInitTime;
-        double vmFinlTime;
-    #endif
+    
+    // GC Stack.
+    #define GC_STACK_SIZE (128)
+    Object* gcTop;
+    Object* gcBuf[GC_STACK_SIZE];
 };
 
 // Initialization, testing, and finalization.

@@ -883,6 +883,10 @@ doCall( State* state, Fiber* fib ) {
         VirFun* fun = & cls->fun->u.vir;
         ensureStack( state, fib, fun->nLocals + fun->nTemps );
         
+        TVal* locals = regs->lcl + argc + 1;
+        for( uint i = 0 ; i < fun->nLocals ; i++ )
+            locals[i] = tvUdf();
+        
         regs->sp += fun->nLocals;
         regs->ip = cls->fun->u.vir.code;
         doLoop( state, fib );
@@ -950,424 +954,449 @@ doLoop( State* state, Fiber* fib ) {
     Regs  regs = *fib->rPtr;
     fib->rPtr = &regs;
     
-    // Original implementation of Rig used computed gotos
-    // if enabled; but this isn't standard C and there's
-    // no easy way to automatically test for their support
-    // at compile time.  They've also been shown to perform
-    // worse than a normal switch with some setups... so
-    // for now I'll just use a regular switch, a computed
-    // goto implementation can be added in the future if
-    // it can be shown to offset a performance advantage.
-    while( true ) {
-        instr in = *(regs.ip++);
-        switch( inGetOpc( in ) ) {
-            case OPC_DEF_ONE: {
-                #include "inc/ops/DEF_ONE.inc"
-            } break;
-            case OPC_DEF_TUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/DEF_TUP.inc"
-            } break;
-            case OPC_DEF_VTUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/DEF_VTUP.inc"
-            } break;
-            case OPC_DEF_REC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/DEF_REC.inc"
-            } break;
-            case OPC_DEF_VREC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/DEF_VREC.inc"
-            } break;
-            case OPC_DEF_SIG: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/DEF_SIG.inc"
-            } break;
-            case OPC_DEF_VSIG: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/DEF_VSIG.inc"
-            } break;
-            case OPC_SET_ONE: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/SET_ONE.inc"
-            } break;
-            case OPC_SET_TUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/SET_TUP.inc"
-            } break;
-            case OPC_SET_VTUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/SET_VTUP.inc"
-            } break;
-            case OPC_SET_REC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/SET_REC.inc"
-            } break;
-            case OPC_SET_VREC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/SET_VREC.inc"
-            } break;
-            
-
-            case OPC_REC_DEF_ONE: {
-                #include "inc/ops/REC_DEF_ONE.inc"
-            } break;
-            case OPC_REC_DEF_TUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_DEF_TUP.inc"
-            } break;
-            case OPC_REC_DEF_VTUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_DEF_VTUP.inc"
-            } break;
-            case OPC_REC_DEF_REC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_DEF_REC.inc"
-            } break;
-            case OPC_REC_DEF_VREC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_DEF_VREC.inc"
-            } break;
-            case OPC_REC_SET_ONE: {
-                #include "inc/ops/REC_SET_ONE.inc"
-            } break;
-            case OPC_REC_SET_TUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_SET_TUP.inc"
-            } break;
-            case OPC_REC_SET_VTUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_SET_VTUP.inc"
-            } break;
-            case OPC_REC_SET_REC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_SET_REC.inc"
-            } break;
-            case OPC_REC_SET_VREC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REC_SET_VREC.inc"
-            } break;
-            
-            case OPC_GET_CONST: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST0: {
-                ushort const opr = 0;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST1: {
-                ushort const opr = 1;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST2: {
-                ushort const opr = 2;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST3: {
-                ushort const opr = 3;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST4: {
-                ushort const opr = 4;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST5: {
-                ushort const opr = 5;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST6: {
-                ushort const opr = 6;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            case OPC_GET_CONST7: {
-                ushort const opr = 7;
-                #include "inc/ops/GET_CONST.inc"
-            } break;
-            
-            case OPC_GET_UPVAL: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL0: {
-                ushort const opr = 0;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL1: {
-                ushort const opr = 1;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL2: {
-                ushort const opr = 2;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL3: {
-                ushort const opr = 3;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL4: {
-                ushort const opr = 4;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL5: {
-                ushort const opr = 5;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL6: {
-                ushort const opr = 6;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            case OPC_GET_UPVAL7: {
-                ushort const opr = 7;
-                #include "inc/ops/GET_UPVAL.inc"
-            } break;
-            
-            case OPC_GET_LOCAL: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL0: {
-                ushort const opr = 0;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL1: {
-                ushort const opr = 1;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL2: {
-                ushort const opr = 2;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL3: {
-                ushort const opr = 3;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL4: {
-                ushort const opr = 4;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL5: {
-                ushort const opr = 5;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL6: {
-                ushort const opr = 6;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            case OPC_GET_LOCAL7: {
-                ushort const opr = 7;
-                #include "inc/ops/GET_LOCAL.inc"
-            } break;
-            
-            case OPC_GET_CLOSED: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED0: {
-                ushort const opr = 0;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED1: {
-                ushort const opr = 1;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED2: {
-                ushort const opr = 2;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED3: {
-                ushort const opr = 3;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED4: {
-                ushort const opr = 4;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED5: {
-                ushort const opr = 5;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED6: {
-                ushort const opr = 6;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            case OPC_GET_CLOSED7: {
-                ushort const opr = 7;
-                #include "inc/ops/GET_CLOSED.inc"
-            } break;
-            
-            case OPC_GET_GLOBAL: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/GET_GLOBAL.inc"
-            } break;
-            
-            case OPC_GET_FIELD: {
-                #include "inc/ops/GET_FIELD.inc"
-            } break;
-            
-            case OPC_REF_UPVAL: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REF_UPVAL.inc"
-            } break;
-            case OPC_REF_LOCAL: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REF_LOCAL.inc"
-            } break;
-            case OPC_REF_CLOSED: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REF_CLOSED.inc"
-            } break;
-            case OPC_REF_GLOBAL: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/REF_GLOBAL.inc"
-            } break;
-            
-            case OPC_LOAD_NIL: {
-                #include "inc/ops/LOAD_NIL.inc"
-            } break;
-            case OPC_LOAD_UDF: {
-                #include "inc/ops/LOAD_UDF.inc"
-            } break;
-            case OPC_LOAD_LOG: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/LOAD_LOG.inc"
-            } break;
-            case OPC_LOAD_INT: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/LOAD_INT.inc"
-            } break;
-            
-            case OPC_MAKE_TUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/MAKE_TUP.inc"
-            } break;
-            case OPC_MAKE_VTUP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/MAKE_VTUP.inc"
-            } break;
-            case OPC_MAKE_CLS: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/MAKE_CLS.inc"
-            } break;
-            case OPC_MAKE_REC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/MAKE_REC.inc"
-            } break;
-            case OPC_MAKE_VREC: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/MAKE_VREC.inc"
-            } break;
-            
-            case OPC_POP: {
-                #include "inc/ops/POP.inc"
-            } break;
-            
-            case OPC_NEG: {
-                #include "inc/ops/NEG.inc"
-            } break;
-            case OPC_NOT: {
-                #include "inc/ops/NOT.inc"
-            } break;
-            case OPC_FIX: {
-                #include "inc/ops/FIX.inc"
-            } break;
-            
-            case OPC_POW: {
-                #include "inc/ops/POW.inc"
-            } break;
-            case OPC_MUL: {
-                #include "inc/ops/MUL.inc"
-            } break;
-            case OPC_DIV: {
-                #include "inc/ops/DIV.inc"
-            } break;
-            case OPC_MOD: {
-                #include "inc/ops/MOD.inc"
-            } break;
-            case OPC_ADD: {
-                #include "inc/ops/ADD.inc"
-            } break;
-            case OPC_SUB: {
-                #include "inc/ops/SUB.inc"
-            } break;
-            case OPC_LSL: {
-                #include "inc/ops/LSL.inc"
-            } break;
-            case OPC_LSR: {
-                #include "inc/ops/LSR.inc"
-            } break;
-            case OPC_AND: {
-                #include "inc/ops/AND.inc"
-            } break;
-            case OPC_XOR: {
-                #include "inc/ops/XOR.inc"
-            } break;
-            case OPC_OR: {
-                #include "inc/ops/OR.inc"
-            } break;
-            case OPC_IMT: {
-                // Is More Than.
-                #include "inc/ops/IMT.inc"
-            } break;
-            case OPC_ILT: {
-                // Is Less Than.
-                #include "inc/ops/ILT.inc"
-            } break;
-            case OPC_IME: {
-                // Is More or Equal
-                #include "inc/ops/IME.inc"
-            } break;
-            case OPC_ILE: {
-                // Is Less or Equal
-                #include "inc/ops/ILE.inc"
-            } break;
-            case OPC_IET: {
-                // Is Equal To
-                #include "inc/ops/IET.inc"
-            } break;
-            case OPC_NET: {
-                // Not Equal To
-                #include "inc/ops/NET.inc"
-            } break;
-            case OPC_IETU: {
-                // Is Equal To Udf
-                #include "inc/ops/IETU.inc"
-            } break;
-            
-            case OPC_AND_JUMP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/AND_JUMP.inc"
-            } break;
-            case OPC_OR_JUMP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/OR_JUMP.inc"
-            } break;
-            case OPC_UDF_JUMP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/UDF_JUMP.inc"
-            } break;
-            case OPC_ALT_JUMP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/ALT_JUMP.inc"
-            } break;
-            case OPC_JUMP: {
-                ushort const opr = inGetOpr( in );
-                #include "inc/ops/JUMP.inc"
-            } break;
-            
-            case OPC_CALL: {
-                #include "inc/ops/CALL.inc"
-            } break;
-            case OPC_RETURN: {
-                #include "inc/ops/RETURN.inc"
-            } break;
-            default: {
-                tenAssertNeverReached();
-            } break;
-        }
-    }
-    end:
+    #ifdef ten_NO_COMPUTED_GOTOS
+        #define LOOP                        \
+            loop: {                         \
+                instr in = (*regs.ip++);    \
+                switch( inGetOpc( in ) ) {  \
+        
+        #define CASE( N )                   \
+            case OPC_ ## N: {
+        
+        #define BREAK                       \
+            }                               \
+            goto loop;
+        
+        #define EXIT                        \
+            do {                            \
+                goto end;                   \
+            } while( 0 )
+        #define NEXT                        \
+            do {                            \
+                goto loop;                  \
+            } while( 0 )
+        #define END                         \
+            } end:
+    #else
+        #define OP( N, SE ) &&do_ ## N,
+        static void* ops[] = {
+            #include "inc/ops.inc"
+        };
+        #undef OP
+        
+        #define LOOP                        \
+            {                               \
+                instr in = (*regs.ip++);    \
+                goto *ops[ inGetOpc( in ) ];
+        
+        #define CASE( N )                   \
+            do_ ## N: {
+        
+        #define BREAK                       \
+            }                               \
+            in = (*regs.ip++);              \
+            goto *ops[ inGetOpc( in ) ];
+        
+        #define EXIT                        \
+            do {                            \
+                goto end;                   \
+            } while( 0 )
+        #define NEXT                        \
+            do {                            \
+                in = (*regs.ip++);          \
+                goto *ops[ inGetOpc( in ) ];\
+            } while( 0 )
+        #define END                         \
+            } end:
+    #endif
+    
+    LOOP
+        CASE(DEF_ONE)
+            #include "inc/ops/DEF_ONE.inc"
+        BREAK;
+        CASE(DEF_TUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/DEF_TUP.inc"
+        BREAK;
+        CASE(DEF_VTUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/DEF_VTUP.inc"
+        BREAK;
+        CASE(DEF_REC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/DEF_REC.inc"
+        BREAK;
+        CASE(DEF_VREC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/DEF_VREC.inc"
+        BREAK;
+        CASE(DEF_SIG)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/DEF_SIG.inc"
+        BREAK;
+        CASE(DEF_VSIG)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/DEF_VSIG.inc"
+        BREAK;
+        CASE(SET_ONE)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/SET_ONE.inc"
+        BREAK;
+        CASE(SET_TUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/SET_TUP.inc"
+        BREAK;
+        CASE(SET_VTUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/SET_VTUP.inc"
+        BREAK;
+        CASE(SET_REC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/SET_REC.inc"
+        BREAK;
+        CASE(SET_VREC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/SET_VREC.inc"
+        BREAK;
+        CASE(REC_DEF_ONE)
+            #include "inc/ops/REC_DEF_ONE.inc"
+        BREAK;
+        CASE(REC_DEF_TUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_DEF_TUP.inc"
+        BREAK;
+        CASE(REC_DEF_VTUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_DEF_VTUP.inc"
+        BREAK;
+        CASE(REC_DEF_REC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_DEF_REC.inc"
+        BREAK;
+        CASE(REC_DEF_VREC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_DEF_VREC.inc"
+        BREAK;
+        CASE(REC_SET_ONE)
+            #include "inc/ops/REC_SET_ONE.inc"
+        BREAK;
+        CASE(REC_SET_TUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_SET_TUP.inc"
+        BREAK;
+        CASE(REC_SET_VTUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_SET_VTUP.inc"
+        BREAK;
+        CASE(REC_SET_REC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_SET_REC.inc"
+        BREAK;
+        CASE(REC_SET_VREC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REC_SET_VREC.inc"
+        BREAK;
+        CASE(GET_CONST)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST0)
+            ushort const opr = 0;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST1)
+            ushort const opr = 1;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST2)
+            ushort const opr = 2;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST3)
+            ushort const opr = 3;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST4)
+            ushort const opr = 4;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST5)
+            ushort const opr = 5;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST6)
+            ushort const opr = 6;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_CONST7)
+            ushort const opr = 7;
+            #include "inc/ops/GET_CONST.inc"
+        BREAK;
+        CASE(GET_UPVAL)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL0)
+            ushort const opr = 0;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL1)
+            ushort const opr = 1;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL2)
+            ushort const opr = 2;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL3)
+            ushort const opr = 3;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL4)
+            ushort const opr = 4;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL5)
+            ushort const opr = 5;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL6)
+            ushort const opr = 6;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_UPVAL7)
+            ushort const opr = 7;
+            #include "inc/ops/GET_UPVAL.inc"
+        BREAK;
+        CASE(GET_LOCAL)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL0)
+            ushort const opr = 0;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL1)
+            ushort const opr = 1;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL2)
+            ushort const opr = 2;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL3)
+            ushort const opr = 3;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL4)
+            ushort const opr = 4;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL5)
+            ushort const opr = 5;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL6)
+            ushort const opr = 6;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_LOCAL7)
+            ushort const opr = 7;
+            #include "inc/ops/GET_LOCAL.inc"
+        BREAK;
+        CASE(GET_CLOSED)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED0)
+            ushort const opr = 0;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED1)
+            ushort const opr = 1;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED2)
+            ushort const opr = 2;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED3)
+            ushort const opr = 3;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED4)
+            ushort const opr = 4;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED5)
+            ushort const opr = 5;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED6)
+            ushort const opr = 6;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_CLOSED7)
+            ushort const opr = 7;
+            #include "inc/ops/GET_CLOSED.inc"
+        BREAK;
+        CASE(GET_GLOBAL)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/GET_GLOBAL.inc"
+        BREAK;
+        CASE(GET_FIELD)
+            #include "inc/ops/GET_FIELD.inc"
+        BREAK;
+        CASE(REF_UPVAL)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REF_UPVAL.inc"
+        BREAK;
+        CASE(REF_LOCAL)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REF_LOCAL.inc"
+        BREAK;
+        CASE(REF_CLOSED)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REF_CLOSED.inc"
+        BREAK;
+        CASE(REF_GLOBAL)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/REF_GLOBAL.inc"
+        BREAK;
+        CASE(LOAD_NIL)
+            #include "inc/ops/LOAD_NIL.inc"
+        BREAK;
+        CASE(LOAD_UDF)
+            #include "inc/ops/LOAD_UDF.inc"
+        BREAK;
+        CASE(LOAD_LOG)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/LOAD_LOG.inc"
+        BREAK;
+        CASE(LOAD_INT)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/LOAD_INT.inc"
+        BREAK;
+        CASE(MAKE_TUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/MAKE_TUP.inc"
+        BREAK;
+        CASE(MAKE_VTUP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/MAKE_VTUP.inc"
+        BREAK;
+        CASE(MAKE_CLS)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/MAKE_CLS.inc"
+        BREAK;
+        CASE(MAKE_REC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/MAKE_REC.inc"
+        BREAK;
+        CASE(MAKE_VREC)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/MAKE_VREC.inc"
+        BREAK;
+        CASE(POP)
+            #include "inc/ops/POP.inc"
+        BREAK;
+        CASE(NEG)
+            #include "inc/ops/NEG.inc"
+        BREAK;
+        CASE(NOT)
+            #include "inc/ops/NOT.inc"
+        BREAK;
+        CASE(FIX)
+            #include "inc/ops/FIX.inc"
+        BREAK;
+        CASE(POW)
+            #include "inc/ops/POW.inc"
+        BREAK;
+        CASE(MUL)
+            #include "inc/ops/MUL.inc"
+        BREAK;
+        CASE(DIV)
+            #include "inc/ops/DIV.inc"
+        BREAK;
+        CASE(MOD)
+            #include "inc/ops/MOD.inc"
+        BREAK;
+        CASE(ADD)
+            #include "inc/ops/ADD.inc"
+        BREAK;
+        CASE(SUB)
+            #include "inc/ops/SUB.inc"
+        BREAK;
+        CASE(LSL)
+            #include "inc/ops/LSL.inc"
+        BREAK;
+        CASE(LSR)
+            #include "inc/ops/LSR.inc"
+        BREAK;
+        CASE(AND)
+            #include "inc/ops/AND.inc"
+        BREAK;
+        CASE(XOR)
+            #include "inc/ops/XOR.inc"
+        BREAK;
+        CASE(OR)
+            #include "inc/ops/OR.inc"
+        BREAK;
+        CASE(IMT)
+            // Is More Than.
+            #include "inc/ops/IMT.inc"
+        BREAK;
+        CASE(ILT)
+            // Is Less Than.
+            #include "inc/ops/ILT.inc"
+        BREAK;
+        CASE(IME)
+            // Is More or Equal
+            #include "inc/ops/IME.inc"
+        BREAK;
+        CASE(ILE)
+            // Is Less or Equal
+            #include "inc/ops/ILE.inc"
+        BREAK;
+        CASE(IET)
+            // Is Equal To
+            #include "inc/ops/IET.inc"
+        BREAK;
+        CASE(NET)
+            // Not Equal To
+            #include "inc/ops/NET.inc"
+        BREAK;
+        CASE(IETU)
+            // Is Equal To Udf
+            #include "inc/ops/IETU.inc"
+        BREAK;
+        CASE(AND_JUMP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/AND_JUMP.inc"
+        BREAK;
+        CASE(OR_JUMP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/OR_JUMP.inc"
+        BREAK;
+        CASE(UDF_JUMP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/UDF_JUMP.inc"
+        BREAK;
+        CASE(ALT_JUMP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/ALT_JUMP.inc"
+        BREAK;
+        CASE(JUMP)
+            ushort const opr = inGetOpr( in );
+            #include "inc/ops/JUMP.inc"
+        BREAK;
+        CASE(CALL)
+            #include "inc/ops/CALL.inc"
+        BREAK;
+        CASE(RETURN)
+            #include "inc/ops/RETURN.inc"
+        BREAK;
+    END
     
     // Restore old register set.
     *rPtr = regs;
@@ -1398,6 +1427,7 @@ pushAR( State* state, Fiber* fib, NatAR* nat ) {
             uint ncap = fib->arStack.cap*2;
             fib->arStack.ars = stateResizeRaw( state, &arP, sizeof(VirAR)*ncap );
             fib->arStack.cap = ncap;
+            stateCommitRaw( state, &arP );
         }
         
         VirAR* vir = &fib->arStack.ars[fib->arStack.top++];

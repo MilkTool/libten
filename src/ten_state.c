@@ -771,6 +771,11 @@ stateMark( State* state, void* ptr ) {
     // Set the object's mark bit.
     obj->next = tpMake( tag | OBJ_MARK_BIT, next );
     
+    
+    // The traversal functions are wrapped in macros to
+    // keep them flexible, but these should always be
+    // wrap direct function calls for release builds
+    // to allow for tail call optimization.
     switch( ( tag & OBJ_TAG_BITS ) >> OBJ_TAG_SHIFT ) {
         case OBJ_STR: strTrav( state, (String*)ptr );    break;
         case OBJ_IDX: idxTrav( state, (Index*)ptr );     break;

@@ -2,7 +2,7 @@ PROFILE ?= release
 SOURCES := $(wildcard src/*.c)
 HEADERS := $(wildcard src/*.h)
 INCLUDE := $(wildcard src/inc/*.inc) $(wildcard src/inc/ops/*.c)
-CCFLAGS := -std=c99 -Wall -Wno-unused -Wno-multichar -D ten_LIBM
+CCFLAGS := -std=c99 -Wall -Wno-unused -Wno-multichar -Wno-bool-compare -D ten_LIBM
 LINK    := -lm
 CC      ?= gcc
 PREFIX  ?= /usr/local/
@@ -22,13 +22,13 @@ else
 endif
 
 ifeq ($(PROFILE),debug)
-    CCFLAGS += -g -O0 -D ten_DEBUG
+    CCFLAGS += -g -O0 -D ten_DEBUG -D ten_NO_NAN_TAGS -D ten_NO_POINTER_TAGS
     POSTFIX := -debug
 	POSTDLL := 
 	POSTLIB := 
 else
     ifeq ($(PROFILE),release)
-        CCFLAGS += -O3 -D NDEBUG
+        CCFLAGS += -O2 -D NDEBUG
         POSTFIX := 
         POSTDLL := strip -w -K "ten_*" libten.o
         POSTLIB := strip -w -K "ten_*" libten.o

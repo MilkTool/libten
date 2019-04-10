@@ -262,15 +262,31 @@ do {                                                                        \
 // about the same amount of memory as the struct on
 // a 32bit system; and doesn't come with the extra
 // compute overhead.
-#define TP_TAG_MAX (0xFFFF)
-#define TP_PTR_MAX (0xFFFFFFFFFFFF)
+#define TP_TAG_MAX (0xFFFFLLU)
+#define TP_PTR_MAX (0xFFFFFFFFFFFFLLU)
 #ifndef ten_NO_POINTER_TAGS
 
     typedef ullong TPtr;
     
-    #define tpMake( TAG, PTR ) ((ullong)(TAG) << 48 | (ullong)(PTR))
+    #define tpCheckPtr( P )                                         \
+        expAssert(                                                  \
+            (ullong)(P) <= 0xFFFFFFFFFFFFLLU,                       \
+            (P),                                                    \
+            "TPtr pointer out of range",                            \
+            NULL                                                    \
+        )
+    #define tpCheckTag( T )                                         \
+        expAssert(                                                  \
+            (ullong)(T) <= 0xFFFF,                                  \
+            (T),                                                    \
+            "TPtr tag out of range",                                \
+            NULL                                                    \
+        )
+    #define tpMake( TAG, PTR )                                      \
+        ((ullong)tpCheckTag(TAG) << 48 | (ullong)tpCheckPtr(PTR))
+    
     #define tpGetTag( TPTR )   ((ushort)((TPTR) >> 48))
-    #define tpGetPtr( TPTR )   ((void*)((TPTR) << 16 >> 16))
+    #define tpGetPtr( TPTR )   ((void*)((TPTR) & 0xFFFFFFFFFFFFLLU))
 
 #else
 
@@ -334,6 +350,14 @@ do {                                                                        \
     #define OBJ_BITS (0xFFFFFFFFFFFFFLLU)
     #define SIGN_BIT (1LLU << 63)
     
+    #define tvCheckVal( V )                                         \
+        expAssert(                                                  \
+            (ullong)(V) <= 0xFFFFFFFFFFFFLLU,                       \
+            (V),                                                    \
+            "TVal value out of range",                              \
+            NULL                                                    \
+        )
+    
     #define tvObj( OBJ ) \
         (TVal){.nan = SIGN_BIT | NAN_BITS | (ullong)(OBJ)}
     #define tvUdf() \
@@ -345,15 +369,15 @@ do {                                                                        \
     #define tvDec( DEC ) \
         (TVal){.num = (DEC)}
     #define tvInt( INT ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_INT << 48 | (uint32_t)(IntT)(INT) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_INT << 48 | tvCheckVal( (uint32_t)(IntT)(INT) ) }
     #define tvSym( SYM ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_SYM << 48 | (SymT)(SYM) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_SYM << 48 | tvCheckVal( (SymT)(SYM) ) }
     #define tvPtr( PTR ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_PTR << 48 | (PtrT)(PTR) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_PTR << 48 | tvCheckVal( (PtrT)(PTR) ) }
     #define tvTup( TUP ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | (TupT)(TUP) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_TUP << 48 | tvCheckVal( (TupT)(TUP) ) }
     #define tvRef( REF ) \
-        (TVal){.nan = NAN_BITS | (ullong)VAL_REF << 48 | (RefT)(REF) }
+        (TVal){.nan = NAN_BITS | (ullong)VAL_REF << 48 | tvCheckVal( (RefT)(REF) ) }
     
     #define tvIsObj( TVAL ) \
         (!tvIsDec( TVAL ) && ((TVAL).nan & SIGN_BIT))

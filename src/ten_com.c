@@ -1148,6 +1148,7 @@ parClosure( State* state, SymT* name ) {
     // Generate the both the function, and the instructions
     // to construct a closure from it in the parent generator.
     genFinish( state, cgen, true );
+    genFree( state, cgen );
     
     com->gen = pgen;
     com->popc = 0;
@@ -2261,7 +2262,6 @@ comCompile( State* state, ComParams* p ) {
     }
     genInstr( state, OPC_RETURN, 0 );
     
-    Upvalue** upvals = genGlobalUpvals( state, com->gen );
     Function* fun = genFinish( state, com->gen, false );
     com->obj1 = fun;
     
@@ -2272,6 +2272,9 @@ comCompile( State* state, ComParams* p ) {
         if( p->file )
             fun->u.vir.dbg->func = symGet( state, p->file, strlen(p->file) );
     }
+    
+    Upvalue** upvals = genGlobalUpvals( state, com->gen );
+    genFree( state, com->gen );
     
     Closure* cls = clsNewVir( state, fun, upvals );
     return cls;

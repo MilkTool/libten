@@ -23,3 +23,8 @@ upvNew( State* state, TVal val ) {
     stateCommitObj( state, &upvP );
     return upv;
 }
+
+void
+upvTraverse( State* state, Upvalue* upv ) {
+    tvMark( upv->val );
+}

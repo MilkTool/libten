@@ -172,8 +172,9 @@ genFinl( State* state, Finalizer* finl ) {
     finlCodeBuf( state, &gen->code );
     if( gen->debug )
         finlLineBuf( state, &gen->lines );
+    if( gen->upvals )
+        stateFreeRaw( state, gen->upvals, sizeof(Upvalue*)*gen->nUpvals );
     stateFreeRaw( state, gen, sizeof(Gen) );
-    
 }
 
 
@@ -286,6 +287,7 @@ genFree( State* state, Gen* gen ) {
     stabFree( state, gen->lcls );
     stabFree( state, gen->lbls );
     stabFree( state, gen->cons );
+    
     genFinl( state, &gen->finl );
 }
 
@@ -398,35 +400,20 @@ genFinish( State* state, Gen* gen, bool constr ) {
         // And the closure constructor instruction.
         genPutInstr( state, pgen, inMake( OPC_MAKE_CLS, vfun->nUpvals ) );
     }
-    
-    stabFree( state, gen->glbs );
-    stabFree( state, gen->cons );
     if( gen->debug ) {
         Part dbgP;
         DbgInfo* dbg = stateAllocRaw( state, &dbgP, sizeof(DbgInfo) );
-        dbg->lcls   = gen->lcls;
-        dbg->upvs   = gen->upvs;
-        dbg->lbls   = gen->lbls;
         dbg->func   = gen->func;
         dbg->file   = gen->file;
         dbg->start  = gen->start;
         dbg->nLines = gen->lines.top;
-        dbg->lines   = packLineBuf( state, &gen->lines );
+        dbg->lines  = packLineBuf( state, &gen->lines );
         vfun->dbg = dbg;
         stateCommitRaw( state, &dbgP );
-    }
-    else {
-        stabFree( state, gen->lcls );
-        stabFree( state, gen->upvs );
-        stabFree( state, gen->lbls );
     }
     
     stateCommitRaw( state, &constsP );
     stateCommitRaw( state, &labelsP );
-    
-    stateRemoveScanner( state, &gen->scan );
-    stateRemoveFinalizer( state, &gen->finl );
-    stateFreeRaw( state, gen, sizeof(Gen) );
     return fun;
 }
 

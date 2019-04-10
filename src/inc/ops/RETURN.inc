@@ -12,6 +12,6 @@ regs.sp = dstv + retc;
 
 
 if( fib->arStack.top == 0 || fib->arStack.ars[fib->arStack.top-1].nats )
-    goto end;
+    EXIT;
 else
     popAR( state, fib );

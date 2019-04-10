@@ -45,11 +45,11 @@ if( tvIsInt( arg1 ) && tvIsInt( arg2 ) ) {
         );
     if( a == 1 ) {
         regs.sp[-1] = tvInt( 1 );
-        break;
+        NEXT;
     }
     if( b < 0 ) {
         regs.sp[-1] = tvInt( 0 );
-        break;
+        NEXT;
     }
     
     IntT r = 1;

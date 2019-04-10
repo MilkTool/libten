@@ -1130,7 +1130,7 @@ ten_newFun( ten_State* s, ten_FunParams* p, ten_Var* dst ) {
     
     Part paramsP;
     SymT* params = stateAllocRaw( state, &paramsP, sizeof(SymT)*nParams );
-    memcpy( params, params, sizeof(SymT)*nParams );
+    memcpy( params, sparams, sizeof(SymT)*nParams );
     
     Function* fun =
         funNewNat( state, nParams, vParams ? idxNew( state ) : NULL, p->cb );
