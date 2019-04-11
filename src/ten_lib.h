@@ -71,7 +71,7 @@ Closure*
 libPairs( State* state, Record* rec );
 
 Closure*
-libStream( State* state, Record* vals );
+libSeq( State* state, Record* vals );
 
 Closure*
 libBytes( State* state, String* str );
@@ -107,7 +107,7 @@ String*
 libCat( State* state, Record* rec );
 
 String*
-libJoin( State* state, Closure* stream );
+libJoin( State* state, Closure* seq );
 
 TVal
 libBcmp( State* state, String* str1, SymT opr, String* str2 );
@@ -117,10 +117,10 @@ libCcmp( State* state, String* str1, SymT opr, String* str2 );
 
 
 void
-libEach( State* state, Closure* stream, Closure* what );
+libEach( State* state, Closure* seq, Closure* what );
 
 TVal
-libFold( State* state, Closure* stream, TVal agr, Closure* how );
+libFold( State* state, Closure* seq, TVal agr, Closure* how );
 
 
 Record*
@@ -133,7 +133,7 @@ Record*
 libList( State* state, Record* rec );
 
 Record*
-libExplode( State* state, Closure* stream );
+libExplode( State* state, Closure* seq );
 
 Fiber*
 libFiber( State* state, Closure* cls, SymT* tag );

@@ -2,7 +2,7 @@ def ls:  list( 1, 2, 3, 4, 5 )
 def sum: fold( items( ls ), 0, [ a, v ] a + v )
 assert( sum = 15, "1" )
 
-def ls: explode( stream( 1, 2, 3, 4, 5 ) )
+def ls: explode( seq( 1, 2, 3, 4, 5 ) )
 def sum: fold( items( ls ), 0, [ a, v ] a + v )
 assert( sum = 15, "2" )
 

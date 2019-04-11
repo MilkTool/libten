@@ -1,4 +1,4 @@
-def s: stream( 1, 2, 3 )
+def s: seq( 1, 2, 3 )
 assert( s() = 1, "1" )
 assert( s() = 2, "2" )
 assert( s() = 3, "3" )

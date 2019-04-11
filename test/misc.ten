@@ -1,6 +1,6 @@
 assert( bcmp( cat( "Hello, ", "World!" ), '=', "Hello, World!" ), "1" )
 
-def s: stream( "Hello, ", "World!" )
+def s: seq( "Hello, ", "World!" )
 assert( bcmp( join( s ), '=', "Hello, World!" ), "2" )
 
 assert( ucode'ぁ' = 12353, "3" )

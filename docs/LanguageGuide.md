@@ -572,18 +572,21 @@ Ten which strategy to use for loading the module, and the path is
 what's passed to the strategy itself to tell it which module to load.
 
 An additional `loader()` function allows for the installation of a
-custom module loading strategy.  This includes a type, translator,
-and loader.
+custom module loading strategy.  This includes a type, loader,
+and translator.
 
     def type:  ...
-    def trans: ...
     def loadr: ...
+    def trans: ...
     loader( type, trans, loadr )
 
 The type must be a symbol that matches the `type` portion of the module ID,
 indicating that this strategy should be used to load modules of that type.
 
-The loader is another closure which takes the
+The loader is a closure which takes a normalized module path as input,
+and returns the loader module.  This can be any Ten value.  Normally
+modules are represented as records with methods as fields, but textual
+modules might be loaded as strings instead.
 
 The translator is a closure which takes the module path as parameter, and
 should return a normalized version of the path, or `udf` for a failed import.
@@ -591,8 +594,52 @@ The normalized version of of the path should be something that uniquely
 identifies the module, like an absolute file path.  The loaded modules
 will be cached with their normalized paths as keys, to avoid reloading
 modules that have already been imported.  The translator is optional,
-and
+if omitted then the raw module path will be passed to the loader.
+
+> **ten-load** [🔗](https://github.com/raystubbs/ten-load)
+>
+> This relatively featureless module system may seem uninspired, but it's
+> done this way for the sake of portability, and really works quite well
+> in conjunction with other projects.
+>
+> For example [ten-load](https://github.com/raystubbs/ten-load) which is
+> included in the official CLI supports quite sophisticated module loading,
+> with cycle detection and semantic versioning, shared object native
+> modules, data/text modules, and language specific string modules.
+
+### Misc
+The prelude includes a few miscellaneous functions mostly unrelated
+to the others.  These are described here.
+
+The `type()` function takes any Ten value as input, and returns its
+type name.  Type names are symbols that give, in most cases, the three
+latter name of a type.  Some types can have extended names, for example
+tagged records, pointers, or data objects.  Type names for these are
+given as the normal type name followed by `:` and the tag or subtype
+name.
+
+    type( nil )             -> 'Nil'
+    type( true )            -> 'Log'
+    type( 123 )             -> 'Int'
+    type( 1.2 )             -> 'Dec'
+    type( 'a' )             -> 'Sym'
+    type( NULL )            -> 'Ptr'
+    type( "a" )             -> 'Str'
+    type( {} )              -> 'Rec'
+    type( { .tag: 'Tag' } ) -> 'Rec:Tag'
+    type( data )            -> 'Dat:Tag'
+    type( []() )            -> 'Cls'
+    type( fiber[]() )       -> 'Fib'
+
+The `expect()` function is related to `type()` in using the same type
+name format.  It's used for type checking:
+
+  def val: "Hello, World!"
+  expect( "val", 'Str', val )
+  
 
 ### Iteration
 Ten uses zero-parameter closures as iterators, so the iterator
 constructors in the prelude all return these.
+
+The pre
