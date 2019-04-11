@@ -2113,7 +2113,7 @@ loaderFun( ten_PARAMS ) {
     
     ten_Var typeArg  = { .tup = args, .loc = 0 };
     ten_Var loadrArg = { .tup = args, .loc = 1 };
-    ten_Var transArg = { .tup = args, .loc = 2 };
+    ten_Var optArg   = { .tup = args, .loc = 2 };
     
     expectArg( type, VAL_SYM );
     SymT type = tvGetSym( vget( typeArg ) );
@@ -2121,8 +2121,18 @@ loaderFun( ten_PARAMS ) {
     expectArg( loadr, OBJ_CLS );
     Closure* loadr = tvGetObj( vget( loadrArg ) );
     
-    expectArg( trans, OBJ_CLS );
-    Closure* trans = tvGetObj( vget( transArg ) );
+    
+    tenAssert( tvIsObjType( vget( optArg ), OBJ_REC ) );
+    ten_Tup varTup = ten_pushA( ten, "U" );
+    ten_Var transArg = { .tup = &varTup, .loc = 0 };
+    
+    ten_recGet( ten, &optArg, ten_int( ten, 0 ), &transArg );
+    
+    Closure* trans = NULL;
+    if( !ten_isUdf( ten, &transArg ) ) {
+        expectArg( trans, OBJ_CLS );
+        trans = tvGetObj( vget( transArg ) );
+    }
     
     libLoader( state, type, loadr, trans );
     
