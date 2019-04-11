@@ -14,9 +14,9 @@ assert( ccmp( "abc", '<', "cba" ), "8" )
 assert( ccmp( "cba", '>', "abc" ), "9" )
 assert( ccmp( "abc", '=', "abc" ), "10" )
 
-assert( bcmp( "ぁ", '<', "ぃ" ), "11" )
-assert( bcmp( "ぃ", '>', "ぁ" ), "12" )
-assert( bcmp( "ぁ", '=', "ぁ" ), "13" )
+assert( ccmp( "ぁ", '<', "ぃ" ), "11" )
+assert( ccmp( "ぃ", '>', "ぁ" ), "12" )
+assert( ccmp( "ぁ", '=', "ぁ" ), "13" )
 
 assert( hex"FFF" = 4095, "14" )
 assert( hex"F.F" = 15.9375, "15" )

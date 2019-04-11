@@ -540,6 +540,21 @@ to allowing line terminated strings is that we can do things like:
       "from the beginning of each line
     )
 
+Ten doesn't support any of the escape sequences common in other
+languages, strings and symbols are completely literal.  To add
+special character we'd use concatenation.
+
+    def s: cat( "Line 1", N, "Line 2", N, "Line 3" )
+
+The prelude defines the following variables for use in this way:
+
+* `N` - `\n`
+* `R` - `\r`
+* `L` - `\r\n`
+* `T` - `\t`
+
+Other characters can be converted from their numeric values with `uchar()`.
+
 ## The Prelude
 Ten's prelude is a builtin library of functions (and variables) which are
 put directly into the global namespace.  In the original language (Rig)
@@ -634,12 +649,308 @@ name.
 The `expect()` function is related to `type()` in using the same type
 name format.  It's used for type checking:
 
-  def val: "Hello, World!"
-  expect( "val", 'Str', val )
-  
+    def val: "Hello, World!"
+    expect( "val", 'Str', val )
+
+If `val` isn't of the expected type then the function will panic with
+an error message telling the user that `"val"` is of the wrong type.
+The first argument just tells the function what is being type checked,
+so it can report it in the error.
+
+The `assert()` function, as might be expected, asserts a condition.
+This uses the same rules of truthfulness as Ten conditionals, so
+`nil` and `false` are untrue, while everything else is true.  The
+second argument is reported in in the panic message on assertion
+failure.
+
+    assert( thing == 123, "some assertion message" )
+
+
+The `collect()` function forces a garbage collection cycle, it takes
+no arguments and has no returns.
+
+    collect()
+
+The `clock()` function returns the current CPU clock time in seconds
+as a Dec value.
+
+    def start: clock()
+    ...
+    def delay: clock() - start
+
+And the `rand()` function returns a random Int.
+
+    def r: rand()
+
+As mentioned in a previous section, the `sep()` function separates
+a record from its index.
+
+### Type Conversion
+The prelude provides `log()`, `int()`, `dec()`, `sym()`, and `str()`
+functions for explicit conversion between the languages atomic types...
+and strings.  The `log()` function parses keyword values from symbol
+and string types, or interprets `0` as false and anything else as true
+for number types.  The `sym()` and `str()` functions use the
+stringifacation of any of the other types as their returns.  And the
+`int()` and `dec()` functions can parse their numbers from strings or
+symbols, or convert `true` to `1` and `false` to `0` of the respective
+number type.
+
+    log( 1 )        -> true
+    int"123"        -> 123
+    dec'1.2'        -> 1.2
+    str( 123 )      -> "123"
+
+These all return `udf` if the argument can't be converted.
+
+### Alternate Bases
+Ten doesn't have any special syntax for representing bases other than
+decimal.  Instead, since these types of numbers are genereally used
+as constants, it should be sufficient to parse the values from strings
+to be stored as constants for later use.  To this end the prelude offers
+the `hex()`, `oct()`, and `bin()` functions for parsing strings in
+the respecive base.  They all return `udf` for bad string formatting.
+
+    hex"EEE"  -> 3822
+    oct"666"  -> 438
+    bin"111"  -> 7
 
 ### Iteration
 Ten uses zero-parameter closures as iterators, so the iterator
-constructors in the prelude all return these.
+constructors in the prelude all return these.  Iterators return
+`udf` after their last value.
 
-The pre
+#### Record Iterators
+The `keys()` constructor returns an iterator that traverses all the
+keys in a record.  Effects on the iterator are undefined if the
+record is modified after its creation.
+
+The `vals()` constructor returns an iterator that traverse the values
+of a record.  Again, effects are undefined if the record is modified
+after its creation.
+
+The `pairs()` constructor returns an iterator over the key-value pairs
+of a record. Effects are undefined if the record is modified after
+its creation.  For each call to the iterator, the key-value pair is
+returned as a `( key, val )` tuple.
+
+    def r: { ... }
+    def v: vals( r )
+    def k: keys( r )
+    def p: pairs( r )
+
+#### Sequence Iterators
+The `seq()` function creates a sequence iterator, which traverese the
+arguments passed to the constructor.
+
+    def s: seq( 1, 2, 3 )
+    assert( s() = 1, "" )
+    assert( s() = 2, "" )
+    assert( s() = 3, "" )
+    assert( s() != udf, "" )
+
+#### String Iterators
+Ten strings are can represent anything, they're just strings of bytes.
+But they're often used to represent text, so we have two iterator types:
+character iterators and byte iterators.  The `chars()` constructor
+creates a character iterator over the string, which return each UTF-8
+character as a symbol.  And the `bytes()` constructor builds a byte
+iterator, which traverses the bytes of a string, returning each as
+an Int with its byte value.
+
+#### List Iterators
+The `items()` iterator traverses a LISP like list of cons cells, made
+up of records of the form: `{ .car: val, .cdr: rest }`.
+
+    def i: items{ .car: 1, .cdr: { .car: 2, .cdr: { .car: 3, .cdr: nil } } }
+
+#### Range Iterators
+The `irange()` and `drange()` functions build iterators to traverse a range
+of numbers given a start, end, and optional step offset.  As may be obvious,
+the `irange()` iterator returns Int values, and `drange()` iterator returns
+Dec values.
+
+    def i: irange( 1, 10 )
+    def d: drange( 0.0, -50.0, -0.5 )
+
+Both iterator types include the start, but not the end number in their traversal.
+
+### User Interaction
+The prelude provides `show()`, `warn()`, and `input()` functions for
+interacting with the user through the standard IO streams.  The `show()`
+function prints the concatenation of its arguments to stdout, while
+the `warn()` function does the same to stderr.  The `input()` function
+reads a line of user input as a string.
+
+    show( "Tell me something...", N )
+    def answer: input()
+
+### Unicode Conversion
+We represent characters as UTF-8 encoded symbols in Ten, but sometimes
+we may need to convert to or from the unicode character number.  To
+do this we have the `uchar()` function, which converts an Int character
+code to its respective UTF-8 symbol, and `ucode()` which converts the
+other way, from symbol to code.
+
+    ucode'ぁ'        -> 12353
+    uchar( 12353 )   -> 'ぁ'
+
+
+### String Utilities
+The prelude's `cat()` function takes some number of values, and
+concatenates their stringified forms into a single output string.
+
+    cat( "Hello, ", "World", '!' ) -> "Hello, World!"
+
+The `join()` function is similar, but instead of taking the strings
+as arguments, it expects an iterator, from which it'll take all the
+values to concatenate into the output string.
+
+    cat( seq( 1, 2, 3 ) ) -> "123"
+
+Since Ten strings can represent either text, or any other type of
+serialized data, we need two comparison functions, one for comparing
+by character and another for byte-wise comparison.  The `ccmp()`
+function compares strings by UTF-8 character, and `bcmp()` compares
+their bytes.  Both of these take their comparison operator as a symbol:
+
+    ccmp( "ぁ", '<', "ぃ" )   -> true
+    bcmp( "abc", '>', "cba")  -> false
+
+### Looping
+Since Ten doesn't have any language level loop forms, the prelude
+provides two of the more common loop types as functions.
+
+The `each()` function loops over its input iterator, calling the
+body closure for each value.
+
+    each( seq( 3, 2, 1 ), [ n ] show( n, " beers", N ) )
+
+The `fold()` function aggregates a sequence of values into a
+single return.  On its first iteration it combines the aggregate
+with the first value in the sequence with the aggregator callback,
+and subsequent iterations combine the result of the last iteration
+with the next value from the iterator.
+
+    def sum: fold( seq( 1, 2, 3 ), 0, [ agr, nxt ] agr + nxt ) -> 6
+
+
+### List Utilities
+Since Ten's record design doesn't do well with larger collections of
+data, the prelude provides some functions for dealing with data
+in LISP style linked lists, composed of cons cells.  And thanks to
+Ten's shared indices, these cells can be represented relatively
+efficiently as records.
+
+The `cons()` function just takes two values (the car and cdr) and
+combines them into a list cell of the form: `{ .car: val, .cdr: rest }`.
+
+The `list()` function takes a sequence of values as arguments, and combines
+them into a list of cells in the above fashion.
+
+The `explode()` function creates a list from the values of an iterator.
+
+    cons( 1, cons( 2, nil ) ) -> { .car: 1, .cdr: { .car: 2, .cdr: nil } }
+    list( 1, 2 )              -> { .car: 1, .cdr: { .car: 2, .cdr: nil } }
+    explode( seq( 1, 2 ) )    -> { .car: 1, .cdr: { .car: 2, .cdr: nil } }
+
+
+### Fiber Utilities
+Ten's fibers are like little threads that can't execute in parallel.  They
+allow us to separate the execution state (including the errors) of different
+tasks to keep issues from affecting the rest of the program, or to allow the
+task to be paused and continued freely.
+
+The `fiber()` function creates a new fiber, given an 'entry closure', which
+represents the task to be executed.
+
+    def fib: fiber[ a, b ] a / b
+
+Optionally, and for the sake of error reporting, a fiber can be given a tag:
+
+    def fib: fiber( [ a, b ] a / b, 'myFiber' )
+
+The tag should be a word or name to describe the fiber, it'll be given in
+the stack trace when an error occurs in the fiber.
+
+The `cont()` function starts or continues the execution of a fiber, and allows
+us to pass a list of arguments as continuation arguments.  For the first
+continuation these will serve as the arguments to the closure wrapped by
+the fiber; but for subsequent continuations they're returned by the `yield()`
+call that had paused the fiber's execution.
+
+    cont( fib, { 1, 0 } )
+
+This will call `[ a, b ] a / b` with `a = 1` and `b = 0`, so a division by
+zero error will occur, failing the fiber.  The fiber's current state can be
+retrieved as a symbol with the `state()` function:
+
+  state( fib ) -> 'failed'
+
+The state function returns one of the following:
+
+* `'running'`  - The fiber is the current one executing.
+* `'waiting'`  - The fiber was executing, but paused to continue the current one.
+* `'stopped'`  - The fiber has been paused with a call to `yield()`, or was never continued.
+* `'finished'` - The fiber has finished its task, its closure has returned.
+* `'failed'`   - The fiber failed, some kind of error occured while executing.
+
+The `yield()` function, called from within a fiber continuation, allows
+us to pause execution of the fiber until it's continued again; possibly
+with more execution arguments.
+
+    def fib: fiber[ p1 ]
+      do
+        show( "Received ", p1, N )
+        def p2: yield()
+        show( "Received ", p2, N )
+      for()
+
+    cont( fib, { 1 } )
+    cont( fib, { 2 } )
+
+This prints:
+
+    Received 1
+    Received 2
+
+The yield value can also take arguments, which are returned by the `cont()`
+function:
+
+    def fib: fiber[] yield( 123 )
+    def val: cont( fib, {} )
+    assert( val = 123, "" )
+
+
+The `errval()` and `trace()` functions return the value of whatever
+error caused the fiber to fail (`udf` if the fiber isn't failed) and
+the stack trace produced by the failure.  The stack trace is given
+as a record of the form: `{ { .fiber: 'myFib', .file: 'myScript.ten', .line: 10 }... }`, with one entry per stack level; it even produces
+entries for functions called by C code.
+
+### Compilation
+The `script()` and `expr()` functions allow for compiling code at
+runtime.  The `script()` function compiles its input string, which
+can consist of one or more expressions delimited as usual, into a
+closure that returns no values (an empty tuple).  The `expr()`
+function on the other hand compiles a single expression from the
+start of the string, whose evaluation is returned as the closure's
+return value.
+
+Both functions accept a record of upvalues along with the string
+to be compiled, these are bound to the closures free variables of
+the same names.
+
+    def e: expr( { .a: 1, .b: 2 }, "a + b" )
+    assert( e() = 3, "" )
+
+    def r: {}
+    def s: script( { .r: r }, "def r.v: 123 " )
+    assert( r.v = 123, "" )
+
+## That's All Peeps
+That about sums up the language in 1K lines of markdown. It's
+quite simple, but also really practical.  Besides its simplicity Ten
+has also been designed from the ground up to be embedded into other
+applications, so check out the (TODO)[embedding guide](EmbeddingGuide.md)
+if you'd like to see how that's done.

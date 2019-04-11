@@ -73,14 +73,6 @@ typedef enum {
     IDENT_warn,
     IDENT_input,
     
-    IDENT_T,
-    IDENT_N,
-    IDENT_R,
-    IDENT_L,
-    IDENT_A,
-    IDENT_Q,
-    IDENT_Z,
-    
     IDENT_ucode,
     IDENT_uchar,
     
@@ -2887,14 +2879,6 @@ libInit( State* state ) {
     IDENT( show );
     IDENT( warn );
     IDENT( input );
-    
-    IDENT( T );
-    IDENT( N );
-    IDENT( R );
-    IDENT( L );
-    IDENT( A );
-    IDENT( Q );
-    IDENT( Z );
     
     IDENT( ucode );
     IDENT( uchar );

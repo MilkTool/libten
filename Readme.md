@@ -36,7 +36,7 @@ Some of Ten's more interesting features include:
 
 ## Resources
 
-* (TODO)[Language Guide](LanguageGuide)
+* [Language Guide](docs/LanguageGuide.md)
 
   A quick and dirty guide to get you started with Ten.
 
