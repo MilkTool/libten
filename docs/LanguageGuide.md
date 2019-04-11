@@ -474,6 +474,25 @@ Since path operators are evaluated from left to right, chaining also works.
     def r: { .s: { .k: 123 } }
     def v: r.s.k
 
+
+Sequential record fields can also be exploaded into their values at the
+end of a tuple:
+
+    def r: { 3, 4 }
+    
+    def ( a, b, c, d ): ( 1, 2, ...r )
+
+Here we use record expansion to explode the record into a tuple, this will
+ignore any non-sequential fields.
+
+Similarly we can add all the keys from one record into a new record:
+
+    def r: { .k3: 3, .k4: 4 }
+    der s: { .k1: 1, .k2: 2, ...r }
+
+These shortcuts become pretty useful when building new record based on existing
+ones; or for passing record fields as function arguments.
+
 ## Closures
 Like many similar languages, Ten uses closures as its only type of function
 or executable unit.  These are just first class functions (so they can be passed around like ordinary values) which can access variables from their
