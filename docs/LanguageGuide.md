@@ -385,13 +385,13 @@ A few things to note.
   delimiter between the operator and right operand, this allows expressions to
   be broken up into multiple lines.
 
-All operators use strict typing, meaning they won't coerce values from one
+All operators use strong typing, meaning they won't coerce values from one
 type to another.  If two operands of different types are passed to an operator
 (besides call and the path operators), or a value of an unexpected type is
 given, then an error (not type coercion) occurs.
 
 ## Records
-Records the main factor that sets Ten apart from other, similar, languages.
+Records are the main factor that sets Ten apart from other, similar, languages.
 Instead of being implemented as plain hashmaps, records make use of an
 internal hashmap which can be shared between multiple instances; and maps
 keys to a location within the record's value array.  These internal hashmaps
