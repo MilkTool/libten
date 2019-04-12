@@ -104,6 +104,7 @@ typedef enum {
     IDENT_car,
     IDENT_cdr,
     
+    IDENT_unit,
     IDENT_file,
     IDENT_line,
     
@@ -1862,9 +1863,9 @@ libTrace( State* state, Fiber* fib ) {
         Record* trace = recNew( state, lib->traceIdx );
         vset( traceVar, tvObj(trace) );
         
-        if( tIt->fiber ) {
-            TVal key = tvSym( lib->idents[IDENT_fiber] );
-            TVal val = tvSym( symGet( state, tIt->fiber, strlen( tIt->fiber ) ) );
+        if( tIt->unit ) {
+            TVal key = tvSym( lib->idents[IDENT_unit] );
+            TVal val = tvSym( symGet( state, tIt->unit, strlen( tIt->unit ) ) );
             recDef( state, trace, key, val );
         }
         if( tIt->file ) {
@@ -2910,6 +2911,7 @@ libInit( State* state ) {
     IDENT( car );
     IDENT( cdr );
     
+    IDENT( unit );
     IDENT( file );
     IDENT( line );
     

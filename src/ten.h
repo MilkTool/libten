@@ -161,7 +161,7 @@ typedef enum {
 
 typedef struct ten_Trace ten_Trace;
 struct ten_Trace {
-    char const* fiber;
+    char const* unit;
     char const* file;
     unsigned    line;
     ten_Trace*  next;

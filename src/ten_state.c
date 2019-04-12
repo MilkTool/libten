@@ -320,11 +320,11 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
         ten_Trace* trace1 = trace2->next;
         tenAssert( trace1->next == NULL );
         tenAssert( !strcmp( trace1->file, "file1" ) );
-        tenAssert( !strcmp( trace1->fiber, "fiber1" ) );
+        tenAssert( !strcmp( trace1->unit, "fiber1" ) );
         tenAssert( !strcmp( trace2->file, "file2" ) );
-        tenAssert( !strcmp( trace2->fiber, "fiber2" ) );
+        tenAssert( !strcmp( trace2->unit, "fiber2" ) );
         tenAssert( !strcmp( trace3->file, "file3" ) );
-        tenAssert( !strcmp( trace3->fiber, "fiber3" ) );
+        tenAssert( !strcmp( trace3->unit, "fiber3" ) );
         tenAssert( trace1->line == 1 );
         tenAssert( trace2->line == 2 );
         tenAssert( trace3->line == 3 );
@@ -669,7 +669,7 @@ stateRemoveFinalizer( State* state, Finalizer* finalizer ) {
 }
 
 void
-statePushTrace( State* state, char const* fiber, char const* file, uint line ) {
+statePushTrace( State* state, char const* unit, char const* file, uint line ) {
     Part traceP;
     ten_Trace* trace = stateAllocRaw( state, &traceP, sizeof(ten_Trace) );
     
@@ -685,16 +685,16 @@ statePushTrace( State* state, char const* fiber, char const* file, uint line ) {
         trace->file = NULL;
     }
     
-    if( fiber ) {
-        size_t fiberLen = strlen( fiber );
-        Part   fiberP;
-        char* fiberCpy = stateAllocRaw( state, &fiberP, fiberLen + 1 );
-        strcpy( fiberCpy, fiber );
-        trace->fiber = fiberCpy;
-        stateCommitRaw( state, &fiberP );
+    if( unit ) {
+        size_t unitLen = strlen( unit );
+        Part   unitP;
+        char* unitCpy = stateAllocRaw( state, &unitP, unitLen + 1 );
+        strcpy( unitCpy, unit );
+        trace->unit = unitCpy;
+        stateCommitRaw( state, &unitP );
     }
     else {
-        trace->fiber = NULL;
+        trace->unit = NULL;
     }
     
     trace->line  = line;
@@ -729,9 +729,9 @@ stateFreeTrace( State* state, ten_Trace* trace ) {
             size_t fileLen = strlen( t->file );
             stateFreeRaw( state, (char*)t->file, fileLen + 1 );
         }
-        if( t->fiber ) {
-            size_t fiberLen = strlen( t->fiber );
-            stateFreeRaw( state, (char*)t->fiber, fiberLen + 1 );
+        if( t->unit ) {
+            size_t unitLen = strlen( t->unit );
+            stateFreeRaw( state, (char*)t->unit, unitLen + 1 );
         }
         
         stateFreeRaw( state, t, sizeof(ten_Trace) );

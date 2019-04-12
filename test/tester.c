@@ -45,15 +45,19 @@ main( void ) {
         
         ten_Trace* tIt = ten_getTrace( ten, NULL );
         while( tIt ) {
-            char const* fiber = "???";
-            if( tIt->fiber )
-                fiber = tIt->fiber;
-            char const* file = "???";
-            if( tIt->file )
-                file = tIt->file;
-            
-            fprintf( stderr, "  %s#%u (%s)\n", file, tIt->line, fiber );
-            tIt = tIt->next;
+        char const* unit = "???";
+        if( tIt->unit )
+            unit = tIt->unit;
+        char const* file = "???";
+        if( tIt->file )
+            file = tIt->file;
+        
+        fprintf(
+            stderr,
+            "  unit: %-10s line: %-4u file: %-20s\n",
+            unit, tIt->line, file
+        );
+        tIt = tIt->next;
         }
         
         ten_free( ten );
