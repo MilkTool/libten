@@ -77,6 +77,11 @@ struct ComState {
     
     // Symbol for special 'this' identifier.
     SymT this;
+    
+    // The name of the current function, set for single variable
+    // definitions, and cleared if the right hand side isn't a
+    // closure constructor.
+    TVal func;
 };
 
 ////// Errors /////
@@ -1149,12 +1154,20 @@ parParam( State* state, void* udat ) {
 }
 
 static bool
-parClosure( State* state, SymT* name ) {
+parClosure( State* state ) {
     ComState* com = state->comState;
     if( com->tok.type != '[' )
         return false;
+    
     Gen* pgen = com->gen;
-    Gen* cgen = genMake( state, pgen, name, false, false );
+    Gen* cgen = NULL;
+    if( tvIsSym( com->func ) ) {
+        SymT func = tvGetSym( com->func );
+        cgen = genMake( state, pgen, &func, false, false );
+    }
+    else {
+        cgen = genMake( state, pgen, NULL, false, false );
+    }
     com->gen  = cgen;
     com->popc = 0;
     
@@ -1466,7 +1479,7 @@ parPrim( State* state, bool tail ) {
            parGet( state )           ||
            parTuple( state )         ||
            parRecord( state )        ||
-           parClosure( state, NULL ) ||
+           parClosure( state )       ||
            parDoExpr( state, tail )  ||
            parIfExpr( state, tail )  ||
            parWhenExpr( state, tail );
@@ -2009,6 +2022,10 @@ parAssign( State* state ) {
     lex( state );
     parDelim( state );
     
+    // Clear the function name, will be set only for single
+    // variable definitions.
+    com->func = tvUdf();
+    
     // Parse the destination pattern, the respective
     // function for parsing each type of pattern will
     // return the instruction to use for the actual
@@ -2026,6 +2043,7 @@ parAssign( State* state ) {
         SymT ident = tvGetSym( com->tok.value );
         lex( state );
         if( com->tok.type == ':' ) {
+            com->func = tvSym( ident );
             GenVar* var = genVar( state, ident, def );
             genRef( state, var );
             if( def )
@@ -2056,8 +2074,13 @@ parAssign( State* state ) {
     
     parDelim( state );
     
-    // Parse the source expression.
-    parExpr( state, false );
+    // Parse the source expression.  First try to parse it
+    // as a closure, if that doesn't work then parse as a
+    // normal expression after clearing the function name.
+    if( !parClosure( state ) ) {
+        com->func = tvUdf();
+        parExpr( state, false );
+    }
     
     
     // Add the assignment instruction.

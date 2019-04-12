@@ -27,6 +27,7 @@ def f: [] do
   set v3: 'vv'
   assert( v3 = 'vv', "13" )
 for 'f'
+
 assert( f() = 'f', "14" )
 assert( v1 = 'v1', "15" )
 assert( v2 = 'vv', "16" )

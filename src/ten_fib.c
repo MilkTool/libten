@@ -1579,10 +1579,17 @@ onError( State* state, Defer* defer ) {
 
 static void
 errUdfAsArg( State* state, Function* fun, uint arg ) {
+    char const* func = "<anon>";
+    if( fun->type == FUN_VIR && fun->u.vir.dbg )
+        func = symBuf( state, fun->u.vir.dbg->func );
+    else
+    if( fun->type == FUN_NAT )
+        func = symBuf( state, fun->u.nat.name );
+    
     stateErrFmtA(
         state, ten_ERR_CALL,
-        "Passed `udf` for argument %u",
-        arg
+        "Passed `udf` for argument %u to '%s'",
+        arg, func
     );
 }
 
@@ -1592,6 +1599,7 @@ errTooFewArgs( State* state, Function* fun, uint argc ) {
     if( fun->type == FUN_VIR && fun->u.vir.dbg )
         func = symBuf( state, fun->u.vir.dbg->func );
     else
+    if( fun->type == FUN_NAT )
         func = symBuf( state, fun->u.nat.name );
     
     stateErrFmtA(
@@ -1607,6 +1615,7 @@ errTooManyArgs( State* state, Function* fun, uint argc ) {
     if( fun->type == FUN_VIR && fun->u.vir.dbg )
         func = symBuf( state, fun->u.vir.dbg->func );
     else
+    if( fun->type == FUN_NAT )
         func = symBuf( state, fun->u.nat.name );
     
     stateErrFmtA(
