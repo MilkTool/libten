@@ -68,6 +68,7 @@ struct Fiber {
         uint   cap;
     } tmpStack;
     
+    bool tagged;
     SymT tag;
     
     // Current set of registers, these are allocated as

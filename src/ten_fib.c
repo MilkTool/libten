@@ -462,10 +462,13 @@ fibNew( State* state, Closure* cls, SymT* tag ) {
     fib->errDefer.cb   = onError;
     fib->yieldJmp      = NULL;
     
-    if( tag )
-        fib->tag = *tag;
-    else
-        fib->tag = symGet( state, "<anon>", 6 );
+    if( tag ) {
+        fib->tag    = *tag;
+        fib->tagged = true;
+    }
+    else {
+        fib->tagged = false;
+    }
     
     memset( &fib->rBuf, 0, sizeof(Regs) );
     fib->rPtr->sp = fib->tmpStack.tmps;
@@ -750,7 +753,7 @@ fibTraverse( State* state, Fiber* fib ) {
         stateMark( state, fib->parent );    
     
     tvMark( fib->errVal );
-    if( state->gcFull )
+    if( state->gcFull && fib->tagged )
         symMark( state, fib->tag );
 }
 
@@ -1496,7 +1499,9 @@ ensureStack( State* state, Fiber* fib, uint n ) {
 
 static void
 genTrace( State* state, Fiber* fib ) {
-    char const* tag = symBuf( state, fib->tag );
+    char const* tag = NULL;
+    if( fib->tagged )
+        tag = symBuf( state, fib->tag );
     
     // Generate stack trace.
     if( state->config.debug ) {
