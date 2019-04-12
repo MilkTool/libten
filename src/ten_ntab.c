@@ -14,7 +14,7 @@ typedef struct NameNode {
     uint loc;
 } NameNode;
 
-typedef struct NTab {
+struct NTab {
     Finalizer finl;
     Scanner   scan;
     
@@ -27,7 +27,7 @@ typedef struct NTab {
         NameNode**  buf;
     } map;
     
-} NTab;
+};
 
 static void
 ntabFinl( State* state, Finalizer* finl ) {

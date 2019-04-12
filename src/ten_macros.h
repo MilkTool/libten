@@ -24,10 +24,10 @@
     } while( 0 )
 
 #define structFromScan( TYPE, SCAN ) \
-    (TYPE*)((void*)(SCAN) - (ullong)&((TYPE*)NULL)->scan)
+    (TYPE*)((void*)(SCAN) - (uintptr_t)&((TYPE*)NULL)->scan)
 
 #define structFromFinl( TYPE, FINL ) \
-    (TYPE*)((void*)(FINL) - (ullong)&((TYPE*)NULL)->finl)
+    (TYPE*)((void*)(FINL) - (uintptr_t)&((TYPE*)NULL)->finl)
 
 
 #define identCat_( A, B ) A ## B

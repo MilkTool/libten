@@ -25,7 +25,7 @@
 #undef BUF_TYPE
 #undef BUF_NAME
 
-typedef enum {
+enum {
     TOK_DELIM = 'D',
     TOK_IDENT = 'I',
     TOK_CONST = 'C',
@@ -34,7 +34,8 @@ typedef enum {
     // with their respective character sequence, or in
     // the case of keywords as the first two chars of the
     // word.
-} TokType;
+};
+typedef ulong TokType;
 
 typedef struct {
     TokType type;

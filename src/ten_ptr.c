@@ -181,7 +181,7 @@ ptrGet( State* state, PtrInfo* info, void* addr ) {
     if( ptrState->count*3 >= ptrState->map.cap )
         growMap( state );
     
-    uint h = (ullong)addr;
+    uint h = (uint)(uintptr_t)addr;
     uint s = h % ptrState->map.cap;
     
     // Search existing nodes for the address.
@@ -315,7 +315,7 @@ growMap( State* state ) {
             PtrNode* node = nIt;
             nIt = nIt->next;
             
-            uint s = (ullong)node->addr % mcap;
+            uint s = (uint)(uintptr_t)node->addr % mcap;
             addNode( &map[s], node );
         }
     }

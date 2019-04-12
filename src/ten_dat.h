@@ -1,5 +1,5 @@
 #ifndef ten_dat_h
-#define tan_dat_h
+#define ten_dat_h
 #include "ten.h"
 #include "ten_types.h"
 

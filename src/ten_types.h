@@ -283,10 +283,10 @@ do {                                                                        \
             NULL                                                    \
         )
     #define tpMake( TAG, PTR )                                      \
-        ((ullong)tpCheckTag(TAG) << 48 | (ullong)tpCheckPtr(PTR))
+        ((ullong)tpCheckTag(TAG) << 48 | (ullong)(uintptr_t)tpCheckPtr(PTR))
     
     #define tpGetTag( TPTR )   ((ushort)((TPTR) >> 48))
-    #define tpGetPtr( TPTR )   ((void*)((TPTR) & 0xFFFFFFFFFFFFLLU))
+    #define tpGetPtr( TPTR )   ((void*)(uintptr_t)((TPTR) & 0xFFFFFFFFFFFFLLU))
 
 #else
 
@@ -359,7 +359,7 @@ do {                                                                        \
         )
     
     #define tvObj( OBJ ) \
-        (TVal){.nan = SIGN_BIT | NAN_BITS | (ullong)(OBJ)}
+        (TVal){.nan = SIGN_BIT | NAN_BITS | (uintptr_t)(OBJ)}
     #define tvUdf() \
         (TVal){.nan = NAN_BITS | (ullong)VAL_UDF << 48 | 0LLU }
     #define tvNil() \
@@ -405,7 +405,7 @@ do {                                                                        \
     #define tvGetVal( TVAL ) \
         (tvIsDec( TVAL ) ? (TVAL).nan : (ullong)((TVAL).nan & VAL_BITS))
     #define tvGetObj( TVAL ) \
-        ((ObjT)((TVAL).nan & OBJ_BITS))
+        ((ObjT)(uintptr_t)((TVAL).nan & OBJ_BITS))
     #define tvGetLog( TVAL ) \
         ((TVAL).nan & VAL_BITS)
     #define tvGetInt( TVAL ) \
@@ -455,7 +455,7 @@ do {                                                                        \
     } TVal;
     
     #define tvObj( OBJ ) \
-        (TVal){.tag = VAL_OBJ, .u = {.val = (ullong)(OBJ) }}
+        (TVal){.tag = VAL_OBJ, .u = {.val = (uintptr_t)(OBJ) }}
     #define tvUdf() \
         (TVal){.tag = VAL_UDF, .u = {.val = 0LLU}}
     #define tvNil() \
@@ -501,7 +501,7 @@ do {                                                                        \
     #define tvGetVal( TVAL ) \
         ((TVAL).u.val)
     #define tvGetObj( TVAL ) \
-        ((ObjT)(TVAL).u.val)
+        ((ObjT)(uintptr_t)(TVAL).u.val)
     #define tvGetLog( TVAL ) \
         ((TVAL).u.val)
     #define tvGetInt( TVAL ) \

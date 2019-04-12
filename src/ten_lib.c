@@ -793,7 +793,7 @@ libKeys( State* state, Record* rec ) {
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "keys#%llu", (ullong)iter ),
+        .name   = fmtA( state, false, "keys#%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
         .cb     = keyIterNext
     };
@@ -860,7 +860,7 @@ libVals( State* state, Record* rec ) {
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "vals#%llu", (ullong)iter ),
+        .name   = fmtA( state, false, "vals#%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
         .cb     = valIterNext
     };
@@ -929,7 +929,7 @@ libPairs( State* state, Record* rec ) {
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "pairs#%llu", (ullong)iter ),
+        .name   = fmtA( state, false, "pairs#%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
         .cb     = pairIterNext
     };
@@ -991,7 +991,7 @@ libSeq( State* state, Record* vals ) {
     ten_setMember( ten, &datVar, Seq_VALS, &valsVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "seq#%llu", (ullong)seq ),
+        .name   = fmtA( state, false, "seq#%llu", (ullong)(uintptr_t)seq ),
         .params = NULL,
         .cb     = seqNext
     };
@@ -1052,7 +1052,7 @@ libBytes( State* state, String* str ) {
     ten_setMember( ten, &datVar, StrIter_STR, &strVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "bytes#%llu", (ullong)iter ),
+        .name   = fmtA( state, false, "bytes#%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
         .cb     = byteIterNext
     };
@@ -1145,7 +1145,7 @@ libChars( State* state, String* str ) {
     ten_setMember( ten, &datVar, StrIter_STR, &strVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "chars#%llu", (ullong)iter ),
+        .name   = fmtA( state, false, "chars#%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
         .cb     = charIterNext
     };
@@ -1215,7 +1215,7 @@ libItems( State* state, Record* list ) {
     ten_setMember( ten, &datVar, ListIter_CELL, &listVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "items#%llu", (ullong)iter ),
+        .name   = fmtA( state, false, "items#%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
         .cb     = listIterNext
     };
@@ -1278,7 +1278,7 @@ libDrange( State* state, DecT start, DecT end, DecT step ) {
     range->next  = start;
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "drange#%llu", (ullong)range ),
+        .name   = fmtA( state, false, "drange#%llu", (ullong)(uintptr_t)range ),
         .params = NULL,
         .cb     = dRangeNext
     };
@@ -1341,7 +1341,7 @@ libIrange( State* state, IntT start, IntT end, IntT step ) {
     range->next  = start;
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "irange#%llu", (ullong)range ),
+        .name   = fmtA( state, false, "irange#%llu", (ullong)(uintptr_t)range ),
         .params = NULL,
         .cb     = iRangeNext
     };

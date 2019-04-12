@@ -1565,7 +1565,7 @@ onError( State* state, Defer* defer ) {
     if( state->errNum == ten_ERR_FATAL )
         return;
     
-    Fiber* fib = (void*)defer - (ullong)&((Fiber*)NULL)->errDefer;
+    Fiber* fib = (void*)defer - (uintptr_t)&((Fiber*)NULL)->errDefer;
     genTrace( state, fib );
     
     // Set the fiber's error values from the state.

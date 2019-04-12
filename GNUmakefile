@@ -2,12 +2,39 @@ PROFILE ?= release
 SOURCES := $(wildcard src/*.c)
 HEADERS := $(wildcard src/*.h)
 INCLUDE := $(wildcard src/inc/*.inc) $(wildcard src/inc/ops/*.c)
-CCFLAGS := -std=c99 -Wall -Wno-unused -Wno-multichar -Wno-bool-compare -D ten_LIBM
-LINK    := -lm
+CCFLAGS := -std=c99 -Wall -Wno-unused -Wno-multichar -D ten_LIBM
+LINK    := 
 CC      ?= gcc
-PREFIX  ?= /usr/local/
+LD      ?= ld
+STRIP   ?= strip
+
+ifdef TARGET
+    COMPILER := $(TARGET)-$(CC)
+    LINKER   := $(TARGET)-$(LD)
+    STRIPPER := $(TARGET)-$(STRIP)
+else
+    COMPILER := $(CC)
+    LINKER   := $(LD)
+    STRIPPER := $(STRIP)
+endif
+
+CPATH := $(shell readlink -f $(shell which $(COMPILER)))
+LPATH := $(shell readlink -f $(shell which $(LINKER)))
+SPATH := $(shell readlink -f $(shell which $(STRIPPER)))
+
+CNAME := $(shell basename $(CPATH))
+LNAME := $(shell basename $(LPATH))
+SNAME := $(shell basename $(SPATH))
+
+PREFIX ?= /usr/local/
 LIBDIR ?= $(shell if [ -d $(PREFIX)/lib64 ]; then echo $(PREFIX)/lib64; else echo $(PREFIX)/lib; fi )
 INCDIR ?= $(PREFIX)/include
+
+# Compiler specific options.
+ifeq ($(CNAME),gcc)
+    CCFLAGS += -Wno-bool-compare
+    LINK    += -l m
+endif
 
 ifeq ($(OS),Windows_NT)
     EXE := .exe
@@ -24,14 +51,10 @@ endif
 ifeq ($(PROFILE),debug)
     CCFLAGS += -g -O0 -D ten_DEBUG -D ten_NO_NAN_TAGS -D ten_NO_POINTER_TAGS
     POSTFIX := -debug
-	POSTDLL := 
-	POSTLIB := 
 else
     ifeq ($(PROFILE),release)
         CCFLAGS += -O2 -D NDEBUG
         POSTFIX := 
-        POSTDLL := strip -w -K "ten_*" libten.o
-        POSTLIB := strip -w -K "ten_*" libten.o
     else
         $(error "Invalid build profile")
     endif
@@ -42,22 +65,22 @@ endif
 build: libten$(POSTFIX)$(DLL) libten$(POSTFIX)$(LIB)
 
 libten$(POSTFIX)$(DLL): $(HEADERS) $(INCLUDE) $(SOURCES)
-	$(CC) $(CCFLAGS) -shared -fpic $(SOURCES) $(LINK) -o libten$(POSTFIX)$(DLL)
+	$(COMPILER) $(CCFLAGS) -shared -fpic $(SOURCES) $(LINK) -o libten$(POSTFIX)$(DLL)
     ifeq ($(PROFILE),release)
-	    strip -w -K "ten_*" libten$(POSTFIX)$(DLL)
+	    $(STRIPPER) -w -K "ten_*" libten$(POSTFIX)$(DLL)
     endif
 
 libten$(POSTFIX)$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
-	$(CC) $(CCFLAGS) -c $(SOURCES) $(LINK)
-	ld -r *.o -o libten.o
+	$(COMPILER) $(CCFLAGS) -c $(SOURCES) $(LINK)
+	$(LINKER) -r *.o -o libten.o
     ifeq ($(PROFILE),release)
-	    strip -w -K "ten_*" libten.o
+	    $(STRIPPER) -w -K "ten_*" libten.o
     endif
 	ar rcs libten$(POSTFIX)$(LIB) libten.o
 	rm *.o
 
 tester$(EXE): $(HEADERS) $(INCLUDE) $(SOURCES) test/tester.c
-	$(CC) $(CCFLAGS) -D ten_TEST -D TEST_PATH='"test/"' $(SOURCES) $(LINK) test/tester.c -o tester$(EXE)
+	$(COMPILER) $(CCFLAGS) -D ten_TEST -D TEST_PATH='"test/"' $(SOURCES) $(LINK) test/tester.c -o tester$(EXE)
 
 .PHONY: install
 install:
