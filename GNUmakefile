@@ -22,9 +22,10 @@ CPATH := $(shell readlink -f $(shell which $(COMPILER)))
 LPATH := $(shell readlink -f $(shell which $(LINKER)))
 SPATH := $(shell readlink -f $(shell which $(STRIPPER)))
 
-CNAME := $(shell basename $(CPATH))
-LNAME := $(shell basename $(LPATH))
-SNAME := $(shell basename $(SPATH))
+REMVER := sed -E 's/-[0-9]+(\.[0-9]+(\.[0-9]+)?)?//'
+CNAME := $(shell basename $(CPATH) | $(REMVER))
+LNAME := $(shell basename $(LPATH) | $(REMVER))
+SNAME := $(shell basename $(SPATH) | $(REMVER))
 
 PREFIX ?= /usr/local/
 LIBDIR ?= $(shell if [ -d $(PREFIX)/lib64 ]; then echo $(PREFIX)/lib64; else echo $(PREFIX)/lib; fi )
@@ -33,6 +34,9 @@ INCDIR ?= $(PREFIX)/include
 # Compiler specific options.
 ifeq ($(CNAME),gcc)
     CCFLAGS += -Wno-bool-compare
+    LINK    += -l m
+endif
+ifeq ($(CNAME),clang)
     LINK    += -l m
 endif
 
@@ -71,7 +75,7 @@ libten$(POSTFIX)$(DLL): $(HEADERS) $(INCLUDE) $(SOURCES)
     endif
 
 libten$(POSTFIX)$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
-	$(COMPILER) $(CCFLAGS) -c $(SOURCES) $(LINK)
+	$(COMPILER) $(CCFLAGS) -c $(SOURCES)
 	$(LINKER) -r *.o -o libten.o
     ifeq ($(PROFILE),release)
 	    $(STRIPPER) -w -K "ten_*" libten.o

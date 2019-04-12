@@ -230,6 +230,10 @@ frealloc( void* _, void* old, size_t osz, size_t nsz ) {
 
 ten_State*
 ten_make( ten_Config* config, jmp_buf* errJmp ) {
+    ten_Config notnull = { 0 };
+    if( !config )
+        config = &notnull;
+    
     if( config->frealloc == NULL )
         config->frealloc = frealloc;
     if( config->memGrowth == 0.0 )
