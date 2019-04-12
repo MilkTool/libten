@@ -2975,7 +2975,7 @@ libInit( State* state ) {
     FUN( assert, 2, false );
     FUN( expect, 3, false );
     FUN( collect, 0, false );
-    FUN( loader, 3, false );
+    FUN( loader, 2, true );
     FUN( clock, 0, false );
     FUN( rand, 0, false );
     
