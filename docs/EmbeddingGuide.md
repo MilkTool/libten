@@ -232,91 +232,349 @@ have to worry about popping locally allocated tuples.
 The `ten_pushV()` function can be used in place of `ten_pushA()`,
 requiring a `va_list` in place of the variadic argument list.
 
-## Accessing Values
-Ten leaves it to the user to make sure a variable has the appropriate
-type before attempting to get its value.  In a debug build Ten will
-assert the type of a variable before using it for a particular purpose;
-but this adds extra overhead to the API, so release builds assume that
-the user knows what they're doing.  Thus passing a variable with one
-type of Ten value, to an API routine that expects another type will
-result in undefined behavior in release builds of the library, so
-be careful.
-
-### Type Checking
-For each Ten value type the API provides a `ten_is*()` function,
-where `*` is the name of the type, for checking if a variable
-contains a value of that type.
-
-An example usage for these is:
-
-    long v = 0;
-    if( ten_isInt( ten, &intVar ) )
-      v = ten_getInt( ten, &intVar );
-
-In addition, the `ten_type()` function give the type name of a
-the value in a variable, as a symbol loaded into the `dst` variable:
+## Compiling and Running Code
+The easiest way to get started running Ten code is with the direct execution
+functions; these compile and run the input code with one easy call.
 
     void
-    ten_type( ten_State* s, ten_Var* var, ten_Var* dst );
+    ten_executeScript( ten_State* s, ten_Source* src, ten_ComScope scope );
 
-And `ten_expect()` confirms that the type of the variable is what's
-expected, or throws an error with an appropriate message:
+    ten_Tup
+    ten_executeExpr( ten_State* s, ten_Source* src, ten_ComScope scope );
+
+The difference between the script and expression variants are that
+`ten_executeExpr()` will only compile a single expression from the
+input source, returning the result of evaluating the expression; while
+`ten_executeScript()` will compile the whole input as a sequence of
+delimiter (`,` or `\n`) separated expressions, and has no return.
+The script compiler will also skip an [unicode BOM](https://en.wikipedia.org/wiki/Byte_order_mark)
+and [Unix shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) if
+present at the start of the input.
+
+### Source Streams
+All Ten compilation functions expect the input code to be in the form of a
+`ten_Source*` source stream; this allows for a lot of flexibility regarding
+where the code comes from and how it's formatted; but it also means we
+have to do a bit of work beforehand to build a source stream.  Luckily the
+API also provides a few convenience constructors for the most common
+source code formats:
+
+    ten_Source*
+    ten_fileSource( ten_State* s, FILE* file, char const* name );
+
+    ten_Source*
+    ten_pathSource( ten_State* s, char const* path );
+
+    ten_Source*
+    ten_stringSource( ten_State* s, char const* string, char const* name );
+
+The compilation function will automatically release the source stream if
+an error occurs, or when it's finished compiling; so the stream finalizer:
 
     void
-    ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var );
+    ten_freeSource( ten_State* s, ten_Source* src );
 
-Here the `what` argument should be string description of what's being
-type checked, the `type` variable should contain a type name symbol,
-and `var` is the variable to be type checked.
+Should only be called for streams that haven't been passed to a compilation
+or execution function.
 
-These two routines are equivalent to the `type()` and `expect()` builtin
-Ten functions, and in fact they use the same code behind the scene.
+### Compilation Scopes
+Compilation functions also take a `ten_ComScope` argument, which tells
+Ten where the code should define variables to.  If the scope is given
+as `ten_SCOPE_GLOBAL` then variables defined in the code are added to
+the global variable pool; otherwise, if given as `ten_SCOPE_LOCAL` then
+the variables are defined locally and only accessible within the same
+script or expression.
 
-Every type also has a respective `ten_*Type()` function, where `*` is
-the lower case type name, which returns a symbol variable suitable
-to pass to `ten_expect()` as a type name of the particular type, these
-variables should never be passed to a mutating API call.  Most of these
-functions have use the same signature:
+Generally we want to use `ten_SCOPE_LOCAL` as local variables are more
+efficient than globals, and we don't want to allow arbitrary scripts to
+contaminate the global namespace.  The most obvious, and only one I can
+think of, use case for global scoping is in the implementation of REPLs,
+where each line is compiled separately but needs to have access to the
+variables defined in previous lines.
 
-    ten_Var*
-    ten_*Type( ten_State* s );
+### Execution Errors
+Any errors encountered while executing the given input code will be
+propagated directly to the user's error handler (the `errJmp`), unless
+the code itself creates a fiber to execute failure prone code with,
+in which case any but `ten_ERR_FATAL` errors will be isolated to the
+fiber under whose execution they occur.  To prevent immediate errors
+from propagating to the user's error handler, the code should be
+compiled ahead of time to a fiber as described in the following
+section, and executed manually with `ten_cont()`.
 
-The exceptions are `ten_ptrType()` and `ten_datType()`, which accept
-an additional `ten_PtrInfo` or `ten_DatInfo` respectively.  These will
-be covered in more detail in the section on native functions and objects.
+### Compiling Code
+As an alternative to direct execution, we can compile code manually
+into a fiber or closure before execution with:
+
+    void
+    ten_compileScript( ten_State* s, char const** upvals, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
+
+    void
+    ten_compileExpr( ten_State* s,  char const** upvals, ten_Source* src, ten_ComScope scope, ten_ComType out, ten_Var* dst );
+
+These allow us to specify an `out` format as either `ten_COM_FIB` to compile
+directly to a fiber object; or `ten_COM_CLS` to compile to a closure.  The
+`dst` variable is where the resulting object is put; and we can specify a
+`NULL` terminated list of upvalue names.  These are variables that are
+accessible to the compiled code, but can also be accessed and modified
+externally with:
+
+    void
+    ten_getUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* dst );
+
+    void
+    ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src );
+
+The upvalue list is optional, and can be passed as `NULL` to leave
+any upvalues unspecified.
+
+To execute (continue) a compiled closure we use:
+
+    ten_Tup
+    ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args );
+
+This expects a tuple of arguments, but the resulting fibers produced
+by the above compilation routines don't have any parameters, so
+an empty tuple should be passed.  Here's an example of the whole
+process:
+
+    // Construct a code source.
+    ten_Source* src = ten_stringSource( ten, "show( \"Hello, World!\", N )", NULL );
+
+    // Allocate a variable for the fiber.
+    ten_Tup vars = ten_pushA( ten, "U" );
+    ten_Var fibVar = { .tup = &vars, .loc = 0 };
+
+    // Compile the script to a fiber.
+    ten_compileScript( ten, NULL, src, ten_SCOPE_LOCAL, ten_COM_FIB, &fibVar );
+
+    // Run the script.
+    ten_Tup args = ten_pushA( ten, "" );
+    ten_cont( ten, &fibVar, &args );
+
+    // And pop `args` and `vars`.
+    ten_pop( ten );
+    ten_pop( ten );
+
+Compiling and running the code manually like this keeps the errors
+from propagating to the user's error handler, instead they're isolated
+to the executing fiber, and can either be ignored or retrieved with
+the error checking functions in the following section.
 
 
-The singleton types `nil` and `udf` also have functions for checking
-the types of all values of a tuple.
+## Handling Errors
+Ten's error checking routines are fairly straightforward:
+
+    ten_ErrNum
+    ten_getErrNum( ten_State* s, ten_Var* fib );
+
+    void
+    ten_getErrVal( ten_State* s, ten_Var* fib, ten_Var* dst );
+
+    char const*
+    ten_getErrStr( ten_State* s, ten_Var* fib );
+
+    ten_Trace*
+    ten_getTrace( ten_State* s, ten_Var* fib );
+
+All four of these have `fib` parameter, which should either be
+the fiber whose error we're interested in or `NULL` to check
+for global errors.
+
+The `ten_getErrNum()` function will return the error type
+currently associated with the fiber, or global state, it'll
+return one of:
+
+    typedef enum {
+        ten_ERR_NONE,
+        ten_ERR_FATAL,
+        ten_ERR_SYSTEM,
+        ten_ERR_RECORD,
+        ten_ERR_STRING,
+        ten_ERR_FIBER,
+        ten_ERR_CALL,
+        ten_ERR_SYNTAX,
+        ten_ERR_LIMIT,
+        ten_ERR_COMPILE,
+        ten_ERR_USER,
+        ten_ERR_TYPE,
+        ten_ERR_ARITH,
+        ten_ERR_ASSIGN,
+        ten_ERR_TUPLE,
+        ten_ERR_PANIC
+    } ten_ErrNum;
+
+The two important ones are `ten_ERR_NONE`, which indicates that no
+error occurred, and `ten_ERR_FATAL` which indicates that a memory
+error or other fatal error occur which has rendered the Ten instance
+as unusable.  Fatal errors will always propagate down to the user's
+error handler, while any others will be isolated to the fiber in which
+they occurred.
+
+The `ten_errVal()` function can be used to retrieve the Ten value
+associated with the current error; but in the case of a fatal
+error it may return `udf`, since if a memory error occured then
+allocating an error value may not be possibel; in which case a
+`ten_errStr()` call will return a proper error message.
+
+The `ten_errStr()` function will convert the current error value to
+string form, or return a constant string error message if an error
+value could not be allocated.  The lifetime of the string returned
+by this function is only guaranteed until before the next API call.
+
+The `ten_getTrace()` function returns the stack trace produced by
+the error, this is a linked list with nodes of the form:
+
+    typedef struct ten_Trace ten_Trace;
+    struct ten_Trace {
+        char const* unit;
+        char const* file;
+        unsigned    line;
+        ten_Trace*  next;
+    };
+
+The fields of these nodes should never be modified or freed manually
+be the user.  The lifetime of the trace itself is only guaranteed
+until a call to `ten_clearError()` for the unit to which the trace
+belongs (a fiber or the global trace).  The trace for a specific
+fiber will also be freed when the fiber itself is garbage collected;
+so the user must keep a reference to the fiber to keep its trace
+from being released.
+
+To clear the error, including its associated stack trace, of the
+Ten instance or a fiber use:
+
+    void
+    ten_clearError( ten_State* s, ten_Var* fib );
+
+Fiber's can't be reused once they're encountered an error, so while this will
+clear the error, the fiber's state will remain as `ten_FIB_FAILED` and any
+attempts at continuing the fiber will fail.
+
+At times it may be useful to propagate the error from one fiber, to the
+currently running fiber (or the global error handler if no fibers are
+running).  This causes the error to be 're-thrown', to be handled by
+the next unit in line.
+
+    void
+    ten_propError( ten_State* s, ten_Var* fib );
+
+If no fiber is specified, then the current global error is re-thrown, this
+is useful when used with:
+
+    jmp_buf*
+    ten_swapErrJmp( ten_State* s, jmp_buf* errJmp );
+
+Which allows for the temporary replacement of the current global error
+handler.  A useful pattern is something like:
+
+    jmp_buf  jmp;
+    jmp_buf* old = ten_swapErrJmp( ten, &jmp );
+    if( setjmp( jmp ) ) {
+      // Do some cleanup.
+      ten_swapErrJmp( ten, old );
+      ten_propError( ten, NULL );
+    }
+
+## Singleton Values
+Ten's singleton values have a fairly simple access API since there's no
+need to 'retrieve' any value; the ability to type check and set values
+is enough.  The full Udf API is:
+
+    bool
+    ten_isUdf( ten_State* s, ten_Var* var );
 
     bool
     ten_areUdf( ten_State* s, ten_Tup* tup );
 
+    ten_Var*
+    ten_udfType( ten_State* s );
+
+    void
+    ten_setUdf( ten_State* s, ten_Var* dst );
+
+These have fairly obvious purposes save for `ten_udfType()`, which
+returns a symbol variable containing the type name `'Udf'`, suitable
+for use as the type for `ten_expect()`, which will be covered later.
+
+The `ten_areUdf()` is also an outlier, but it just checks that all
+values in a tuple are of type Udf.
+
+The Nil interface is exactly the same, just for the Nil type:
+
+    bool
+    ten_isNil( ten_State* s, ten_Var* var );
+
     bool
     ten_areNil( ten_State* s, ten_Tup* tup );
 
-These will return true only if all values in the tuple have the
-respective singleton value.
+    void
+    ten_setNil( ten_State* s, ten_Var* dst );
 
-### Getting Values
-Since the singleton types `udf` and `nil` can only have one possible
-value, providing accessor functions for these would be redundant; so
-the API omits them. Otherwise Ten's atomic (primitive) types have
-accessor functions of the form `ten_get*()` where `*` is the name
-of the type.
+    ten_Var*
+    ten_nilType( ten_State* s );
+
+## Atomic Values
+Again, the interfaces for atomic (or primitive) values are fairly
+consistent, only the type names and C types change for each function
+to reflect the particular type we're dealing with:
+
+    // Logical values.
+    bool
+    ten_isLog( ten_State* s, ten_Var* var );
+
+    void
+    ten_setLog( ten_State* s, bool log, ten_Var* dst );
 
     bool
     ten_getLog( ten_State* s, ten_Var* var );
 
+    ten_Var*
+    ten_logType( ten_State* s );
+
+    // Integral values.
+    bool
+    ten_isInt( ten_State* s, ten_Var* var );
+
+    void
+    ten_setInt( ten_State* s, long in, ten_Var* dst );
+
     long
     ten_getInt( ten_State* s, ten_Var* var );
+
+    ten_Var*
+    ten_intType( ten_State* s );
+
+    // Decimal values.
+    bool
+    ten_isDec( ten_State* s, ten_Var* var );
+
+    void
+    ten_setDec( ten_State* s, double dec, ten_Var* dst );
 
     double
     ten_getDec( ten_State* s, ten_Var* var );
 
-The Sym (symbol) and Ptr (pointer) types are something in between atomic
-and heap allocated types; so they have specialized accessors for each
-aspect.  Symbols have the following:
+    ten_Var*
+    ten_decType( ten_State* s );
+
+These are all pretty obvious, so I won't waste space explaining them.
+
+
+## Symbols
+The symbol interface has a lot in common with those already covered:
+
+    bool
+    ten_isSym( ten_State* s, ten_Var* var );
+
+    void
+    ten_setSym( ten_State* s, char const* sym, size_t len, ten_Var* dst );
+
+    ten_Var*
+    ten_symType( ten_State* s );
+
+
+But how we have two getters, one for each aspect of the symbol: length and content:
 
     char const*
     ten_getSymBuf( ten_State* s, ten_Var* var );
@@ -324,13 +582,67 @@ aspect.  Symbols have the following:
     size_t
     ten_getSymLen( ten_State* s, ten_Var* var );
 
-Which return the buffer (content) and length of a symbol value, the
-lifetime of the string returned by `ten_getSymBuf()` is only guaranteed
-until before the next API call; so it should be copied if needed further.
+**It's important** to note that the lifetime for the string returned by
+`ten_getSymBuf()` is only guaranteed to last until the next API call,
+so the string should be copied for extended use.
 
-The pointer type has accessors for the pointer's address, and the
-`ten_PtrInfo` associated with the value, which may be `NULL` if none
-was given when the pointer was created.
+## Pointers
+Pointers are an interesting facet of Ten's design.  Like symbols, they're
+something in between atomic (primitive) values and heap allocated ones since
+they can be compared directly; but also have some data on the heap.
+
+Though Lua and similar languages also support some semblance of a pointer
+type; Ten is unique in that it allows the pointer type to be preserved
+as a part of the value.  This is done by associating each pointer with a
+`ten_PtrInfo`, which keeps track of the pointer's type and destructor.
+
+A `ten_PtrInfo` struct can be allocated with:
+
+    ten_PtrInfo*
+    ten_addPtrInfo( ten_State* s, ten_PtrConfig* config );
+
+And will be freed with the Ten instance.  This expects a pointer config
+struct:
+
+    typedef struct {
+
+        char const* tag;
+
+        void (*destr)( ten_State* s, void* addr );
+    } ten_PtrConfig;
+
+
+The `tag` field should give the type of the pointer, or whatever it
+should be called within Ten; and the destructor gives a function to
+be called once all instances of the pointer (same `ten_PtrInfo` and
+address) have been garbage collected.
+
+The pointer setter takes an optional `ten_PtrInfo` for type information,
+if none is provided then the variable is set to a generic pointer with
+no additional type information.  Pointer with no type tag have a type
+name of `'Ptr'` while those with a tag have `'Ptr:SomeTag'`.  This allows
+for more precise type checking when passing around pointer, a very
+dangerous type of value.
+
+    void
+    ten_setPtr( ten_State* s, void* addr, ten_PtrInfo* info, ten_Var* dst );
+
+The type related functions should be familiar from the other types
+we've covered:
+
+    bool
+    ten_isPtr( ten_State* s, ten_Var* var, ten_DatInfo* info );
+
+    ten_Var*
+    ten_ptrType( ten_State* s, ten_PtrInfo* info );
+
+Only now we have an additional parameter.  The `info` parameter is
+optional (can be NULL), if provided then `ten_isPtr()` will only
+return true if `var` has type Ptr, and it's associated with the
+given `info`.  A call to `ten_ptrType()` will return the generic
+pointer type name `'Ptr'` instead of a tagged name.
+
+And again we have two getters, one for each aspect of the pointer:
 
     void*
     ten_getPtrAddr( ten_State* s, ten_Var* var );
@@ -339,9 +651,14 @@ was given when the pointer was created.
     ten_getPtrInfo( ten_State* s, ten_Var* var );
 
 
-Of all Ten's heap allocated object types, only strings can be converted
-directly into the respective C type; their accessors are similar to
-those for symbols:
+## Strings
+The string interface is basically the same as for symbols:
+
+    bool
+    ten_isStr( ten_State* s, ten_Var* var );
+
+    void
+    ten_newStr( ten_State* s, char const* str, size_t len, ten_Var* dst );
 
     char const*
     ten_getStrBuf( ten_State* s, ten_Var* var );
@@ -349,67 +666,15 @@ those for symbols:
     size_t
     ten_getStrLen( ten_State* s, ten_Var* var );
 
-
-## Globals and Temporaries
-Each `ten_State` maintains a store of global variables which are
-accessible anywhere in a Ten program.  These can also be directly
-accessed and manipulated by the API user with:
-
-    void
-    ten_def( ten_State* s, ten_Var* name, ten_Var* val );
-
-    void
-    ten_set( ten_State* s, ten_Var* name, ten_Var* val );
-
-    void
-    ten_get( ten_State* s, ten_Var* name, ten_Var* dst );
-
-These expect a symbol variable for their `name` parameter, but
-created such a variable for each use case can be tedius; so this
-is where Ten's temporary buffers come in handy.  Internally Ten
-allocates a static circular buffer of variables.  These can be
-used for quickly converting between C values and Ten variables
-to passed to an API routine, but shouldn't be kept for prolonged
-use as their values will be replaced when the ring buffer circles
-back.  Temporary variables can be allocated and initialized with:
-
     ten_Var*
-    ten_udf( ten_State* s );
-
-    ten_Var*
-    ten_nil( ten_State* s );
-
-    ten_Var*
-    ten_log( ten_State* s, bool log );
-
-    ten_Var*
-    ten_int( ten_State* s, long in );
-
-    ten_Var*
-    ten_dec( ten_State* s, double dec );
-
-    ten_Var*
-    ten_sym( ten_State* s, char const* sym );
-
-    ten_Var*
-    ten_ptr( ten_State* s, void* ptr );
-
-    ten_Var*
-    ten_str( ten_State* s, char const* str );
+    ten_strType( ten_State* s );
 
 
-These make using the global variable API much more convenient, for
-example we can say:
+The main difference is that we use `ten_newStr()` instead of `ten_setStr()`
+since strings are heap allocated objects.
 
-    ten_set( ten, ten_sym( ten, "varName" ), ten_int( ten, 123 ) );
+Another significant difference is that the pointer returned by `ten_getStrBuf()`
+is guaranteed to be valid so long as the string is alive; so it'll be safe to
+use as long as the user maintains a reference to the string in some variable.
 
-    ten_Var* val = ten_udf( ten );
-    ten_get( ten, ten_sym( ten, "varName" ), val );
-
-    int i = ten_getInt( ten, val );
-
-Just make sure not to overuse the temporaries, though there will be
-enough of them available (currently 32) to make a ring buffer overflow
-unlikely so long as they're only used for arguments and the occasional
-return destination; though they also may be allocated internally, so
-don't rely on an exact count.
+## Indices and Records

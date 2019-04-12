@@ -1805,19 +1805,19 @@ libState( State* state, Fiber* fib ) {
     LibState* lib = state->libState;
     
     switch( fib->state ) {
-        case FIB_RUNNING:
+        case ten_FIB_RUNNING:
             return lib->idents[IDENT_running];
         break;
-        case FIB_WAITING:
+        case ten_FIB_WAITING:
             return lib->idents[IDENT_waiting];
         break;
-        case FIB_STOPPED:
+        case ten_FIB_STOPPED:
             return lib->idents[IDENT_stopped];
         break;
-        case FIB_FINISHED:
+        case ten_FIB_FINISHED:
             return lib->idents[IDENT_finished];
         break;
-        case FIB_FAILED:
+        case ten_FIB_FAILED:
             return lib->idents[IDENT_failed];
         break;
         default:

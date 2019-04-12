@@ -159,6 +159,14 @@ typedef enum {
     ten_SCOPE_GLOBAL
 } ten_ComScope;
 
+typedef enum {
+    ten_FIB_RUNNING,
+    ten_FIB_WAITING,
+    ten_FIB_STOPPED,
+    ten_FIB_FINISHED,
+    ten_FIB_FAILED
+} ten_FibState;
+
 typedef struct ten_Trace ten_Trace;
 struct ten_Trace {
     char const* unit;
@@ -385,7 +393,7 @@ ten_symType( ten_State* s );
 
 // Pointer values.
 bool
-ten_isPtr( ten_State* s, ten_Var* var );
+ten_isPtr( ten_State* s, ten_Var* var, ten_PtrInfo* info );
 
 void
 ten_setPtr( ten_State* s, void* addr, ten_PtrInfo* info, ten_Var* dst );
@@ -480,6 +488,9 @@ ten_isFib( ten_State* s, ten_Var* var );
 void
 ten_newFib( ten_State* s, ten_Var* cls, ten_Var* tag, ten_Var* dst );
 
+ten_FibState
+ten_state( ten_State* s, ten_Var* fib );
+
 ten_Tup
 ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args );
 
@@ -525,7 +536,7 @@ ten_swapErrJmp( ten_State* s, jmp_buf* errJmp );
 
 // Data objects.
 bool
-ten_isDat( ten_State* s, ten_Var* var );
+ten_isDat( ten_State* s, ten_Var* var, ten_DatInfo* info );
 
 void*
 ten_newDat( ten_State* s, ten_DatInfo* info, ten_Var* dst );

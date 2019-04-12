@@ -445,7 +445,7 @@ fibNew( State* state, Closure* cls, SymT* tag ) {
     Part tmpsP;
     TVal* tmps = stateAllocRaw( state, &tmpsP, sizeof(TVal)*tmpCap );
     
-    fib->state         = FIB_STOPPED;
+    fib->state         = ten_FIB_STOPPED;
     fib->nats          = NULL;
     fib->arStack.ars   = ar;
     fib->arStack.cap   = arCap;
@@ -535,13 +535,13 @@ fibPop( State* state, Fiber* fib ) {
 
 Tup
 fibCont( State* state, Fiber* fib, Tup* args ) {
-    if( fib->state == FIB_RUNNING )
+    if( fib->state == ten_FIB_RUNNING )
         stateErrFmtA( state, ten_ERR_FIBER, "Continued running fiber" );
-    if( fib->state == FIB_WAITING )
+    if( fib->state == ten_FIB_WAITING )
         stateErrFmtA( state, ten_ERR_FIBER, "Continued waiting fiber" );
-    if( fib->state == FIB_FINISHED )
+    if( fib->state == ten_FIB_FINISHED )
         stateErrFmtA( state, ten_ERR_FIBER, "Continued finished fiber" );
-    if( fib->state == FIB_FAILED )
+    if( fib->state == ten_FIB_FAILED )
         stateErrFmtA( state, ten_ERR_FIBER, "Continued failed fiber" );
     
     
@@ -550,13 +550,13 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     // errors from the continuation from propegating.
     Fiber* parent = state->fiber;
     if( parent ) {
-        parent->state = FIB_WAITING;
+        parent->state = ten_FIB_WAITING;
         stateCancelDefer( state, &parent->errDefer );
     }
     
     // Set the fiber that's being continued to the running
     // state and install its errDefer to catch errors.
-    fib->state   = FIB_RUNNING;
+    fib->state   = ten_FIB_RUNNING;
     fib->parent  = parent;
     state->fiber = fib;
     stateInstallDefer( state, &fib->errDefer );
@@ -575,7 +575,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         // Restore the parent fiber to the running state.
         state->fiber = parent;
         if( parent ) {
-            parent->state = FIB_RUNNING;
+            parent->state = ten_FIB_RUNNING;
             stateInstallDefer( state, &parent->errDefer );
             fib->parent = NULL;
         }
@@ -605,7 +605,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
         // Restore the calling fiber.
         state->fiber = parent;
         if( parent ) {
-            parent->state = FIB_RUNNING;
+            parent->state = ten_FIB_RUNNING;
             stateInstallDefer( state, &parent->errDefer );
             fib->parent = NULL;
         }
@@ -637,7 +637,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     // like another yield with the addition of setting the fiber's
     // state to FINISHED.  So we just jump back to the yield
     // handler.
-    fib->state = FIB_FINISHED;
+    fib->state = ten_FIB_FINISHED;
     longjmp( *fib->yieldJmp, 1 );
 }
 
@@ -654,10 +654,10 @@ fibYield( State* state, Tup* vals ) {
     }
     
     if( fib->rPtr->ip == 0 && fib->arStack.top == 0 ) {
-        fib->state = FIB_FINISHED;
+        fib->state = ten_FIB_FINISHED;
     }
     else {
-        fib->state = FIB_STOPPED;
+        fib->state = ten_FIB_STOPPED;
     }
     
     // Copy yielded values to expected location.
@@ -811,7 +811,7 @@ contNext( State* state, Fiber* fib, Tup* args ) {
 
 static void
 doCall( State* state, Fiber* fib ) {
-    tenAssert( fib->state == FIB_RUNNING );
+    tenAssert( fib->state == ten_FIB_RUNNING );
     tenAssert( fib->rPtr->sp > fib->tmpStack.tmps + 1 );
     
     Regs* regs = fib->rPtr;
@@ -1576,7 +1576,7 @@ onError( State* state, Defer* defer ) {
     stateClearError( state );
     
     // Set fiber to a failed state.
-    fib->state = FIB_FAILED;
+    fib->state = ten_FIB_FAILED;
 
     state->fiber->rBuf  = *state->fiber->rPtr;
     state->fiber->rPtr  = &state->fiber->rBuf;

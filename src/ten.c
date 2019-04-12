@@ -920,9 +920,14 @@ ten_getSymLen( ten_State* s, ten_Var* var ) {
 }
 
 bool
-ten_isPtr( ten_State* s, ten_Var* var ) {
+ten_isPtr( ten_State* s, ten_Var* var, ten_PtrInfo* info ) {
     State* state = (State*)s;
-    return tvIsPtr( vget( *var ) );
+    if( !tvIsPtr( vget( *var ) ) )
+        return false;
+    if( !info )
+        return true;
+    
+    return ptrInfo( state, tvGetPtr( vget( *var ) ) ) == (PtrInfo*)info;
 }
 
 void
@@ -1291,6 +1296,19 @@ ten_newFib( ten_State* s, ten_Var* cls, ten_Var* tag, ten_Var* dst ) {
     }
 }
 
+ten_FibState
+ten_state( ten_State* s, ten_Var* fib ) {
+    State* state = (State*)s;
+    TVal fibV = vget( *fib );
+    funAssert(
+        tvIsObj( fibV ) && datGetTag( tvGetObj( fibV ) ) == OBJ_FIB,
+        "Wrong type for 'fib', need Fib",
+        NULL
+    );
+    Fiber* fibO = tvGetObj( fibV );
+    return fibO->state;
+}
+
 ten_Tup
 ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args ) {
     State* state = (State*)s;
@@ -1459,10 +1477,17 @@ ten_swapErrJmp( ten_State* s, jmp_buf* errJmp ) {
 }
 
 bool
-ten_isDat( ten_State* s, ten_Var* var ) {
+ten_isDat( ten_State* s, ten_Var* var, ten_DatInfo* info ) {
     State* state = (State*)s;
     TVal val = vget( *var );
-    return tvIsObj( val ) && datGetTag( tvGetObj( val ) ) == OBJ_DAT;
+    
+    if( !tvIsObjType( val, OBJ_DAT ) )
+        return false;
+    if( !info )
+        return true;
+    
+    Data* dat = tvGetObj( val );
+    return dat->info == (DatInfo*)info;
 }
 
 void*

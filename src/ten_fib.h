@@ -31,14 +31,6 @@ typedef struct {
     NatAR*  nats;
 } VirAR;
 
-typedef enum {
-    FIB_RUNNING,
-    FIB_WAITING,
-    FIB_STOPPED,
-    FIB_FINISHED,
-    FIB_FAILED
-} FibStatus;
-
 typedef struct {
     instr* ip;
     TVal*  sp;
@@ -53,7 +45,7 @@ struct Fiber {
     NatAR* nats;
     
     // Current state of the fiber.
-    FibStatus state;
+    ten_FibState state;
     
     
     // The three stacks.
