@@ -226,8 +226,8 @@ ten_def( ten_State* s, ten_Var* name, ten_Var* val );
 void
 ten_set( ten_State* s, ten_Var* name, ten_Var* val );
 
-ten_Var*
-ten_get( ten_State* s, ten_Var* name );
+void
+ten_get( ten_State* s, ten_Var* name, ten_Var* dst );
 
 // Types.
 void

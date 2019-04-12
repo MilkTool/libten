@@ -366,19 +366,18 @@ ten_set( ten_State* s, ten_Var* name, ten_Var* val ) {
     *gval = vget( *val );
 }
 
-ten_Var*
-ten_get( ten_State* s, ten_Var* name ) {
+void
+ten_get( ten_State* s, ten_Var* name, ten_Var* dst ) {
     State* state = (State*)s;
     TVal nameV = vget( *name );
     funAssert( tvIsSym( nameV ), "Wrong type for 'name', need Sym", NULL );
     
     SymT     nameS = tvGetSym( nameV );
     TVal*    gval  = envGetGlobalByName( state, nameS );
-    ten_Var* tmp   = stateTmp( state, tvUdf() );
     if( gval )
-        vset( *tmp, *gval );
-    
-    return tmp;
+        vset( *dst, *gval );
+    else
+        vset( *dst, tvUdf() );
 }
 
 void
