@@ -971,5 +971,5 @@ the same names.
 That about sums up the language in 1K lines of markdown. It's
 quite simple, but also really practical.  Besides its simplicity Ten
 has also been designed from the ground up to be embedded into other
-applications, so check out the (TODO)[embedding guide](EmbeddingGuide.md)
+applications, so check out the [embedding guide](EmbeddingGuide.md)
 if you'd like to see how that's done.

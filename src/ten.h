@@ -257,6 +257,17 @@ ten_string( ten_State* s, ten_Tup* tup );
 void
 ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans );
 
+
+#define ten_call( S, CLS, ARGS ) \
+    ten_call_( S, CLS, ARGS, __FILE__, __LINE__ )
+
+void
+ten_panic( ten_State* s, ten_Var* val );
+
+ten_Tup
+ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned line );
+
+
 // Temporary values.
 ten_Var*
 ten_udf( ten_State* s );
@@ -433,6 +444,9 @@ ten_isIdx( ten_State* s, ten_Var* var );
 void
 ten_newIdx( ten_State* s, ten_Var* dst );
 
+ten_Var*
+ten_idxType( ten_State* s );
+
 // Record objects.
 bool
 ten_isRec( ten_State* s, ten_Var* var );
@@ -497,19 +511,8 @@ ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args );
 void
 ten_yield( ten_State* s, ten_Tup* vals );
 
-void
-ten_panic( ten_State* s, ten_Var* val );
-
-#define ten_call( S, CLS, ARGS ) \
-    ten_call_( S, CLS, ARGS, __FILE__, __LINE__ )
-
-ten_Tup
-ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned line );
-
-
 ten_Var*
 ten_fibType( ten_State* s );
-
 
 // Errors.
 

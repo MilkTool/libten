@@ -40,7 +40,7 @@ Some of Ten's more interesting features include:
 
   A quick and dirty guide to get you started with Ten.
 
-* (TODO)[Embedding Guide](EmbeddingGuide)
+* [Embedding Guide](docs/EmbeddingGuide.md)
 
   All you need to know about embedding Ten in other applications.
 
