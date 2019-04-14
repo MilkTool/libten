@@ -395,7 +395,7 @@ lexSym( State* state ) {
     }
     else {
         untilOne( true, '\'' );
-        if( com->lex.chars.buf[com->lex.chars.top-1] == '\'' )
+        if( com->lex.chars.top > 0 && com->lex.chars.buf[com->lex.chars.top-1] == '\'' )
             trim = 1;
         else
             trim = 0;
@@ -428,7 +428,7 @@ lexStr( State* state ) {
     }
     else {
         untilOne( true, '"' );
-        if( com->lex.chars.buf[com->lex.chars.top-1] == '"' )
+        if( com->lex.chars.top > 0 && com->lex.chars.buf[com->lex.chars.top-1] == '"' )
             trim = 1;
         else
             trim = 0;

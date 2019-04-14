@@ -1,12 +1,3 @@
-bool tail;
-if( inGetOpc( *regs.ip ) == OPC_RETURN ) {
-    tail = true;
-}
-else {
-    pushAR( state, fib, NULL );
-    tail = false;
-}
-
 // Figure out how many arguments were passed,
 // and where they start.
 TVal* args = &regs.sp[-1];
@@ -73,13 +64,14 @@ else {
 
 // For a tail call we copy the arguments and the closure
 // itself down the stack to replace the previous call's
-// frame.
-if( tail ) {
+// frame.  We also don't save the activation record.
+if( inGetOpc( *regs.ip ) == OPC_RETURN ) {
     for( uint i = 0 ; i <= argc ; i++ )
         regs.lcl[i] = argv[i];
     argv = regs.lcl;
 }
 else {
+    pushAR( state, fib, NULL );
     regs.lcl = argv;
 }
 
