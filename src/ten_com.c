@@ -204,21 +204,25 @@ resetChars( State* state ) {
 
 // Skips the Unicode BOM (Byte Order Mark) if present.
 static void
-skipHeader( State* state ) {
+skipBOM( State* state ) {
     ComState* com = state->comState;
     
-    if( maybeChar( state, false, 0xFE ) ) {
-        if( maybeChar( state, false, 0xFF ) )
-            return;
-        else
-            errLex( state, "Unexpected character '%c'", (char)0xFE );
-    }  
-    if( maybeChar( state, false, 0xFF ) ) {
-        if( maybeChar( state, false, 0xFE ) )
-            return;
-        else
-            errLex( state, "Unexpected character '%c'", (char)0xFF );  
+    char bom[5] = "\xEF\xBB\xBF";
+    char has[5] = { 0 };
+    
+    has[0] = com->lex.nChar;
+    if( has[0] != bom[0] )
+        return;
+    
+    for( uint i = 1 ; i < 4 ; i++ ) {
+        advance( state );
+        has[i] = com->lex.nChar;
+        if( has[i] != bom[i] ) {
+            has[i+1] = '\0';
+            errLex( state, "Unexpected character '%s'", has );
+        }
     }
+    advance( state );
 }
 
 // Skip the Unix shebang mark if present.
@@ -2247,7 +2251,7 @@ comCompile( State* state, ComParams* p ) {
     com->lex.nChar = p->src->next( p->src );
     
     if( p->script ) {
-        skipHeader( state );
+        skipBOM( state );
         skipBang( state );
     }
     lex( state );
