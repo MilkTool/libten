@@ -10,6 +10,7 @@
 #include "ten_state.h"
 #include "ten_assert.h"
 #include "ten_macros.h"
+#include "ten_math.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -366,6 +367,31 @@ fmtObj( State* state, void* obj, bool q ) {
 }
 
 static void
+fmtDec( State* state, DecT d ) {
+    if( !isfinite( d ) ) {
+        fmtStdA( state, "%f", (double)d );
+        return;
+    }
+    
+    if( d*100000.0 > trunc( d*100000.0 ) )
+        fmtStdA( state, "%.17f", (double)d );
+    else
+    if( d*10000.0 > trunc( d*10000.0 ) )
+        fmtStdA( state, "%.5f", (double)d );
+    else
+    if( d*1000.0 > trunc( d*1000.0 ) )
+        fmtStdA( state, "%.4f", (double)d );
+    else
+    if( d*100.0 > trunc( d*100.0 ) )
+        fmtStdA( state, "%.3f", (double)d );
+    else
+    if( d*10.0 > trunc( d*10.0 ) )
+        fmtStdA( state, "%.2f", (double)d );
+    else
+        fmtStdA( state, "%.1f", (double)d );
+}
+
+static void
 fmtVal( State* state, TVal val, bool q ) {
     if( tvIsObj( val ) )
         fmtObj( state, tvGetObj( val ), q );
@@ -390,7 +416,7 @@ fmtVal( State* state, TVal val, bool q ) {
         fmtStdA( state, "%lli", (llong)tvGetInt( val ) );
     else
     if( tvIsDec( val ) )
-        fmtStdA( state, "%f", (double)tvGetDec( val ) );
+        fmtDec( state, tvGetDec( val ) );
     else {
         fmtRaw( state, "<" );
         fmtType( state, val );
