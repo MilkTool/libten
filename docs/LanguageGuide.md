@@ -748,10 +748,10 @@ nested between parentheses `(...)`.  Single values and single
 value tuples are equivalent, so parentheses can also be used for
 controlling evaluation precedence as usual.
 
-  ()
-  ( 1 )
-  ( 1, 2 )
-  ( 1, 2, 3 )
+    ()
+    ( 1 )
+    ( 1, 2 )
+    ( 1, 2, 3 )
 
 The delimiter rules are the same here as for record constructors.
 
