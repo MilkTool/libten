@@ -647,7 +647,7 @@ fibYield( State* state, Tup* vals ) {
     tenAssert( fib );
     
     
-    TVal* dstv = NULL;
+    TVal* dstv = fib->rPtr->lcl;
     while( fib->rPtr->ip == 0 && fib->arStack.top > 0 ) {
         dstv = fib->rPtr->lcl;
         popAR( state, fib );
