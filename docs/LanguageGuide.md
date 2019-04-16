@@ -736,7 +736,7 @@ and can't be implemented without some platform specific code.
 The choice of a scheduler implementation is thus left to the user,
 though the Ten CLI will likely ship with one in the future.
 
-### Tuples
+### Tuple
 Tuples aren't really a 'type' like all the others mentioned, at
 least not a first class type.  Tuples are a means of grouping
 multiple temporary values to pass as arguments or return values.
