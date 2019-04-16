@@ -713,7 +713,69 @@ forwarded from the `cont()` call) will serve as the return values
 for the previous `yield()` call.  So if we continue this fiber
 again with an argument, the argument will serve as the closure's
 ultimate return value, and the return of the continuation since
-this is task's return value.
+this is the task's return value.
 
     $ cont( y, 321 )
     : 321
+
+Now the wrapped closure has returned, so the fiber is finished:
+
+    $ state( y )
+    : 'finished'
+
+This functionality is especially useful in conjunction with
+asynchronous IO, as a task can be paused while waiting for input,
+then continued upon receipt of the requested data; allowing other
+processing to be done in the meantime.  A task scheduler is
+required, however, to use this strategy effectively; and the core
+language doesn't provide one since it'd enlarge the implementation
+and can't be implemented without some platform specific code.
+
+The choice of a scheduler implementation is thus left to the user,
+though the Ten CLI will likely ship with one in the future.
+
+### Other Types
+Though we've covered Ten's most prominent types, the language does
+have a few other value types not detailed so far.  These types aren't
+especially important when programming in Ten, and will rarely be seen
+or used.  But they're more important from the perspective of an embedding
+application, so will be covered in more detail in the embedding guide.
+
+* Index
+
+  This is the type given to the shared lookup tables used by records.
+
+* Function
+
+  This is the type given to the portion of closures that can be shared
+  between instances.
+
+* Pointer
+
+  This is the type given to native memory addresses.  Though Ten
+  doesn't know how to do anything with pointers, they can be passed
+  to native functions, to which the pointer will be more useful.
+
+* Data
+
+  This is the type of native user objects.  They contain a block
+  of raw memory to be used by native functions, and a set of member
+  associated member variables.
+
+### Type Checking
+Besides the `type()` function for obtaining a value's type name,
+Ten also features a specialized `expect()` function for type
+checking; which panics if the given value isn't of the expected
+type.
+
+    def val: 123
+    expect( "val", 'Int', val )
+
+The first argument gives a 'unit' to report as not having the
+proper type, in this case just the name of the variable, this
+is used in the generated error message.
+
+    $ def val: 123
+    : udf
+    $ expect( "val", 'Dec', val )
+    Error: 
