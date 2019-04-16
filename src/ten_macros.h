@@ -71,7 +71,7 @@
 #define panic( FMT... )                                         \
     do {                                                        \
         char const* fiber = NULL;                               \
-        if( state->fiber )                                      \
+        if( state->fiber && state->fiber->tagged )              \
             fiber = symBuf( state, state->fiber->tag );         \
         statePushTrace( state, fiber, __FILE__, __LINE__ );     \
         stateErrFmtA( state, ten_ERR_PANIC, FMT );              \
