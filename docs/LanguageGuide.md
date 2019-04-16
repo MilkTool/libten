@@ -20,10 +20,10 @@ Ten's capabilities and style.
     - [Record](#records)
     - [Closure](#closures)
     - [Fiber](#fibers)
+    - [Tuples](#tuples)
     - [Other Types](#other-types)
     - [Type Checking](#type-checking)
     - [Type Conversion](#type-conversion)
-* [Tuples](#tuples)
 * [Operators](#operators)
     - [Power Operator](#power-operator)
     - [Fix Operator](#fix-operator)
@@ -220,7 +220,9 @@ The CLI will be used in examples and demonstrations throughout
 the guide; and is a useful tool for exploring the semantics
 not detailed in this guide.
 
-## Types and Operators
+---
+
+## Types
 Ten is a dynamically, but strongly, typed language.  This means
 that types are checked at runtime rather than compile time, and
 variables can hold values of any type; but the language
@@ -734,6 +736,25 @@ and can't be implemented without some platform specific code.
 The choice of a scheduler implementation is thus left to the user,
 though the Ten CLI will likely ship with one in the future.
 
+### Tuples
+Tuples aren't really a 'type' like all the others mentioned, at
+least not a first class type.  Tuples are a means of grouping
+multiple temporary values to pass as arguments or return values.
+They exist only on the temporary stack, and can't be nested or
+assigned to variables or record fields.
+
+Tuples are expressed syntactically as some number of expressions
+nested between parentheses `(...)`.  Single values and single
+value tuples are equivalent, so parentheses can also be used for
+controlling evaluation precedence as usual.
+
+  ()
+  ( 1 )
+  ( 1, 2 )
+  ( 1, 2, 3 )
+
+The delimiter rules are the same here as for record constructors.
+
 ### Other Types
 Though we've covered Ten's most prominent types, the language does
 have a few other value types not detailed so far.  These types aren't
@@ -778,4 +799,57 @@ is used in the generated error message.
     $ def val: 123
     : udf
     $ expect( "val", 'Dec', val )
-    Error: 
+    Error: Wrong type Int for 'val', need Dec
+      unit: ???        line: 1    file: <REPL>              
+      unit: ???        line: 428  file: src/ten_lib.c
+
+
+In addition to the basic type abbreviation, values of some
+types can be 'tagged' with further type information.  Records
+are tagged just by adding a `.tag` field:
+
+    $ def r: { .tag: 'Example' }
+    : udf
+    $ type( r )
+    : 'Rec:Example'
+
+Tags can also be specified for type checking, but if omitted then
+only the base type will be checked.
+
+    $ expect( "r", 'Rec:Example', r )
+    : ()
+
+Other 'taggable' types are Dat (data objects) and Ptr (pointers),
+but these can only be tagged from native code, so an explanation
+will be given in the embedding guide.
+
+    $ expect( "p", 'Ptr:SomeType', p )
+    : ()
+    $ expect( "d", 'Dat:SomeType', d )
+    : ()
+
+### Type Conversion
+Ten provides a few functions for converting between some of the
+simpler types; since Ten is strongly typed this won't happen
+implicitly as it would in weaker typed languages.  Type conversion
+happens as might be expected, logical values can be converted to
+numbers as `false -> 0` and `true -> 1`, strings and symbols can
+be parsed for literals of the target type, and any type can be
+stringified as a string or literal.  If for some reason the conversion
+cannot succeed, then `udf` is returned.
+
+    $ log( 1 )
+    : true
+    $ int"123"
+    : 123
+    $ dec( "not a number" )
+    : udf
+    $ sym( 3.14 )
+    : '3.14'
+    $ str( 1.2 )
+    : "1.2"
+
+---
+
+## Operators
+...
