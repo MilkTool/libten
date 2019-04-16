@@ -65,7 +65,7 @@ else {
 // For a tail call we copy the arguments and the closure
 // itself down the stack to replace the previous call's
 // frame.  We also don't save the activation record.
-if( inGetOpc( *regs.ip ) == OPC_RETURN ) {
+if( inGetOpc( *regs.ip ) == OPC_RETURN && fib->arStack.top > 0 ) {
     for( uint i = 0 ; i <= argc ; i++ )
         regs.lcl[i] = argv[i];
     argv = regs.lcl;
