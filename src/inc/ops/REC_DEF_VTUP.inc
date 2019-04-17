@@ -25,7 +25,7 @@ if( !tvIsObj( dst ) || datGetTag( tvGetObj( dst ) ) != OBJ_REC )
     );
 
 Record* dRec = tvGetObj( dst );
-for( uint i = 0 ; i < cnt ; i++ )
+for( uint i = 0 ; i < opr ; i++ )
     recDef( state, dRec, keys[i], vals[i] );
 
 Record* vRec = recNew( state, vIdx );

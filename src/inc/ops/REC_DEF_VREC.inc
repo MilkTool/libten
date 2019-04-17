@@ -21,15 +21,26 @@ TVal (*pairs)[2] = (TVal (*)[2])(regs.sp - 3 - 2*opr);
 Record* dRec = tvGetObj( dst );
 Record* sRec = tvGetObj( src );
 
-Index* srcIdx  = tpGetPtr( dRec->idx );
-TVal*  srcVals = dRec->vals;
-uint   srcCap  = dRec->cap;
+Index* srcIdx  = tpGetPtr( sRec->idx );
+TVal*  srcVals = sRec->vals;
+uint   srcCap  = sRec->cap;
 bool   srcMrk[srcCap]; memset( srcMrk, 0, sizeof(bool)*srcCap );
 
 for( uint i = 0 ; i < opr ; i++ ) {
     TVal dKey = pairs[i][0];
     TVal sKey = pairs[i][1];
-    recDef( state, dRec, dKey, recGet( state, sRec, sKey ) );
+    
+    uint loc = idxGetByKey( state, srcIdx, sKey );
+    TVal val;
+    if( loc >= srcCap ) {
+        val = tvUdf();
+    }
+    else {
+        val = srcVals[loc];
+        srcMrk[loc] = true;
+    }
+    
+    recDef( state, dRec, dKey, val );
 }
 
 

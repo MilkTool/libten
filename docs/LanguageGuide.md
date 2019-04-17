@@ -150,7 +150,7 @@ environment variable.  This can be done temporarily with:
 
 Unfortunately however, this is localized to the current terminal,
 and will reset when it's closed.  For something more permanent
-you'll need to add this line to your profile script[@](#mt-profile).
+you'll need to add this line to your shell's profile script.
 
 Try running the test line again, if you get the same error...
 then something's really broken, you can submit an issue
@@ -174,8 +174,8 @@ a temporary solution we can do:
 
 This however only sets the variable in the current terminal,
 and it'll be reset when it's closed.  For something more
-permanent you'll need to add this line to your profile
-script[@](#mt-profile).
+permanent you'll need to add this line to your shell's profile
+script.
 
 Try running the test line again, if you get the same error...
 then something's really broken, you can submit an issue
@@ -186,7 +186,7 @@ look through the rest of the cases.
 
 ### Hello, World!
 For the sake of tradition... let's do this first.  We'll do
-two versions, a REPL[@](#df-repl) and a script to demonstrate
+two versions, a REPL and a script to demonstrate
 both aspects of the CLI.
 
 A REPL can be launched by just running `ten` with no arguments,
