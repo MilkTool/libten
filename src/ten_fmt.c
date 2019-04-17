@@ -346,7 +346,7 @@ fmtRec( State* state, Record* rec ) {
             fmtRaw( state, ", " );
     }
     
-    fmtRaw( state, "}" );
+    fmtRaw( state, " }" );
 }
 
 static void

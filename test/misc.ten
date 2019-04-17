@@ -1,7 +1,7 @@
 assert( bcmp( cat( "Hello, ", "World!" ), '=', "Hello, World!" ), "1" )
 
 def s: seq( "Hello, ", "World!" )
-assert( bcmp( join( s ), '=', "Hello, World!" ), "2" )
+assert( bcmp( join( s, "" ), '=', "Hello, World!" ), "2" )
 
 assert( ucode'ぁ' = 12353, "3" )
 assert( uchar( 12353 ) = 'ぁ', "4" )
@@ -18,7 +18,12 @@ assert( ccmp( "ぁ", '<', "ぃ" ), "11" )
 assert( ccmp( "ぃ", '>', "ぁ" ), "12" )
 assert( ccmp( "ぁ", '=', "ぁ" ), "13" )
 
-assert( hex"FFF" = 4095, "14" )
-assert( hex"F.F" = 15.9375, "15" )
-assert( oct"666" = 438, "16" )
-assert( bin"110" = 6, "17" )
+assert( bcmp( bsub( "abc", 1 ), '=', "a" ), "14" )
+assert( bcmp( bsub( "abc", -1 ), '=', "c" ), "15" )
+assert( ccmp( csub( "ぁぃ", 1 ), '=', "ぁ" ), "16" )
+assert( ccmp( csub( "ぁぃ", -1 ), '=', "ぃ" ), "17" )
+
+assert( hex"FFF" = 4095, "18" )
+assert( hex"F.F" = 15.9375, "19" )
+assert( oct"666" = 438, "20" )
+assert( bin"110" = 6, "21" )

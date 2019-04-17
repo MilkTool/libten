@@ -63,6 +63,7 @@ typedef enum {
     IDENT_vals,
     IDENT_pairs,
     IDENT_seq,
+    IDENT_rseq,
     IDENT_bytes,
     IDENT_chars,
     IDENT_items,
@@ -80,6 +81,8 @@ typedef enum {
     IDENT_join,
     IDENT_bcmp,
     IDENT_ccmp,
+    IDENT_bsub,
+    IDENT_csub,
     
     IDENT_each,
     IDENT_fold,
@@ -1520,7 +1523,7 @@ libCat( State* state, Record* vals ) {
 }
 
 String*
-libJoin( State* state, Closure* iter ) {
+libJoin( State* state, Closure* iter, TVal sep ) {
     ten_State* ten = (ten_State*)state;
     
     CharBuf buf; initCharBuf( state, &buf );
@@ -1532,13 +1535,20 @@ libJoin( State* state, Closure* iter ) {
         panic( "Iterator returned tuple" );
     
     while( !tvIsUdf( vget( retVar ) ) ) {
-        char const* str = fmtA( state, false, "%v", vget( retVar ) );
-        size_t      len = fmtLen( state );
-        for( uint i = 0 ; i < len ; i++ )
-            *putCharBuf( state, &buf ) = str[i];
+        fmtA( state, false, "%v", vget( retVar ) );
         
         ten_pop( ten );
         retTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &argTup );
+        
+        char const* str = fmtBuf( state );
+        size_t      len = fmtLen( state );
+        if( !tvIsUdf( vget( retVar ) ) ) {
+            str = fmtA( state, true, "%v", sep );
+            len = fmtLen( state );
+        }
+        
+        for( uint i = 0 ; i < len ; i++ )
+            *putCharBuf( state, &buf ) = str[i];
     }
     
     ten_pop( ten );
@@ -1621,6 +1631,68 @@ libCcmp( State* state, String* str1, SymT opr, String* str2 ) {
     return tvUdf();
 }
 
+String*
+libBsub( State* state, String* str, IntT n ) {
+    char const* buf = str->buf;
+    size_t      len = str->len;
+    
+    if( n >= 0 ) {
+        if( n > len )
+            panic( "Given 'n' is larger than string length" );
+        return strNew( state, buf, n );
+    }
+    else {
+        if( -n > len )
+            panic( "Given 'n' is larger than string length" );
+        return strNew( state, buf + len + n, -n );
+    }
+}
+
+String*
+libCsub( State* state, String* str, IntT n ) {
+    char const* buf = str->buf;
+    size_t      len = str->len;
+    
+    if( n >= 0 ) {
+        char const* end  = buf;
+        size_t      left = len;
+        uint32_t    chr  = 0;
+        while( n > 0 && left > 0 ) {
+            n--;
+            unext( state, &end, &left, &chr );
+        }
+        if( n > 0 )
+            panic( "Given 'n' is larger than string length" );
+        
+        return strNew( state, buf, end - buf );
+    }
+    else {
+        char const* start  = buf + len;
+        while( start >= buf && n > 0 ) {
+            uint len = 1;
+            while( start > buf && isAfterChr( *start ) ) {
+                start--;
+                len++;
+            }
+            if( len == 1 && !isSingleChr( *start ) )
+                goto fail;
+            if( len == 2 && !isDoubleChr( *start ) )
+                goto fail;
+            if( len == 3 && !isTripleChr( *start ) )
+                goto fail;
+            if( len == 4 && !isQuadChr( *start ) )
+                goto fail;
+            if( len < 1 || len > 4 )
+                goto fail;
+        }
+        
+        return strNew( state, start, start - (buf + len) );
+    }
+    
+    fail: panic( "Format is not UTF-8" );
+    return NULL;
+}
+
 void
 libEach( State* state, Closure* iter, Closure* what ) {
     ten_State* ten = (ten_State*)state;
@@ -1697,6 +1769,8 @@ libCons( State* state, TVal car, TVal cdr ) {
     
     recDef( state, rec, tvSym( lib->idents[IDENT_car] ), car );
     recDef( state, rec, tvSym( lib->idents[IDENT_cdr] ), cdr );
+    
+    recSep( state, rec );
     
     ten_pop( ten );
     return rec;
@@ -2317,6 +2391,22 @@ seqFun( ten_PARAMS ) {
 }
 
 static ten_Tup
+rseqFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var valsArg = { .tup = args, .loc = 0 };
+    expectArg( vals, OBJ_REC );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libSeq( (State*)ten, tvGetObj( vget( valsArg ) ) );
+    vset( retVar, tvObj( cls ) );
+    
+    return retTup;
+}
+
+static ten_Tup
 bytesFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
@@ -2509,12 +2599,14 @@ joinFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
     ten_Var iterArg = { .tup = args, .loc = 0 };
+    ten_Var sepArg  = { .tup = args, .loc = 1 };
+    
     expectArg( iter, OBJ_CLS );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    String* str = libJoin( state, tvGetObj( vget( iterArg ) ) );
+    String* str = libJoin( state, tvGetObj( vget( iterArg ) ), vget( sepArg ) );
     vset( retVar, tvObj( str ) );
     
     return retTup;
@@ -2561,6 +2653,44 @@ ccmpFun( ten_PARAMS ) {
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     vset( retVar, libCcmp( state, str1, opr, str2 ) );
+    return retTup;
+}
+
+static ten_Tup
+bsubFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var nArg   = { .tup = args, .loc = 1 };
+    
+    expectArg( str, OBJ_STR );
+    expectArg( n, VAL_INT );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    String* sub = libBsub( state, tvGetObj( vget( strArg ) ), tvGetInt( vget( nArg ) ) );
+    vset( retVar, tvObj( sub ) );
+    
+    return retTup;
+}
+
+static ten_Tup
+csubFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var nArg   = { .tup = args, .loc = 1 };
+    
+    expectArg( str, OBJ_STR );
+    expectArg( n, VAL_INT );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    String* sub = libCsub( state, tvGetObj( vget( strArg ) ), tvGetInt( vget( nArg ) ) );
+    vset( retVar, tvObj( sub ) );
+    
     return retTup;
 }
 
@@ -2871,6 +3001,7 @@ libInit( State* state ) {
     IDENT( vals );
     IDENT( pairs );
     IDENT( seq );
+    IDENT( rseq );
     IDENT( bytes );
     IDENT( chars );
     IDENT( items );
@@ -2888,6 +3019,8 @@ libInit( State* state ) {
     IDENT( join );
     IDENT( bcmp );
     IDENT( ccmp );
+    IDENT( bsub );
+    IDENT( csub );
     
     IDENT( each );
     IDENT( fold );
@@ -2995,6 +3128,7 @@ libInit( State* state ) {
     FUN( vals, 1, false );
     FUN( pairs, 1, false );
     FUN( seq, 0, true );
+    FUN( rseq, 1, false );
     FUN( bytes, 1, false );
     FUN( chars, 1, false );
     FUN( items, 1, false );
@@ -3009,9 +3143,11 @@ libInit( State* state ) {
     FUN( uchar, 1, false );
     
     FUN( cat, 0, true );
-    FUN( join, 1, false );
+    FUN( join, 2, false );
     FUN( bcmp, 3, false );
     FUN( ccmp, 3, false );
+    FUN( bsub, 2, false );
+    FUN( csub, 2, false );
     
     FUN( each, 2, false );
     FUN( fold, 3, false );

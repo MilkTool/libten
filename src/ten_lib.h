@@ -107,7 +107,7 @@ String*
 libCat( State* state, Record* rec );
 
 String*
-libJoin( State* state, Closure* seq );
+libJoin( State* state, Closure* seq, TVal sep );
 
 TVal
 libBcmp( State* state, String* str1, SymT opr, String* str2 );
