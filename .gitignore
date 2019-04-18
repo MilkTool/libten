@@ -5,3 +5,7 @@
 **/build/
 **/vgcore.*
 tester
+release/*.tgz
+release/*.tar
+release/*.gz
+
