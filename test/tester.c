@@ -34,7 +34,6 @@ main( void ) {
     stateTest();
     
     ten_State* ten = NULL;
-    ten_Config cfg = { .debug = true };
     
     jmp_buf errJmp;
     int sig = setjmp( errJmp );
@@ -63,7 +62,7 @@ main( void ) {
         ten_free( ten );
         exit( 1 );
     }
-    ten = ten_make( &cfg, &errJmp );
+    ten = ten_make( NULL, &errJmp );
     
     for( uint i = 0 ; tests[i] != NULL ; i++ ) {
         fprintf( stderr, "Running '%s'...\n", tests[i] );

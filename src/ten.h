@@ -186,7 +186,7 @@ typedef struct ten_Config {
     void*       udata;
     FreallocFun frealloc;
     
-    bool debug;
+    bool ndebug;
     
     double memGrowth;
 } ten_Config;

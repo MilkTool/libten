@@ -651,7 +651,7 @@ compileScript( State* state, char const** upvals, ten_Source* src, ten_ComScope 
         .file   = src->name,
         .params = NULL,
         .upvals = upvals,
-        .debug  = state->config.debug,
+        .debug  = !state->config.ndebug,
         .global = (scope == ten_SCOPE_GLOBAL),
         .script = true,
         .src    = src
@@ -674,7 +674,7 @@ compileExpr( State* state, char const** upvals, ten_Source* src, ten_ComScope sc
         .file   = src->name,
         .params = NULL,
         .upvals = upvals,
-        .debug  = state->config.debug,
+        .debug  = !state->config.ndebug,
         .global = ( scope == ten_SCOPE_GLOBAL),
         .script = false,
         .src    = src
@@ -876,6 +876,7 @@ ten_isDec( ten_State* s, ten_Var* var ) {
 void
 ten_setDec( ten_State* s, double dec, ten_Var* dst ) {
     State* state = (State*)s;
+    funAssert( !isnan( dec ), "NaN given as Dec value", NULL );
     vset( *dst, tvDec( dec ) );
 }
 

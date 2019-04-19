@@ -1504,7 +1504,7 @@ genTrace( State* state, Fiber* fib ) {
         tag = symBuf( state, fib->tag );
     
     // Generate stack trace.
-    if( state->config.debug ) {
+    if( !state->config.ndebug ) {
         if( fib->rPtr->ip ) {
             VirFun* vir  = &fib->rPtr->cls->fun->u.vir;
             ullong place = fib->rPtr->ip - vir->code;
