@@ -646,7 +646,9 @@ fibYield( State* state, Tup* vals ) {
     Fiber* fib = state->fiber;
     tenAssert( fib );
     
-    // Can't yield from native function call.
+    // Can't yield from native function call, this excludes
+    // the current register set from the check, since the
+    // actual `yield()` function will be native.
     if( fib->nats )
         panic( "Attempt to yield from native function call" );
     for( uint i = 0 ; i < fib->arStack.top ; i++ ) {
