@@ -247,10 +247,6 @@ struct State {
     // List of GC objects.
     Object* objects;
     
-    #ifdef ten_TEST
-        struct Test* test;
-    #endif
-    
     // The current fiber, this is the GC root pointer and
     // is where we start GC reference traversal after
     // invoking all the Scanners.
