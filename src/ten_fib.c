@@ -646,6 +646,13 @@ fibYield( State* state, Tup* vals ) {
     Fiber* fib = state->fiber;
     tenAssert( fib );
     
+    // Can't yield from native function call.
+    if( fib->nats )
+        panic( "Attempt to yield from native function call" );
+    for( uint i = 0 ; i < fib->arStack.top ; i++ ) {
+        if( fib->arStack.ars[i].nats )
+            panic( "Attempt to yield from native function call" );
+    }
     
     TVal* dstv = fib->rPtr->lcl;
     while( fib->rPtr->ip == 0 && fib->arStack.top > 0 ) {

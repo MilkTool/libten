@@ -1329,15 +1329,6 @@ ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args ) {
 }
 
 void
-ten_yield( ten_State* s, ten_Tup* vals ) {
-    State* state = (State*)s;
-    
-    funAssert( state->fiber, "Yield without running fiber", NULL );
-    
-    fibYield( state, (Tup*)vals );
-}
-
-void
 ten_panic( ten_State* s, ten_Var* val ) {
     State* state = (State*)s;
     stateErrVal( state, ten_ERR_PANIC, vget( *val ) );

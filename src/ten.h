@@ -508,9 +508,6 @@ ten_state( ten_State* s, ten_Var* fib );
 ten_Tup
 ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args );
 
-void
-ten_yield( ten_State* s, ten_Tup* vals );
-
 ten_Var*
 ten_fibType( ten_State* s );
 
