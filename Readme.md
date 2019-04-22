@@ -36,11 +36,11 @@ Some of Ten's more interesting features include:
 
 ## Resources
 
-* [Language Guide](docs/LanguageGuide.md)
+* [Language Guide](https://github.com/ten-lang/docs/LanguageGuide.md)
 
   A quick and dirty guide to get you started with Ten.
 
-* [Embedding Guide](docs/EmbeddingGuide.md)
+* (TODO)[Embedding Guide](EmbeddingGuide)
 
   All you need to know about embedding Ten in other applications.
 
