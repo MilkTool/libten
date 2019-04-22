@@ -36,7 +36,7 @@ Some of Ten's more interesting features include:
 
 ## Resources
 
-* [Language Guide](https://github.com/ten-lang/docs/LanguageGuide.md)
+* [Language Guide](https://github.com/ten-lang/docs/blob/master/LanguageGuide.md)
 
   A quick and dirty guide to get you started with Ten.
 
