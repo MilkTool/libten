@@ -328,7 +328,7 @@ fibYield( State* state, Tup* vals, bool pop ) {
     // then replace it with a copy since the current
     // one is either stack allocated in <finishCon>
     // or a pointer to the user's context.
-    if( fib->rptr->context ) {
+    if( fib->rptr->ip == NULL && fib->rptr->context != NULL ) {
         Part  ctxP;
         void* ctx = stateAllocRaw( state, &ctxP, fib->rptr->ctxSize );
         memcpy( ctx, fib->rptr->context, fib->rptr->ctxSize );
@@ -461,6 +461,8 @@ fibDestruct( State* state, Fiber* fib ) {
     stateFreeRaw( state, fib->virs.buf, fib->virs.cap*sizeof(VirAR) );
     stateFreeRaw( state, fib->stack.buf, fib->stack.cap*sizeof(TVal) );
     
+    if( fib->state == ten_FIB_STOPPED && fib->rptr->context )
+        stateFreeRaw( state, fib->rptr->context, fib->rptr->ctxSize );
     if( fib->trace )
         stateFreeTrace( state, fib->trace );
 }
@@ -523,8 +525,6 @@ contNext( State* state, Fiber* fib, Tup* args ) {
         dum.dstOffset  = fib->rptr->dstOffset;
         dum.checkpoint = fib->rptr->checkpoint;
         finishCon( state, &dum, false );
-        if( dum.context )
-            stateFreeRaw( state, dum.context, dum.ctxSize );
         
         // The ConARs in fib->cons will only be finished
         // by the pop function if there are also VirARs on
@@ -1214,16 +1214,15 @@ finishCon( State* state, ConAR* con, bool free ) {
     regs->cls        = con->base.cls;
     regs->ip         = NULL;
     regs->lcl        = fib->stack.buf + con->base.lcl;
-    regs->context    = context;
+    regs->context    = con->ctxSize > 0 ? context : NULL;
     regs->ctxSize    = con->ctxSize;
     regs->dstOffset  = con->dstOffset;
     regs->checkpoint = con->checkpoint;
     
-    if( free ) {
-        if( con->context )
-            stateFreeRaw( state, con->context, con->ctxSize );
+    if( con->context )
+        stateFreeRaw( state, con->context, con->ctxSize );
+    if( free )
         stateFreeRaw( state, con, sizeof(ConAR) );
-    }
     
     // The native function continuation system is optional,
     // if the native function doesn't register a context
