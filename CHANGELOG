@@ -1,0 +1,21 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.3.0] - 2019-05-22
+### Added
+- Re-Entrancy for native function calls.
+- Tests for native function re-entrancy.
+- Yield function to public API.
+- Changelog.
+
+### Changed
+- API version number.
+
+### Removed
+- Internal testing.
+
+
+[0.3.0]: https://github.com/ten-lang/libten/releases/tag/v0.3.0
