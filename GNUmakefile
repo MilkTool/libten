@@ -83,7 +83,7 @@ libten$(POSTFIX)$(LIB): $(HEADERS) $(INCLUDE) $(SOURCES)
 	ar rcs libten$(POSTFIX)$(LIB) libten.o
 	rm *.o
 
-tester$(EXE): $(HEADERS) $(INCLUDE) $(SOURCES) test/tester.c
+tester$(EXE): $(HEADERS) $(INCLUDE) $(SOURCES) test/*.c test/*.inc
 	$(COMPILER) $(CCFLAGS) -D ten_TEST -D TEST_PATH='"test/"' $(SOURCES) $(LINK) test/tester.c -o tester$(EXE)
 
 .PHONY: install

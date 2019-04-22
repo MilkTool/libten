@@ -1,5 +1,6 @@
 #include "../src/ten.h"
 #include <stdlib.h>
+#include <string.h>
 
 
 #include "fiber.inc"

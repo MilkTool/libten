@@ -10,11 +10,12 @@ tf_reentry( ten_PARAMS ) {
     ten_Var clsArg = { .tup = args, .loc = 0 };
     ten_expect( ten, "cls", ten_clsType( ten ), &clsArg );
     
-    ten_Var numRet = { .tup = &ctx.rets, .loc = 0 };
+    ten_Var ret = { .tup = &ctx.rets, .loc = 0 };
     
     switch( ten_seek( ten, &ctx, sizeof(ctx) ) ) {
         case 0: goto cp0;
         case 1: goto cp1;
+        case 2: goto cp2;
     }
     
     ten_checkpoint( ten, 0, &ctx.rets );
@@ -22,8 +23,8 @@ tf_reentry( ten_PARAMS ) {
         ctx.rets = ten_call( ten, &clsArg, &ctx.args );
     cp0:
     
-    ten_expect( ten, "callback return", ten_intType( ten ), &numRet );
-    ctx.num = ten_getInt( ten, &numRet );
+    ten_expect( ten, "callback return", ten_intType( ten ), &ret );
+    ctx.num = ten_getInt( ten, &ret );
     if( ctx.num != 123 )
         ten_panic( ten, ten_int( ten, 1 ) );
     
@@ -34,6 +35,14 @@ tf_reentry( ten_PARAMS ) {
     
     if( ctx.num != 321 )
         ten_panic( ten, ten_int( ten, 2 ) );
+    
+    ten_checkpoint( ten, 2, &ctx.rets );
+        ten_yield( ten, &ctx.args );
+    cp2:
+    
+    ten_expect( ten, "continue arg", ten_symType( ten ), &ret );
+    if( strcmp( ten_getSymBuf( ten, &ret ), "hello" ) )
+        ten_panic( ten, ten_int( ten, 3 ) );
     
     return ten_pushA( ten, "" );
 }
@@ -77,9 +86,15 @@ fiber_reentry1( ten_State* ten ) {
     ten_Tup args = ten_pushA( ten, "" );
     ten_cont( ten, &mainFibVar, &args );
     ten_propError( ten, &mainFibVar );
+    
     ten_cont( ten, &mainFibVar, &args );
     ten_propError( ten, &mainFibVar );
+    
     ten_cont( ten, &mainFibVar, &args );
+    ten_propError( ten, &mainFibVar );
+    
+    ten_Tup args2 = ten_pushA( ten, "S", "hello" );
+    ten_cont( ten, &mainFibVar, &args2 );
     ten_propError( ten, &mainFibVar );
 }
 
