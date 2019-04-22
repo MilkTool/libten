@@ -48,25 +48,6 @@ fmtInit( State* state ) {
     *putCharBuf( state, &fmt->buf ) = '\0';
 }
 
-void
-fmtTest( State* state ) {
-    char const* t1 = fmtA( state, false, "Test %i: %v", 1, tvInt( 1 ) );
-    tenAssert( !strcmp( t1, "Test 1: 1" ) );
-    
-    SymT s2 = symGet( state, "2", 1 );
-    char const* t2 = fmtA( state, false, "Test %s: %v", "2", tvSym( s2 ) );
-    tenAssert( !strcmp( t2, "Test 2: 2" ) );
-    
-    String* s3 = strNew( state, "3", 1 );
-    char const* t3 = fmtA( state, false, "Test 3: %q", tvObj( s3 ) );
-    tenAssert( !strcmp( t3, "Test 3: \"3\"" ) );
-    
-    fmtA( state, false, "Hello," );
-    fmtA( state, true, " " );
-    fmtA( state, true, "World!" );
-    tenAssert( !strcmp( fmtBuf( state ), "Hello, World!" ) );
-}
-
 char const*
 fmtA( State* state, bool append, char const* fmt, ... ) {
     va_list ap;

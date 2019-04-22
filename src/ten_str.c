@@ -8,26 +8,6 @@ strInit( State* state ) {
     state->strState = NULL;
 }
 
-#ifdef ten_TEST
-void
-strTest( State* state ) {
-    char const raw1[] = "Hello, World!";
-    String*    str1   = strNew( state, raw1, sizeof(raw1)-1 );
-    size_t     len1   = strLen( state, str1 );
-    
-    tenAssert( len1 == sizeof(raw1)-1 );
-    tenAssert( !memcmp( strBuf( state, str1 ), raw1, len1 ) );
-    
-    // Allocate a few strings to add them to the GC pool.
-    strNew( state, "Test1", 5 );
-    strNew( state, "Test2", 5 );
-    strNew( state, "Test3", 5 );
-    strNew( state, "Test4", 5 );
-    strNew( state, "Test5", 5 );
-    strNew( state, "Test6", 5 );
-}
-#endif
-
 String*
 strNew( State* state, char const* src, size_t len ) {
     Part strP;

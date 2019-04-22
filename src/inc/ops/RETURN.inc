@@ -11,7 +11,7 @@ for( uint i = 0 ; i < retc ; i++ )
 regs.sp = dstv + retc;
 
 
-if( fib->arStack.top == 0 || fib->arStack.ars[fib->arStack.top-1].nats )
+if( fib->virs.top == fib->virs.base || fib->virs.buf[fib->virs.top-1].nats )
     EXIT;
 else
-    popAR( state, fib );
+    fib->pop( state, fib );

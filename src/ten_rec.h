@@ -31,11 +31,6 @@ struct Record {
 void
 recInit( State* state );
 
-#ifdef ten_TEST
-    void
-    recTest( State* state );
-#endif
-
 Record*
 recNew( State* state, Index* idx );
 

@@ -32,11 +32,6 @@ datInit( State* state );
 DatInfo*
 datAddInfo( State* state, ten_DatConfig* config );
 
-#ifdef ten_TEST
-    void
-    datTest( State* state );
-#endif
-
 Data*
 datNew( State* state, DatInfo* info );
 

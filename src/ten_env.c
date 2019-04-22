@@ -23,10 +23,6 @@ struct EnvState {
     ValBuf gVals;
     
     ValBuf stack;
-    
-    #ifdef ten_TEST
-        SymT tsym;
-    #endif
 };
 
 void
@@ -47,10 +43,6 @@ envScan( State* state, Scanner* scan ) {
         tvMark( env->stack.buf[i] );
     for( uint i = 0 ; i < env->gVals.top ; i++ )
         tvMark( env->gVals.buf[i] );
-    
-    #ifdef ten_TEST
-        symMark( state, env->tsym );
-    #endif
 }
 
 void
@@ -60,10 +52,6 @@ envInit( State* state ) {
     env->gNames  = ntabMake( state );
     env->finl.cb = envFinl;
     env->scan.cb = envScan;
-    
-    #ifdef ten_TEST
-        env->tsym = symGet( state, "", 0 );
-    #endif
     
     initValBuf( state, &env->gVals );
     initValBuf( state, &env->stack );
@@ -76,21 +64,6 @@ envInit( State* state ) {
     stateCommitRaw( state, &envP );
     state->envState = env;
 }
-
-#ifdef ten_TEST
-void
-envTest( State* state ) {
-    EnvState* env = state->envState;
-    
-    env->tsym = symGet( state, "test1", 5 );
-    uint loc1 = envAddGlobal( state, env->tsym );
-    tenAssert( tvIsUdf( *envGetGlobalByName( state, env->tsym ) ) );
-    *envGetGlobalByName( state, env->tsym ) = tvDec( 1.1 );
-    tenAssert( tvEqual( *envGetGlobalByName( state, env->tsym ), tvDec( 1.1 ) ) );
-    
-    tenAssert( envGetGlobalByName( state, env->tsym ) == envGetGlobalByLoc( state, loc1 ) );
-}
-#endif
 
 Tup
 envPush( State* state, uint n ) {

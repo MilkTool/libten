@@ -2186,54 +2186,6 @@ comInit( State* state ) {
     state->comState = com;
 }
 
-#ifdef ten_TEST
-typedef struct {
-    ten_Source  src;
-    char const* str;
-    size_t      loc;
-} Source;
-
-int
-srcNext( Source* src ) {
-    if( src->str[src->loc] == '\0' )
-        return -1;
-    return src->str[src->loc++];
-}
-
-void
-srcInit( Source* src, char const* code ) {
-    src->src.next  = (void*)srcNext;
-    src->str = code;
-    src->loc = 0;
-}
-
-void
-comTest( State* state ) {
-    Source src1; srcInit( &src1, "a + b, if true: a - b else a + b" );
-    ComParams p1 = {
-        .file   = "test.ten",
-        .params = NULL,
-        .debug  = true,
-        .global = true,
-        .script = true,
-        .src    = &src1.src
-    };
-    comCompile( state, &p1 );
-    
-    
-    Source src2; srcInit( &src2, "a + b" );
-    ComParams p2 = {
-        .file   = "test.ten",
-        .params = (char const*[]){ "a", "b", NULL },
-        .debug  = true,
-        .global = false,
-        .script = false,
-        .src    = &src2.src
-    };
-    comCompile( state, &p2 );
-}
-#endif
-
 Closure*
 comCompile( State* state, ComParams* p ) {
     ComState* com = state->comState;

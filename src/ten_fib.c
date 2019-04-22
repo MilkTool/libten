@@ -33,12 +33,6 @@ static void
 doLoop( State* state, Fiber* fib );
 
 static void
-pushAR( State* state, Fiber* fib, NatAR* nat );
-
-static void
-popAR( State* state, Fiber* fib );
-
-static void
 errUdfAsArg( State* state, Function* fun, uint arg );
 
 static void
@@ -56,25 +50,7 @@ static void
 onError( State* state, Defer* defer );
 
 static void
-pushFirst( State* state, NatAR* nat );
-
-static void
-pushVir( State* state, NatAR* nat );
-
-static void
-pushCon( State* state, NatAR* nat );
-
-static void
-popFibNats( State* state );
-
-static void
-popVirNats( State* state );
-
-static void
-popConNats( State* state );
-
-static void
-popVir( State* state );
+pushFib( State* state, Fiber* fib, NatAR* nat );
 
 
 Fiber*
@@ -92,11 +68,19 @@ fibNew( State* state, Closure* cls, SymT* tag ) {
     
     fib->state         = ten_FIB_STOPPED;
     fib->nats          = NULL;
+    fib->cons          = NULL;
     fib->virs.cap      = vcap;
     fib->virs.top      = 0;
     fib->virs.buf      = vbuf;
+    fib->virs.base     = 0;
     fib->stack.cap     = scap;
     fib->stack.buf     = sbuf;
+    fib->top           = NULL;
+    fib->pod           = NULL;
+    fib->pud           = NULL;
+    fib->pop           = NULL;
+    fib->push          = pushFib;
+    fib->state         = ten_FIB_STOPPED;
     fib->rptr          = &fib->rbuf;
     fib->entry         = cls;
     fib->parent        = NULL;
@@ -138,12 +122,12 @@ fibPush( State* state, Fiber* fib, uint n ) {
     };
     
     for( uint i = 0 ; i < n ; i++ )
-        *(fib->rPtr->sp++) = tvUdf();
+        *(fib->rptr->sp++) = tvUdf();
     
     // Single value tuples should never be wrapped
     // in a tuple header.
     if( n != 1 )
-        *(fib->rPtr->sp++) = tvTup( n );
+        *(fib->rptr->sp++) = tvTup( n );
     
     return tup;
 }
@@ -197,7 +181,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     
     
     // Put the parent fiber (the current one at this point)
-    // into a waiting state.  Remove its errDefer to prevent
+    // into a waiting state.  Remove its defer to prevent
     // errors from the continuation from propegating.
     Fiber* parent = state->fiber;
     if( parent ) {
@@ -206,7 +190,7 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     }
     
     // Set the fiber that's being continued to the running
-    // state and install its errDefer to catch errors.
+    // state and install its defer to catch errors.
     fib->state   = ten_FIB_RUNNING;
     fib->parent  = parent;
     state->fiber = fib;
@@ -287,8 +271,14 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
     // state to FINISHED.  So we just jump back to the yield
     // handler.
     fib->state = ten_FIB_FINISHED;
-    longjmp( *fib->yieldJmp, 1 );
+    longjmp( *fib->yjmp, 1 );
 }
+
+static void
+popVir( State* state, Fiber* fib );
+
+static ConAR*
+convertNats( State* state, NatAR* nats );
 
 void
 fibYield( State* state, Tup* vals, bool pop ) {
@@ -307,13 +297,75 @@ fibYield( State* state, Tup* vals, bool pop ) {
     if( valc != 1 )
         *(fib->rptr->sp++) = tvTup( valc );
     
+    // Convert all NatARs to ConARs.
+    tenAssert( fib->cons == NULL );
+    fib->cons = convertNats( state, fib->nats );
+    fib->nats = NULL;
+    
+    // Since there won't be any NatARs anymore,
+    // make sure we start popping VirARs when
+    // continued.
+    if( fib->virs.top > fib->virs.base )
+        fib->pop = popVir;
+    else
+        fib->pop = NULL;
+    
+    for( uint i = 0 ; i < fib->virs.base ; i++ )
+        tenAssert( fib->virs.buf[i].nats == NULL );
+    
+    for( uint i = fib->virs.base ; i < fib->virs.top ; i++ ) {
+        VirAR* vir = &fib->virs.buf[i];
+        
+        tenAssert( vir->cons == NULL );
+        vir->cons = convertNats( state, vir->nats );
+        vir->nats = NULL;
+    }
+    
+    if( pop )
+        fib->pop( state, fib );
+    
+    // If the current register set holds a context,
+    // then replace it with a copy since the current
+    // one is either stack allocated in <finishCon>
+    // or a pointer to the user's context.
+    if( fib->rptr->context ) {
+        Part  ctxP;
+        void* ctx = stateAllocRaw( state, &ctxP, fib->rptr->ctxSize );
+        memcpy( ctx, fib->rptr->context, fib->rptr->ctxSize );
+        fib->rptr->context = ctx;
+        stateCommitRaw( state, &ctxP );
+    }
 
     // Save register set to buffer.
-    fib->rptr  = *fib->rptr;
+    fib->rbuf  = *fib->rptr;
     fib->rptr  = &fib->rbuf;
     
     fib->state = ten_FIB_STOPPED;
-    longjmp( *fib->yieldJmp, 1 );
+    longjmp( *fib->yjmp, 1 );
+}
+
+long
+fibSeek( State* state, void* ctx, size_t size ) {
+    Fiber* fib = state->fiber;
+    if( fib->rptr->context ) {
+        tenAssert( size == fib->rptr->ctxSize );
+        memcpy( ctx, fib->rptr->context, size );
+        fib->rptr->context = ctx;
+    }
+    else {
+        fib->rptr->context      = ctx;
+        fib->rptr->ctxSize      = size;
+    }
+    return fib->rptr->checkpoint;
+}
+
+void
+fibCheckpoint( State* state, unsigned cp, Tup* tup ) {
+    Fiber* fib = state->fiber;
+    tenAssert( fib->rptr->context );
+    
+    fib->rptr->checkpoint = cp;
+    fib->rptr->dstOffset  = (void*)tup - fib->rptr->context;
 }
 
 Tup
@@ -329,9 +381,9 @@ fibCall_( State* state, Closure* cls, Tup* args, char const* file, uint line ) {
         tupAt( dup, i ) = tupAt( *args, i );
     
     NatAR nat = { .file = file, .line = line };
-    pushAR( state, fib, &nat );
+    fib->push( state, fib, &nat );
     doCall( state, fib );
-    popAR( state, fib );
+    fib->pop( state, fib );
     
     return fibTop( state, fib );
 }
@@ -342,7 +394,6 @@ fibClearError( State* state, Fiber* fib ) {
         return;
     
     fib->errNum = ten_ERR_NONE;
-    fib->errStr = NULL;
     fib->errVal = tvUdf();
     stateFreeTrace( state, fib->trace );
 }
@@ -353,7 +404,6 @@ fibPropError( State* state, Fiber* fib ) {
         return;
     
     state->errNum = fib->errNum;
-    state->errStr = fib->errStr;
     state->errVal = fib->errVal;
     state->trace  = fib->trace;
     fib->trace = NULL;
@@ -364,23 +414,36 @@ fibPropError( State* state, Fiber* fib ) {
 
 void
 fibTraverse( State* state, Fiber* fib ) {
+/*
     NatAR* nIt = fib->nats;
     while( nIt ) {
-        stateMark( state, nIt->ar.cls );
+        stateMark( state, nIt->base.cls );
         nIt = nIt->prev;
     }
-    
-    for( uint i = 0 ; i < fib->arStack.top ; i++ ) {
-        stateMark( state, fib->arStack.ars[i].ar.cls );
-        
-        NatAR* nIt = fib->arStack.ars[i].nats;
-        while( nIt ) {
-            stateMark( state, nIt->ar.cls );
-            nIt = nIt->prev;
-        }
+    NatAR* cIt = fib->cons;
+    while( cIt ) {
+        stateMark( state, cIt->base.cls );
+        cIt = cIt->prev;
     }
     
-    for( TVal* v = fib->tmpStack.tmps ; v < fib->rPtr->sp ; v++ )
+    for( uint i = 0 ; i < fib->virs.top ; i++ ) {
+        stateMark( state, fib->virs.buf[i].ar.cls );
+        
+        NatAR* nIt = fib->virs.ars[i].nats;
+        while( nIt ) {
+            stateMark( state, nIt->base.cls );
+            nIt = nIt->prev;
+        }
+
+        NatAR* cIt = fib->virs.ars[i].cons;
+        while( cIt ) {
+            stateMark( state, cIt->base.cls );
+            cIt = cIt->prev;
+        }
+    }
+*/
+
+    for( TVal* v = fib->stack.buf ; v < fib->rptr->sp ; v++ )
         tvMark( *v );
     
     if( fib->entry )
@@ -397,10 +460,6 @@ void
 fibDestruct( State* state, Fiber* fib ) {
     stateFreeRaw( state, fib->virs.buf, fib->virs.cap*sizeof(VirAR) );
     stateFreeRaw( state, fib->stack.buf, fib->stack.cap*sizeof(TVal) );
-    fib->virs.cap   = 0;
-    fib->virs.ars   = NULL;
-    fib->stack.cap  = 0;
-    fib->stack.tmps = NULL;
     
     if( fib->trace )
         stateFreeTrace( state, fib->trace );
@@ -428,6 +487,12 @@ contFirst( State* state, Fiber* fib, Tup* args ) {
 }
 
 static void
+finishCon( State* state, ConAR* con, bool free );
+
+static void
+finishCons( State* state, ConAR** cons );
+
+static void
 contNext( State* state, Fiber* fib, Tup* args ) {
     tenAssert( fib->entry == NULL );
     
@@ -441,16 +506,54 @@ contNext( State* state, Fiber* fib, Tup* args ) {
     for( uint i = 0 ; i < args->size ; i++ )
         tupAt( args2, i ) = tupAt( *args, i );
     
-    // From here we directly enter the interpret loop.
-    doLoop( state, fib );
+    // If yield was made from a native function then
+    // we need to finish its execution and pop its 
+    // frame off the stack; this pop will finish any
+    // other continuations automatically, passing
+    // the results from the first as continuation
+    // arguments.  Then we continue to finish the
+    // virtual function calls by entering the interpret
+    // loop.
+    if( fib->rptr->ip == NULL ) {
+        ConAR dum = { 0 };
+        dum.base.cls   = fib->rptr->cls,
+        dum.base.lcl   = fib->rptr->lcl - fib->stack.buf;
+        dum.context    = fib->rptr->context;
+        dum.ctxSize    = fib->rptr->ctxSize;
+        dum.dstOffset  = fib->rptr->dstOffset;
+        dum.checkpoint = fib->rptr->checkpoint;
+        finishCon( state, &dum, false );
+        if( dum.context )
+            stateFreeRaw( state, dum.context, dum.ctxSize );
+        
+        // The ConARs in fib->cons will only be finished
+        // by the pop function if there are also VirARs on
+        // the stack; otherwise do it here.
+        if( fib->virs.top == fib->virs.base ) {
+            finishCons( state, &fib->cons );
+            fib->cons = NULL;
+            fib->pop  = NULL;
+            fib->pod  = NULL;
+        }
+        else {
+            fib->pop( state, fib );
+            tenAssert( fib->rptr->ip != NULL );
+            
+            // Finally, we enter the interpret loop.
+            doLoop( state, fib );
+        }
+    }
+    else {
+        doLoop( state, fib );
+    }
 }
 
 static void
 doCall( State* state, Fiber* fib ) {
     tenAssert( fib->state == ten_FIB_RUNNING );
-    tenAssert( fib->ptr->sp > fib->stack.buf + 1 );
+    tenAssert( fib->rptr->sp > fib->stack.buf + 1 );
     
-    Regs* regs = fib->ptr;
+    Regs* regs = fib->rptr;
     
     // Figure out how many arguments were passed,
     // and where they start.
@@ -543,7 +646,9 @@ doCall( State* state, Fiber* fib ) {
     }
     else {
         
-        regs->ip = NULL;
+        regs->ip         = NULL;
+        regs->context    = NULL;
+        regs->checkpoint = -1;
         
         // Initialize an argument tuple for the callback.
         Tup aTup = {
@@ -589,9 +694,9 @@ doLoop( State* state, Fiber* fib ) {
     // Copy the current set of registers to a local struct
     // for faster access.  These will be copied back to the
     // original struct before returning.
-    Regs* rPtr = fib->rPtr;
-    Regs  regs = *fib->rPtr;
-    fib->rPtr = &regs;
+    Regs* rptr = fib->rptr;
+    Regs  regs = *fib->rptr;
+    fib->rptr = &regs;
     
     #ifdef ten_NO_COMPUTED_GOTOS
         #define LOOP                        \
@@ -1038,75 +1143,328 @@ doLoop( State* state, Fiber* fib ) {
     END
     
     // Restore old register set.
-    *rPtr = regs;
-    fib->rPtr = rPtr;
+    *rptr = regs;
+    fib->rptr = rptr;
 }
 
-static void
-pushAR( State* state, Fiber* fib, NatAR* nat ) {
-    AR* ar;
-    if( nat ) {
-        ar = &nat->ar;
+static VirAR*
+allocVir( State* state ) {
+    Fiber* fib = state->fiber;
+    if( fib->virs.top >= fib->virs.cap ) {
+        uint    vcap = fib->virs.cap * 2;
+        Part    bufP = { .ptr = fib->virs.buf, .sz = fib->virs.cap };
+        VirAR*  vbuf = stateResizeRaw( state, &bufP, sizeof(NatAR)*vcap );
         
-        NatAR** nats;
-        if( fib->arStack.top > 0 )
-            nats = &fib->arStack.ars[fib->arStack.top-1].nats;
-        else
-            nats = &fib->nats;
-        
-        nat->prev = *nats;
-        *nats = nat;
-    }
-    else {
-        if( fib->arStack.top >= fib->arStack.cap ) {
-            Part arP = {
-                .ptr = fib->arStack.ars,
-                .sz  = sizeof(VirAR)*fib->arStack.cap
-            };
-            uint ncap = fib->arStack.cap*2;
-            fib->arStack.ars = stateResizeRaw( state, &arP, sizeof(VirAR)*ncap );
-            fib->arStack.cap = ncap;
-            stateCommitRaw( state, &arP );
-        }
-        
-        VirAR* vir = &fib->arStack.ars[fib->arStack.top++];
-        vir->nats = NULL;
-        ar = &vir->ar;
+        fib->virs.cap = vcap;
+        fib->virs.buf = vbuf;
     }
     
-    ar->cls   = fib->rPtr->cls;
-    ar->rAddr = fib->rPtr->ip;
-    ar->oLcls = fib->rPtr->lcl - fib->stack.buf;
+    return &fib->virs.buf[fib->virs.top++];
+}
+
+static ConAR*
+convertNats( State* state, NatAR* nats ) {
+    ConAR*  first = NULL;
+    ConAR** end   = &first;
+    
+    NatAR* nat = nats;
+    while( nat ) {
+        Part   conP;
+        ConAR* con = stateAllocRaw( state, &conP, sizeof(ConAR) );
+        
+        // A memcpy() would be cleaner, but the break
+        // would go unnoticed if we change the structures.
+        con->base       = nat->base;
+        con->file       = nat->file;
+        con->line       = nat->line;
+        con->context    = nat->context;
+        con->ctxSize    = nat->ctxSize;
+        con->dstOffset  = nat->dstOffset;
+        con->checkpoint = nat->checkpoint;
+        if( nat->context ) {
+            Part  ctxP;
+            con->context = stateAllocRaw( state, &ctxP, nat->ctxSize );
+            memcpy( con->context, nat->context, nat->ctxSize );
+            stateCommitRaw( state, &ctxP );
+        }
+        stateCommitRaw( state, &conP );
+        
+        ConAR* prev = *end;
+        if( prev )
+            con->prev = prev;
+        *end = con;
+        
+        nat = nat->prev;
+    }
+    
+    return first;
+}
+
+
+static void
+finishCon( State* state, ConAR* con, bool free ) {
+    Fiber* fib = state->fiber;
+    
+    Closure* cls  = con->base.cls;
+    Regs*    regs = fib->rptr;
+    
+    char context[con->ctxSize];
+    memcpy( context, con->context, con->ctxSize );
+    
+    regs->cls        = con->base.cls;
+    regs->ip         = NULL;
+    regs->lcl        = fib->stack.buf + con->base.lcl;
+    regs->context    = context;
+    regs->ctxSize    = con->ctxSize;
+    regs->dstOffset  = con->dstOffset;
+    regs->checkpoint = con->checkpoint;
+    
+    if( free ) {
+        if( con->context )
+            stateFreeRaw( state, con->context, con->ctxSize );
+        stateFreeRaw( state, con, sizeof(ConAR) );
+    }
+    
+    // The native function continuation system is optional,
+    // if the native function doesn't register a context
+    // then instead of being continued it'll just implicitly
+    // return an empty tuple.
+    if( regs->context == NULL ) {
+        regs->sp = regs->lcl;
+        fibPush( state, fib, 0 );
+        return;
+    }
+    
+    uint  obase = fib->virs.base;
+    fib->virs.base = fib->virs.top;
+    
+    void* opush = fib->push;
+    void* opud  = fib->pud;
+    void* opop  = fib->pop;
+    void* opod  = fib->pod;
+    
+    fib->push = pushFib;
+    fib->pud  = NULL;
+    fib->pop  = NULL;
+    fib->pod  = NULL;
+    
+    uint argc = cls->fun->nParams;
+    if( cls->fun->vargIdx )
+        argc++;
+    
+    Tup args = {
+        .base   = &fib->stack.buf,
+        .offset = regs->lcl - fib->stack.buf + 1,
+        .size   = argc
+    };
+    
+    // If the native callback specified a checkpoint,
+    // then it's expected the destination tuple at
+    // (ctx + dstOffset) to be populated with the
+    // continuation values.  These will either by the
+    // continuation arguments (if this is the function
+    // that originally yielded), or the results from
+    // the yielding function that it called.
+    if( regs->checkpoint >= 0 ) {
+        Tup* dst = regs->context + regs->dstOffset;
+        *dst = fibTop( state, fib );
+    }
+    
+    ten_Tup t;
+    if( cls->dat.dat != NULL ) {
+        Data* dat = cls->dat.dat;
+        Tup mems = {
+            .base   = &dat->mems,
+            .offset = 0,
+            .size   = dat->info->nMems
+        };
+        t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&args, (ten_Tup*)&mems, dat->data );
+    }
+    else {
+        t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&args, NULL, NULL );
+    }
+    
+    Tup*  rets = (Tup*)&t;
+    uint  retc = rets->size;
+    ensureStack( state, fib, retc + 1 );
+    
+    TVal* retv = *rets->base + rets->offset;
+    TVal* dstv = regs->lcl;
+    for( uint i = 0 ; i < retc ; i++ )
+        dstv[i] = retv[i];
+    regs->sp = dstv + retc;
+    if( retc != 1 )
+        *(regs->sp++) = tvTup( retc );
+
+
+    
+    fib->virs.base  = obase;
+    fib->push       = opush;
+    fib->pud        = opud;
+    fib->pop        = opop;
+    fib->pod        = opod;
 }
 
 static void
-popAR( State* state, Fiber* fib ) {
-    AR* ar = NULL;
-    if( fib->virs.top > 0 ) {
-        NatAR** nats = &fib->virs.buf[fib->virs.top-1].nats;
-        if( *nats ) {
-            NatAR* nat = *nats;
-            *nats = nat->prev;
-            ar = &nat->ar;
+finishCons( State* state, ConAR** cons ) {
+    while( *cons ) {
+        ConAR* con = *cons;
+        *cons = con->prev;
+        
+        finishCon( state, con, true );
+    }
+}
+
+static void
+popFibNats( State* state, Fiber* fib ) {
+    NatAR* top = fib->nats;
+    fib->rptr->cls = top->base.cls;
+    fib->rptr->lcl = fib->stack.buf + top->base.lcl;
+    fib->rptr->ip  = NULL;
+    
+    fib->rptr->context      = top->context;
+    fib->rptr->ctxSize      = top->ctxSize;
+    fib->rptr->dstOffset    = top->dstOffset;
+    fib->rptr->checkpoint   = top->checkpoint;
+    
+    fib->nats = fib->nats->prev;
+    if( fib->nats ) {
+        fib->top = &fib->nats->base;
+    }
+    else {
+        fib->top = NULL;
+        fib->pop = NULL;
+        fib->pod = NULL;
+    }
+}
+
+
+static void
+popVir( State* state, Fiber* fib ) {
+    VirAR* top = &fib->virs.buf[--fib->virs.top];
+    fib->rptr->cls = top->base.cls;
+    fib->rptr->lcl = fib->stack.buf + top->base.lcl;
+    fib->rptr->ip  = top->ip;
+    
+    finishCons( state, &top->cons );
+    
+    if( fib->virs.top > fib->virs.base ) {
+        fib->top = (AR*)(top - 1);
+    }
+    else {
+        finishCons( state, &fib->cons );
+        fib->cons = NULL;
+        
+        if( fib->nats ) {
+            fib->pop  = popFibNats;
+            fib->pod  = NULL;
+            fib->pop( state, fib );
         }
         else {
-            ar = &fib->virs.buf[--fib->virs.top].ar;
+            fib->top = NULL;
+            fib->pop = NULL;
+            fib->pod = NULL;
         }
     }
-    else
-    if( fib->nats ) {
-        NatAR* nat = fib->nats;
-        fib->nats = nat->prev;
-        
-        ar = &nat->ar;
+}
+
+static void
+popVirNats( State* state, Fiber* fib ) {
+    VirAR* vir = fib->pod;
+    
+    NatAR* top = vir->nats;
+    fib->rptr->cls = top->base.cls;
+    fib->rptr->lcl = fib->stack.buf + top->base.lcl;
+    fib->rptr->ip  = NULL;
+    
+    fib->rptr->context      = top->context;
+    fib->rptr->ctxSize      = top->ctxSize;
+    fib->rptr->dstOffset    = top->dstOffset;
+    fib->rptr->checkpoint   = top->checkpoint;
+    
+    vir->nats = vir->nats->prev;
+    if( vir->nats ) {
+        fib->top = &vir->nats->base;
     }
     else {
-        tenAssertNeverReached();
+        fib->top = &vir->base;
+        fib->pop = popVir;
+        fib->pod = NULL;
     }
+}
+
+
+static void
+pushVir( State* state, Fiber* fib, NatAR* nat ) {
+    AR* ar = NULL;
+    if( nat ) {
+        VirAR* vir = fib->pud;
+        nat->prev = vir->nats;
+        vir->nats = nat;
+        
+        nat->context    = fib->rptr->context;
+        nat->ctxSize    = fib->rptr->ctxSize;
+        nat->dstOffset  = fib->rptr->dstOffset;
+        nat->checkpoint = fib->rptr->checkpoint;
+        
+        ar = &nat->base;
+        
+        fib->pop = popVirNats;
+        fib->pod = vir;
+    }
+    else {
+        VirAR* vir = allocVir( state );
+        vir->cons  = NULL;
+        vir->nats  = NULL;
+        
+        vir->ip = fib->rptr->ip;
+        
+        ar = &vir->base;
+        
+        fib->pop  = popVir;
+        fib->pod  = NULL;
+    }
+    ar->cls = fib->rptr->cls;
+    ar->lcl = fib->rptr->lcl - fib->stack.buf;
     
-    fib->rptr->cls = ar->cls;
-    fib->rptr->ip  = ar->ip;
-    fib->rptr->lcl = fib->stack.buf + ar->lcl;
+    fib->top = ar;
+}
+
+static void
+pushFib( State* state, Fiber* fib, NatAR* nat ) {
+    AR* ar = NULL;
+    if( nat ) {
+        nat->prev = fib->nats;
+        fib->nats = nat;
+        
+        nat->context    = fib->rptr->context;
+        nat->ctxSize    = fib->rptr->ctxSize;
+        nat->dstOffset  = fib->rptr->dstOffset;
+        nat->checkpoint = fib->rptr->checkpoint;
+        
+        ar = &nat->base;
+        
+        fib->pop  = popFibNats;
+        fib->pod  = NULL;
+    }
+    else {
+        VirAR* vir = allocVir( state );
+        vir->cons  = NULL;
+        vir->nats  = NULL;
+        
+        vir->ip = fib->rptr->ip;
+        
+        ar = &vir->base;
+        
+        fib->push = pushVir;
+        fib->pud  = vir;
+        fib->pop  = popVir;
+        fib->pod  = NULL;
+    }
+    ar->cls = fib->rptr->cls;
+    ar->lcl = fib->rptr->lcl - fib->stack.buf;
+    
+    fib->top = ar;
 }
 
 static void
@@ -1139,6 +1497,8 @@ genTrace( State* state, Fiber* fib ) {
     if( fib->tagged )
         tag = symBuf( state, fib->tag );
     
+    // TODO: reimplement this for ConARs.
+    
     // Generate stack trace.
     if( !state->config.ndebug ) {
         if( fib->rptr->ip ) {
@@ -1165,11 +1525,11 @@ genTrace( State* state, Fiber* fib ) {
                 statePushTrace( state, tag, nIt->file, nIt->line );
                 nIt = nIt->prev;
             }
-            if( !fib->virs.buf[i].base.ip )
+            if( !fib->virs.buf[i].ip )
                 continue;
             
             VirFun* vir   = &fib->virs.buf[i].base.cls->fun->u.vir;
-            ullong  place = fib->virs.buf[i].base.ip - vir->code;
+            ullong  place = fib->virs.buf[i].ip - vir->code;
             tenAssert( vir->dbg );
             
             uint      nLines = vir->dbg->nLines;
@@ -1201,13 +1561,12 @@ onError( State* state, Defer* defer ) {
     if( state->errNum == ten_ERR_FATAL )
         return;
     
-    Fiber* fib = (void*)defer - (uintptr_t)&((Fiber*)NULL)->errDefer;
+    Fiber* fib = (void*)defer - (uintptr_t)&((Fiber*)NULL)->defer;
     genTrace( state, fib );
     
     // Set the fiber's error values from the state.
     fib->errNum = state->errNum;
     fib->errVal = state->errVal;
-    fib->errStr = state->errStr;
     fib->trace  = stateClaimTrace( state );
     stateClearError( state );
     

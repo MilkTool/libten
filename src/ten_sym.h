@@ -7,11 +7,6 @@
 void
 symInit( State* state );
 
-#ifdef ten_TEST
-    void
-    symTest( State* state );
-#endif
-
 SymT
 symGet( State* state, char const* buf, size_t len );
 

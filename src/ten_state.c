@@ -85,6 +85,8 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     state->errJmp   = errJmp;
     state->memLimit = MEM_LIMIT_INIT;
     
+    state->errOutOfMem = tvUdf();
+    
     state->tmpNext = 0;
     state->tmpBase = state->tmpVals;
     state->tmpTup = (Tup){
@@ -119,6 +121,8 @@ stateInit( State* state, ten_Config const* config, jmp_buf* errJmp ) {
     datInit( state ); CHECK_STATE;
     libInit( state ); CHECK_STATE;
     apiInit( state ); CHECK_STATE;
+    
+    state->errOutOfMem = tvObj( strNew( state, "Out of Memory", 13 ) );
 }
 
 void
@@ -200,15 +204,6 @@ stateTmp( State* state, TVal val ) {
 }
 
 void
-stateErrStr( State* state, ten_ErrNum err, char const* str ) {
-    stateClearError( state );
-    state->errNum = err;
-    state->errStr = str;
-    state->errVal = tvUdf();
-    onError( state );
-}
-
-void
 stateErrFmtA( State* state, ten_ErrNum err, char const* fmt, ... ) {
     stateClearError( state );
     
@@ -219,7 +214,6 @@ stateErrFmtA( State* state, ten_ErrNum err, char const* fmt, ... ) {
     
     state->errNum = err;
     state->errVal = tvObj( strNew( state, fmtBuf( state ), fmtLen( state ) ) );
-    state->errStr = NULL;
     onError( state );
 }
 
@@ -231,7 +225,6 @@ stateErrFmtV( State* state, ten_ErrNum err, char const* fmt, va_list ap ) {
     
     state->errNum = err;
     state->errVal = tvObj( strNew( state, fmtBuf( state ), fmtLen( state ) ) );
-    state->errStr = NULL;
     onError( state );
 }
 
@@ -241,7 +234,6 @@ stateErrVal( State* state, ten_ErrNum err, TVal val ) {
     
     state->errNum = err;
     state->errVal = val;
-    state->errStr = NULL;
     onError( state );
 }
 
@@ -493,7 +485,6 @@ stateClearError( State* state ) {
         return;
     
     state->errNum = ten_ERR_NONE;
-    state->errStr = NULL;
     state->errVal = tvUdf();
     stateClearTrace( state );
 }
@@ -509,9 +500,6 @@ traverseObj( State* state, void* ptr, uint type ) {
         case OBJ_FIB: fibTrav( state, (Fiber*)ptr );     break;
         case OBJ_UPV: upvTrav( state, (Upvalue*)ptr );   break;
         case OBJ_DAT: datTrav( state, (Data*)ptr );      break;
-        #ifdef ten_TEST
-            case OBJ_TST: tstTrav( state, (Test*)ptr );  break;
-        #endif
         default: tenAssertNeverReached();                break;
     }
 }
@@ -559,7 +547,7 @@ reallocRaw( State* state, void* old, size_t osz, size_t nsz ) {
     
     void* mem = state->config.frealloc( state->config.udata, old, osz, nsz );
     if( nsz > 0 && !mem )
-        stateErrStr( state, ten_ERR_FATAL, "Allocation failed" );
+        stateErrVal( state, ten_ERR_FATAL, state->errOutOfMem );
     
     state->memUsed += nsz;
     state->memUsed -= osz;
@@ -589,9 +577,6 @@ destructObj( State* state, Object* obj ) {
         case OBJ_FIB: fibDest( state, (Fiber*)ptr );        break;
         case OBJ_UPV: upvDest( state, (Upvalue*)ptr );      break;
         case OBJ_DAT: datDest( state, (Data*)ptr );         break;
-        #ifdef ten_TEST
-            case OBJ_TST: /* NADA */                        break;
-        #endif
         default: tenAssertNeverReached();                   break;
     }
     obj->next = tpMake( tag | OBJ_DEAD_BIT, tpGetPtr( obj->next ) );
@@ -612,9 +597,6 @@ freeObj( State* state, Object* obj ) {
         case OBJ_FIB: sz = fibSize( state, (Fiber*)ptr );    break;
         case OBJ_UPV: sz = upvSize( state, (Upvalue*)ptr );  break;
         case OBJ_DAT: sz = datSize( state, (Data*)ptr );     break;
-        #ifdef ten_TEST
-            case OBJ_TST: sz = tstSize( state, (Test*)ptr ); break;
-        #endif
         default: tenAssertNeverReached();                    break;
     }
     freeRaw( state, obj, sizeof(Object) + sz );
@@ -667,11 +649,7 @@ collect( State* state, size_t extra ) {
         tvMark( state->tmpVals[i] );
     
     tvMark( state->errVal );
-    
-    #ifdef ten_TEST
-        if( state->test )
-            stateMark( state, state->test );
-    #endif
+    tvMark( state->errOutOfMem );
     
     traverseStack( state );
     

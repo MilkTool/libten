@@ -39,11 +39,6 @@ typedef struct {
 void
 genInit( State* state );
 
-#ifdef ten_TEST
-    void
-    genTest( State* state );
-#endif
-
 Gen*
 genMake( State* state, Gen* parent, SymT* func, bool global, bool debug );
 

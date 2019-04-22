@@ -85,24 +85,6 @@ datAddInfo( State* state, ten_DatConfig* config ) {
     return info;
 }
 
-#ifdef ten_TEST
-#include "ten_sym.h"
-
-void
-datTest( State* state ) {
-    ten_DatConfig cfg = {
-        .tag   = "Test",
-        .size  = 50,
-        .mems  = 10,
-        .destr = NULL
-    };
-    
-    DatInfo* testInfo = datAddInfo( state, &cfg );
-    for( uint i = 0 ; i < 100 ; i++ )
-        tenAssert( datNew( state, testInfo ) );
-}
-#endif
-
 Data*
 datNew( State* state, DatInfo* info ) {
     Part datP;

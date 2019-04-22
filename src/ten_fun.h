@@ -61,11 +61,6 @@ struct Function {
 void
 funInit( State* state );
 
-#ifdef ten_TEST
-    void
-    funTest( State* state  );
-#endif
-
 #ifdef ten_DEBUG
     void
     funDump( State* state, Function* fun );

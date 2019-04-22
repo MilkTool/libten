@@ -1857,7 +1857,7 @@ libCont( State* state, Fiber* fib, Record* args ) {
 }
 
 void
-libYield( State* state, Record* vals ) {
+libYield( State* state, Record* vals, bool pop ) {
     Fiber* fib = state->fiber;
     
     uint count = 0;
@@ -1871,7 +1871,7 @@ libYield( State* state, Record* vals ) {
         val = recGet( state, vals, tvInt( i ) );
         tupAt( argTup, i ) = val;
     }
-    fibYield( state, &argTup );
+    fibYield( state, &argTup, pop );
 }
 
 SymT
@@ -1903,11 +1903,6 @@ libState( State* state, Fiber* fib ) {
 
 TVal
 libErrval( State* state, Fiber* fib ) {
-    if( fib->errNum == ten_ERR_NONE )
-        return tvUdf();
-    if( fib->errStr )
-        return tvObj( strNew( state, fib->errStr, strlen(fib->errStr) ) );
-    
     return fib->errVal;
 }
 
@@ -2847,7 +2842,7 @@ yieldFun( ten_PARAMS ) {
     
     Record* vals = tvGetObj( vget( valsArg ) );
     
-    libYield( state, vals );
+    libYield( state, vals, true );
     
     return ten_pushA( ten, "" );
 }
@@ -3249,10 +3244,3 @@ libInit( State* state ) {
     
     state->libState = lib;
 }
-
-#ifdef ten_TEST
-void
-libTest( State* state ) {
-    // TODO
-}
-#endif

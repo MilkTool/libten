@@ -120,21 +120,6 @@ symInit( State* state ) {
     state->symState = symState;
 }
 
-#ifdef ten_TEST
-void
-symTest( State* state ) {
-    char const  raw1[] = "Hello, World!";
-    SymT        sym1   = symGet( state, raw1, sizeof( raw1 ) );
-    tenAssert( !strcmp( raw1, symBuf( state, sym1 ) ) );
-    tenAssert( sym1 == tvGetSym( tvSym( sym1 ) ) );
-    
-    char const raw2[] = "Two";
-    SymT       sym2   = symGet( state, raw2, sizeof( raw2 ) );
-    tenAssert( !strcmp( raw2, symBuf( state, sym2 ) ) );
-    tenAssert( sym2 == tvGetSym( tvSym( sym2 ) ) );
-}
-#endif
-
 SymT
 symGet( State* state, char const* buf, size_t len ) {
     SymState* symState = state->symState;
@@ -177,7 +162,7 @@ symGet( State* state, char const* buf, size_t len ) {
         
         tenAssert( symState->next < UINT_MAX );
         node->loc = symState->next++;
-        if( node->loc >= symState->nodes.cap ) {
+        if( symState->next >= symState->nodes.cap ) {
             Part nodesP = {
                 .ptr = symState->nodes.buf,
                 .sz  = symState->nodes.cap*sizeof(SymNode*)

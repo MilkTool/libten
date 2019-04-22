@@ -158,22 +158,6 @@ ptrAddInfo( State* state, ten_PtrConfig* config ) {
     return info;
 }
 
-
-#ifdef ten_TEST
-#include "ten_sym.h"
-void
-ptrTest( State* state ) {
-    ten_PtrConfig cfg = {
-        .tag   = "Test",
-        .destr = NULL
-    };
-    
-    PtrInfo* testInfo = ptrAddInfo( state, &cfg );
-    for( uint i = 0 ; i < 100 ; i++ )
-        ptrGet( state, testInfo, NULL );
-}
-#endif
-
 PtrT
 ptrGet( State* state, PtrInfo* info, void* addr ) {
     PtrState* ptrState = state->ptrState;
@@ -207,7 +191,7 @@ ptrGet( State* state, PtrInfo* info, void* addr ) {
         
         tenAssert( ptrState->next < UINT_MAX );
         node->loc = ptrState->next++;
-        if( node->loc >= ptrState->nodes.cap ) {
+        if( ptrState->next >= ptrState->nodes.cap ) {
             Part nodesP = {
                 .ptr = ptrState->nodes.buf,
                 .sz  = ptrState->nodes.cap*sizeof(PtrNode*)

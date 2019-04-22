@@ -7,14 +7,6 @@ upvInit( State* state ) {
     state->upvState = NULL;
 }
 
-#ifdef ten_TEST
-void
-upvTest( State* state ) {
-    for( uint i = 0 ; i < 100 ; i++ )
-        tenAssert( upvNew( state, tvNil() ) );
-}
-#endif
-
 Upvalue*
 upvNew( State* state, TVal val ) {
     Part upvP;

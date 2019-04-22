@@ -572,9 +572,6 @@ typedef enum {
     OBJ_FIB,
     OBJ_UPV,
     OBJ_DAT,
-    #ifdef ten_TEST
-        OBJ_TST,
-    #endif
     OBJ_LAST
 } ObjTag;
 

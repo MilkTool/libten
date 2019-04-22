@@ -19,11 +19,6 @@ typedef struct {
 void
 comInit( State* state );
 
-#ifdef ten_TEST
-    void
-    comTest( State* state );
-#endif
-
 Closure*
 comCompile( State* state, ComParams* params );
 

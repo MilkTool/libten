@@ -6,7 +6,7 @@ TVal* argv = args - 1;
 if( tvIsTup( *args ) ) {
     argc = tvGetTup( *args );
     argv -= argc;
-    tenAssert( argc < args - fib->tmpStack.tmps );
+    tenAssert( argc < args - fib->stack.buf );
     
     // Pop the tuple header, it's no longer needed.
     regs.sp--;
@@ -65,13 +65,13 @@ else {
 // For a tail call we copy the arguments and the closure
 // itself down the stack to replace the previous call's
 // frame.  We also don't save the activation record.
-if( inGetOpc( *regs.ip ) == OPC_RETURN && fib->arStack.top > 0 ) {
+if( inGetOpc( *regs.ip ) == OPC_RETURN && fib->virs.top > 0 ) {
     for( uint i = 0 ; i <= argc ; i++ )
         regs.lcl[i] = argv[i];
     argv = regs.lcl;
 }
 else {
-    pushAR( state, fib, NULL );
+    fib->push( state, fib, NULL );
     regs.lcl = argv;
 }
 
@@ -88,12 +88,15 @@ if( cls->fun->type == FUN_VIR ) {
     regs.ip = cls->fun->u.vir.code;
 }
 else {
-    regs.ip = NULL;
+        
+    regs.ip         = NULL;
+    regs.context    = NULL;
+    regs.checkpoint = -1;
     
     // Initialize an argument tuple for the callback.
     Tup aTup = {
-        .base   = &fib->tmpStack.tmps,
-        .offset = regs.lcl - fib->tmpStack.tmps + 1,
+        .base   = &fib->stack.buf,
+        .offset = regs.lcl - fib->stack.buf + 1,
         .size   = argc
     };
     
@@ -126,8 +129,8 @@ else {
     if( retc != 1 )
         *(regs.sp++) = tvTup( retc );
     
-    if( fib->arStack.top == 0 || fib->arStack.ars[fib->arStack.top-1].nats )
+    if( fib->virs.top == fib->virs.base || fib->virs.buf[fib->virs.top-1].nats )
         EXIT;
     else
-        popAR( state, fib );
+        fib->pop( state, fib );
 }

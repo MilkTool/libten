@@ -100,69 +100,6 @@ genInit( State* state ) {
     state->genState = genState;
 }
 
-#ifdef ten_TEST
-void
-genTest( State* state ) {
-    Gen* gen;
-    
-    gen = genMake( state, NULL, NULL, true, true );
-    genSetFile( state, gen, symGet( state, "f1", 2 ) );
-    genSetFunc( state, gen, symGet( state, "t1", 2 ) );
-    genSetLine( state, gen, 2 );
-    
-    tenAssert( gen->file  == symGet( state, "f1", 2 ) );
-    tenAssert( gen->func  == symGet( state, "t1", 2 ) );
-    tenAssert( gen->start == 1 );
-    tenAssert( gen->line->line == 2 );
-    
-    GenVar* v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
-    tenAssert( v1->type == VAR_GLOBAL );
-    
-    GenConst* c1 = genAddConst( state, gen, tvInt( 1 ) );
-    GenConst* c2 = genAddConst( state, gen, tvInt( 2 ) );
-    GenConst* c3 = genAddConst( state, gen, tvInt( 3 ) );
-    
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c1->which ) );
-    genPutInstr( state, gen, inMake( OPC_GET_CONST, c2->which ) );
-    genPutInstr( state, gen, inMake( OPC_ADD, 0 ) );
-    tenAssert( gen->maxTemps == 2 );
-    
-    {
-        genOpenScope( state, gen );
-        GenVar* v1 = genAddVar( state, gen, symGet( state, "v1", 2 ) );
-        tenAssert( v1->type == VAR_LOCAL );
-        tenAssert( v1 == genGetVar( state, gen, symGet( state, "v1", 2 ) ) );
-        
-        GenVar* v2 = genGetVar( state, gen, symGet( state, "v2", 2 ) );
-        tenAssert( v2 == genGetVar( state, gen, symGet( state, "v2", 2 ) ) );
-        tenAssert( v2->type == VAR_GLOBAL );
-        
-        genSetLine( state, gen, 5 );
-        {
-            SymT fun = symGet( state, "t2", 2 );
-            Gen* sub = genMake( state, gen, &fun , false, false );
-            tenAssert( sub->file == symGet( state, "f1", 2 ) );
-            tenAssert( sub->func == symGet( state, "t2", 2 ) );
-            tenAssert( sub->start == 5 );
-            tenAssert( sub->debug == true );
-            tenAssert( sub->global == false );
-            tenAssert( sub->parent == gen );
-            
-            GenVar* v1 = genGetVar( state, sub, symGet( state, "v1", 2 ) );
-            tenAssert( v1->type == VAR_UPVAL );
-            
-            genFinish( state, sub, true );
-        }
-        tenAssert( v1->type == VAR_CLOSED );
-        
-        genCloseScope( state, gen );
-    }
-    
-    
-    genFinish( state, gen, false );
-}
-#endif
-
 static void
 genFinl( State* state, Finalizer* finl ) {
     Gen* gen = structFromFinl( Gen, finl );

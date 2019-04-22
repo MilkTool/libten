@@ -15,11 +15,6 @@ struct String {
 void
 strInit( State* state );
 
-#ifdef ten_TEST
-void
-strTest( State* state );
-#endif
-
 String*
 strNew( State* state, char const* src, size_t len );
 

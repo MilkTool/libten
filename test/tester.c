@@ -1,7 +1,8 @@
-#include "../src/ten_state.h"
 #include "../src/ten.h"
-
 #include <stdlib.h>
+
+
+#include "fiber.inc"
 
 #ifndef TEST_PATH
     #define TEST_PATH
@@ -31,8 +32,6 @@ char const* tests[] = {
 
 int
 main( void ) {
-    stateTest();
-    
     ten_State* ten = NULL;
     
     jmp_buf errJmp;
@@ -64,11 +63,13 @@ main( void ) {
     }
     ten = ten_make( NULL, &errJmp );
     
-    for( uint i = 0 ; tests[i] != NULL ; i++ ) {
+    for( unsigned i = 0 ; tests[i] != NULL ; i++ ) {
         fprintf( stderr, "Running '%s'...\n", tests[i] );
         ten_executeScript( ten, ten_pathSource( ten, tests[i] ), ten_SCOPE_LOCAL );
         fprintf( stderr, "  Passed\n" );
     }
+    
+    test_fiber( ten );
     
     ten_free( ten );
     return 0;

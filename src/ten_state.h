@@ -213,17 +213,14 @@ struct State {
     // in case of an error.  The others contain the
     // type and value associated with the error, and
     // `trace` is where we put the generated stack
-    // trace.  In addition to `errVal` we also have
-    // `errStr`, which will be used in its place if
-    // `errVal` is `udf`.  This allows us to report
-    // errors as raw strings in critical cases where
-    // a String object can't be allocated; this is
-    // expected to always be a static string.
+    // trace.
     jmp_buf*    errJmp;
     ten_ErrNum  errNum;
     TVal        errVal;
-    char const* errStr;
     ten_Trace*  trace;
+    
+    // Pre-allocated error messages.
+    TVal errOutOfMem;
     
     // Current number of bytes allocated on the heap, and
     // the number that needs to be reached to trigger the
@@ -281,14 +278,9 @@ struct State {
     Object*  gcBuf[GC_STACK_SIZE];
 };
 
-// Initialization, testing, and finalization.
+// Initialization, and finalization.
 void
 stateInit( State* state, ten_Config const* config, jmp_buf* errJmp );
-
-#ifdef ten_TEST
-    void
-    stateTest( void );
-#endif
 
 void
 stateFinl( State* state );
@@ -320,9 +312,6 @@ stateTmp( State* state, TVal val );
 // String object as the error value based on the given pattern
 // and arguments.  The `stateErrVal()` specifies an error value
 // directly.
-void
-stateErrStr( State* state, ten_ErrNum err, char const* str );
-
 void
 stateErrFmtA( State* state, ten_ErrNum err, char const* fmt, ... );
 

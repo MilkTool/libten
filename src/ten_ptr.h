@@ -23,11 +23,6 @@ ptrInit( State* state );
 PtrInfo*
 ptrAddInfo( State* state, ten_PtrConfig* config );
 
-#ifdef ten_TEST
-    void
-    ptrTest( State* state );
-#endif
-
 PtrT
 ptrGet( State* state, PtrInfo* info, void* addr );
 

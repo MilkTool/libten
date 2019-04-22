@@ -267,6 +267,14 @@ ten_panic( ten_State* s, ten_Var* val );
 ten_Tup
 ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned line );
 
+void
+ten_yield( ten_State* s, ten_Tup* vals );
+
+long
+ten_seek( ten_State* s, void* ctx, size_t size );
+
+void
+ten_checkpoint( ten_State* s, unsigned cp, ten_Tup* dst );
 
 // Temporary values.
 ten_Var*

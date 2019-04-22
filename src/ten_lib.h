@@ -1,14 +1,10 @@
 #ifndef ten_lib_h
 #define ten_lib_h
 #include "ten_types.h"
+#include <stdbool.h>
 
 void
 libInit( State* state );
-
-#ifdef ten_TEST
-    void
-    libTest( State* state );
-#endif
 
 TVal
 libRequire( State* state, String* mod );
@@ -142,7 +138,7 @@ Tup
 libCont( State* state, Fiber* fib, Record* args );
 
 void
-libYield( State* state, Record* args );
+libYield( State* state, Record* args, bool pop );
 
 SymT
 libState( State* state, Fiber* fib );

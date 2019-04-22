@@ -87,11 +87,6 @@ struct Index {
 void
 idxInit( State* state );
 
-#ifdef ten_TEST
-    void
-    idxTest( State* state );
-#endif
-
 Index*
 idxNew( State* state );
 

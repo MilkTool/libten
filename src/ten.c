@@ -110,116 +110,6 @@ apiInit( State* state ) {
     state->apiState = api;
 }
 
-#ifdef ten_TEST
-void
-apiTest( State* state ) {
-    ten_State* s = (ten_State*)state;
-    
-    // Stack.
-    ten_Tup t1 = ten_pushA( s, "UNLIDS", true, (long)123, 1.2, "abc" );
-    ten_Var t1v1 = { .tup = &t1, .loc = 0 };
-    ten_Var t1v2 = { .tup = &t1, .loc = 1 };
-    ten_Var t1v3 = { .tup = &t1, .loc = 2 };
-    ten_Var t1v4 = { .tup = &t1, .loc = 3 };
-    ten_Var t1v5 = { .tup = &t1, .loc = 4 };
-    ten_Var t1v6 = { .tup = &t1, .loc = 5 };
-    
-    tenAssert( ten_size( s, &t1 ) == 6 );
-    tenAssert( ten_isUdf( s, &t1v1 ) );
-    tenAssert( ten_isNil( s, &t1v2 ) );
-    tenAssert( ten_isLog( s, &t1v3 ) );
-    tenAssert( ten_isInt( s, &t1v4 ) );
-    tenAssert( ten_isDec( s, &t1v5 ) );
-    tenAssert( ten_isSym( s, &t1v6 ) );
-    
-    ten_Tup t2 = ten_top( s );
-    ten_Var t2v1 = { .tup = &t2, .loc = 0 };
-    ten_Var t2v2 = { .tup = &t2, .loc = 1 };
-    ten_Var t2v3 = { .tup = &t2, .loc = 2 };
-    ten_Var t2v4 = { .tup = &t2, .loc = 3 };
-    ten_Var t2v5 = { .tup = &t2, .loc = 4 };
-    ten_Var t2v6 = { .tup = &t2, .loc = 5 };
-    
-    tenAssert( ten_size( s, &t2 ) == 6 );
-    tenAssert( ten_isUdf( s, &t2v1 ) );
-    tenAssert( ten_isNil( s, &t2v2 ) );
-    tenAssert( ten_isLog( s, &t2v3 ) );
-    tenAssert( ten_isInt( s, &t2v4 ) );
-    tenAssert( ten_isDec( s, &t2v5 ) );
-    tenAssert( ten_isSym( s, &t2v6 ) );
-
-    ten_Tup t3 = ten_dup( s, &t1 );
-    ten_Var t3v1 = { .tup = &t3, .loc = 0 };
-    ten_Var t3v2 = { .tup = &t3, .loc = 1 };
-    ten_Var t3v3 = { .tup = &t3, .loc = 2 };
-    ten_Var t3v4 = { .tup = &t3, .loc = 3 };
-    ten_Var t3v5 = { .tup = &t3, .loc = 4 };
-    ten_Var t3v6 = { .tup = &t3, .loc = 5 };
-
-    tenAssert( ten_size( s, &t3 ) == 6 );
-    tenAssert( ten_isUdf( s, &t3v1 ) );
-    tenAssert( ten_isNil( s, &t3v2 ) );
-    tenAssert( ten_isLog( s, &t3v3 ) );
-    tenAssert( ten_isInt( s, &t3v4 ) );
-    tenAssert( ten_isDec( s, &t3v5 ) );
-    tenAssert( ten_isSym( s, &t3v6 ) );
-    
-    ten_pop( s );
-    ten_pop( s );
-    
-    // Globals.
-    ten_def( s, ten_sym( s, "var1" ), ten_int( s, 1 ) );
-    ten_def( s, ten_sym( s, "var2" ), ten_int( s, -2 ) );
-    ten_set( s, ten_sym( s, "var2" ), ten_int( s, 2 ) );
-    
-    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var1" ) ), ten_int( s, 1 ) ) );
-    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var2" ) ), ten_int( s, 2 ) ) );
-    
-    // Types.
-    ten_Var* type = ten_udf( s );
-    ten_type( s, ten_int( s, 1 ), type );
-    
-    tenAssert( !strcmp( ten_getSymBuf( s, type ), "Int" ) );
-    
-    // Testing ten_expect() is a bit too difficult here,
-    // will have to do it manually instead.
-    
-    // Misc.
-    tenAssert( ten_equal( s, ten_int( s, 1 ), ten_int( s, 1 ) ) );
-    tenAssert( !ten_equal( s, ten_int( s, 1 ), ten_int( s, 2 ) ) );
-    tenAssert( !ten_equal( s, ten_int( s, 1 ), ten_dec( s, 1.0 ) ) );
-    
-    // Compilation and execution.
-    char const* script =
-        "def var3: 3\n"
-        "def var4: 4\n";
-    char const* expr =
-        "var3 + var4";
-    
-    ten_Var* fib  = ten_udf( s );
-    ten_Tup  args = ten_pushA( s, "" );
-    
-    ten_Source* src = ten_stringSource( s, script, "testScript" );
-    ten_compileScript( s, NULL, src, ten_SCOPE_GLOBAL, ten_COM_FIB, fib );
-    
-    ten_Tup  rets = ten_cont( s, fib, &args );
-    ten_pop( s );
-    
-    tenAssert( ten_size( s, &rets ) == 0 );
-    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var3" ) ), ten_int( s, 3 ) ) );
-    tenAssert( ten_equal( s, ten_get( s, ten_sym( s, "var4" ) ), ten_int( s, 4 ) ) );
-    
-    src = ten_stringSource( s, expr, "testExpr" );
-    rets = ten_executeExpr( s, src, ten_SCOPE_LOCAL );
-    ten_Var ret = { .tup = &rets, .loc = 0 };
-    
-    tenAssert( ten_size( s, &rets ) == 1 );
-    tenAssert( ten_equal( s, &ret, ten_int( s, 7 ) ) );
-    
-    // TODO: other tests.
-}
-#endif
-
 static void*
 frealloc( void* _, void* old, size_t osz, size_t nsz ) {
     if( nsz > 0 )
@@ -1261,7 +1151,7 @@ ten_setUpvalue( ten_State* s, ten_Var* cls, unsigned upv, ten_Var* src ) {
 ten_Var*
 ten_clsType( ten_State* s ) {
     State* state = (State*)s;
-    return &state->apiState->typeVars[OBJ_FUN];
+    return &state->apiState->typeVars[OBJ_CLS];
 }
 
 bool
@@ -1355,6 +1245,33 @@ ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned
     return t;
 }
 
+void
+ten_yield( ten_State* s, ten_Tup* vals ) {
+    State* state = (State*)s;
+    
+    funAssert( state->fiber, "Yield without running fiber", NULL );
+    
+    fibYield( state, (Tup*)vals, false );
+}
+
+long
+ten_seek( ten_State* s, void* ctx, size_t size ) {
+    State* state = (State*)s;
+    
+    funAssert( state->fiber, "Yield without running fiber", NULL );
+    
+    return fibSeek( state, ctx, size );
+}
+
+void
+ten_checkpoint( ten_State* s, unsigned cp, ten_Tup* dst ) {
+    State* state = (State*)s;
+    
+    funAssert( state->fiber, "Yield without running fiber", NULL );
+    
+    fibCheckpoint( state, cp, (Tup*)dst );
+}
+
 ten_Var*
 ten_fibType( ten_State* s ) {
     State* state = (State*)s;
@@ -1408,16 +1325,10 @@ ten_getErrStr( ten_State* s, ten_Var* fib ) {
             NULL
         );
         Fiber* fibO = tvGetObj( fibV );
-        if( fibO->errStr )
-            return fibO->errStr;
-        else
-            return fmtA( state, false, "%v", fibO->errVal );
+        return fmtA( state, false, "%v", fibO->errVal );
     }
     else {
-        if( state->errStr )
-            return state->errStr;
-        else
-            return fmtA( state, false, "%v", state->errVal );
+        return fmtA( state, false, "%v", state->errVal );
     }
 }
 

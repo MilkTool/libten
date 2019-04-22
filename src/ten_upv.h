@@ -15,11 +15,6 @@ struct Upvalue {
 void
 upvInit( State* state );
 
-#ifdef ten_TEST
-    void
-    upvTest( State* state );
-#endif
-
 Upvalue*
 upvNew( State* state, TVal val );
 

@@ -12,16 +12,6 @@ funInit( State* state ) {
     state->funState = NULL;
 }
 
-#ifdef ten_TEST
-void
-funTest( State* state ) {
-    for( uint i = 0 ; i < 100 ; i++ ) {
-        tenAssert( funNewVir( state, 0, NULL ) );
-        tenAssert( funNewNat( state, 0, NULL, NULL ) );
-    }
-}
-#endif
-
 #ifdef ten_DEBUG
 #include <stdio.h>
 

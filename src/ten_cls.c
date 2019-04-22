@@ -9,42 +9,6 @@ clsInit( State* state ) {
     state->clsState = NULL;
 }
 
-#ifdef ten_TEST
-typedef struct {
-    Defer     defer;
-    Scanner   scan;
-    Function* fun;
-} ClsTest;
-
-void
-clsTestScan( State* state, Scanner* scan ) {
-    ClsTest* test = structFromScan( ClsTest, scan );
-    stateMark( state, test->fun );
-}
-
-void
-clsTestDefer( State* state, Defer* defer ) {
-    ClsTest* test = (ClsTest*)defer;
-    stateRemoveScanner( state, &test->scan );
-}
-
-void
-clsTest( State* state ) {
-    ClsTest test = {
-        .defer = { .cb = clsTestDefer },
-        .scan  = { .cb = clsTestScan },
-        .fun   = funNewVir( state, 0, NULL )
-    };
-    stateInstallScanner( state, &test.scan );
-    stateInstallDefer( state, &test.defer );
-    
-    for( uint i = 0 ; i < 100 ; i++ )
-        tenAssert( clsNewVir( state, test.fun, NULL ) );
-    
-    stateCommitDefer( state, &test.defer );
-}
-#endif
-
 Closure*
 clsNewNat( State* state, Function* fun, Data* dat ) {
     tenAssert( fun->type == FUN_NAT );

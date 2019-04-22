@@ -26,69 +26,6 @@ idxInit( State* state ) {
     state->idxState = NULL;
 }
 
-#ifdef ten_TEST
-
-#include "ten_str.h"
-
-typedef struct {
-    Defer     defer;
-    Scanner   scan;
-    Index*    idx;
-    TVal      key;
-} IdxTest;
-
-static void
-idxTestScan( State* state, Scanner* scan ) {
-    IdxTest* test = structFromScan( IdxTest, scan );
-    tvMark( test->key );
-    stateMark( state, test->idx );
-}
-
-void
-idxTestDefer( State* state, Defer* defer ) {
-    IdxTest* test = (IdxTest*)defer;
-    stateRemoveScanner( state, &test->scan );
-}
-
-void
-idxTest( State* state ) {
-    IdxTest test = {
-        .defer = { .cb = idxTestDefer },
-        .scan  = { .cb = idxTestScan },
-        .idx   = idxNew( state ),
-        .key   = tvUdf()
-    };
-    stateInstallScanner( state, &test.scan );
-    stateInstallDefer( state, &test.defer );
-    
-    uint locs[1000];
-    for( uint i = 0 ; i < 1000 ; i++ ) {
-        test.key = tvInt( i );
-        locs[i] = idxAddByKey( state, test.idx, test.key );
-    }
-    
-    for( uint i = 0 ; i < 1000 ; i++ ) {
-        idxAddByLoc( state, test.idx, locs[i] );
-    }
-    
-    for( uint i = 0 ; i < 1000 ; i++ ) {
-        test.key = tvInt( i );
-        idxRemByKey( state, test.idx, test.key );
-    }
-    
-    for( uint i = 0 ; i < 1000 ; i++ ) {
-        idxRemByLoc( state, test.idx, locs[i] );
-    }
-    
-    test.key = tvObj( strNew( state, "TestStringKey", 13 ) );
-    idxAddByKey( state, test.idx, test.key );
-    idxRemByKey( state, test.idx, test.key );
-    
-    stateCommitDefer( state, &test.defer );
-}
-
-#endif
-
 Index*
 idxNew( State* state ) {
     Part idxP;

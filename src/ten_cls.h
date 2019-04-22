@@ -17,11 +17,6 @@ struct Closure {
 void
 clsInit( State* state );
 
-#ifdef ten_TEST
-    void
-    clsTest( State* state );
-#endif
-
 Closure*
 clsNewNat( State* state, Function* fun, Data* dat );
 

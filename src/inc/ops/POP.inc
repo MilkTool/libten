@@ -4,4 +4,4 @@ regs.sp--;
 if( tvIsTup( arg ) )
     regs.sp -= tvGetTup( arg );
 
-tenAssert( regs.sp >= fib->tmpStack.tmps );
+tenAssert( regs.sp >= fib->stack.buf );

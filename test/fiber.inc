@@ -100,7 +100,7 @@ fiber_reentry2( ten_State* ten ) {
     
     ten_FunParams nreentp = {
         .name   = "nreentry",
-        .params = (char const*[]){ "cls", NULL },
+        .params = (char const*[]){ NULL },
         .cb     = tf_nreentry
     };
     ten_newFun( ten, &nreentp, &nreentFunVar );
