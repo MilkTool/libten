@@ -33,6 +33,9 @@ libLoader( State* state, SymT type, Closure* loadr, Closure* trans );
 DecT
 libClock( State* state );
 
+DecT
+libRand( State* state )
+
 TVal
 libLog( State* state, TVal val );
 

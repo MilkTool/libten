@@ -458,9 +458,9 @@ libClock( State* state ) {
 }
 
 
-IntT
+DecT
 libRand( State* state ) {
-    return rand();
+    return 1.0 /((long long)rand()*rand());
 }
 
 TVal
@@ -2212,7 +2212,7 @@ static ten_Tup
 randFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
-    return ten_pushA( ten, "I", libRand( state ) );
+    return ten_pushA( ten, "D", libRand( state ) );
 }
 
 static ten_Tup
