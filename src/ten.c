@@ -936,14 +936,22 @@ ten_isRec( ten_State* s, ten_Var* var ) {
 void
 ten_newRec( ten_State* s, ten_Var* idx, ten_Var* dst ) {
     State* state = (State*)s;
-    TVal idxV = vget( *idx );
-    funAssert(
-        tvIsObj( idxV ) && datGetTag( tvGetObj( idxV ) ) == OBJ_IDX,
-        "Wrong type for 'idx', need Idx",
-        NULL
-    );
+    Index* idxO   = NULL;
+    if( idx ) {
+        TVal idxV = vget( *idx );
+        funAssert(
+            tvIsObj( idxV ) && datGetTag( tvGetObj( idxV ) ) == OBJ_IDX,
+            "Wrong type for 'idx', need Idx",
+            NULL
+        );
+        idxO = tvGetObj( idxV );
+    }
+    else {
+        idxO = idxNew( state );
+        state->apiState->val1 = tvObj( idxO );
+    }
     
-    vset( *dst, tvObj( recNew( state, tvGetObj( idxV ) ) ) );
+    vset( *dst, tvObj( recNew( state, idxO ) ) );
 }
 
 void

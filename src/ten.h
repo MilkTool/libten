@@ -257,12 +257,11 @@ ten_string( ten_State* s, ten_Tup* tup );
 void
 ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans );
 
+void
+ten_panic( ten_State* s, ten_Var* val );
 
 #define ten_call( S, CLS, ARGS ) \
     ten_call_( S, CLS, ARGS, __FILE__, __LINE__ )
-
-void
-ten_panic( ten_State* s, ten_Var* val );
 
 ten_Tup
 ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned line );
@@ -337,11 +336,11 @@ ten_isUdf( ten_State* s, ten_Var* var );
 bool
 ten_areUdf( ten_State* s, ten_Tup* tup );
 
-ten_Var*
-ten_udfType( ten_State* s );
-
 void
 ten_setUdf( ten_State* s, ten_Var* dst );
+
+ten_Var*
+ten_udfType( ten_State* s );
 
 bool
 ten_isNil( ten_State* s, ten_Var* var );
