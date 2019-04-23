@@ -66,6 +66,7 @@ typedef enum {
     IDENT_rseq,
     IDENT_bytes,
     IDENT_chars,
+    IDENT_split,
     IDENT_items,
     IDENT_drange,
     IDENT_irange,
@@ -150,6 +151,7 @@ struct LibState {
     
     ten_DatInfo* recIterInfo;
     ten_DatInfo* strIterInfo;
+    ten_DatInfo* splitIterInfo;
     ten_DatInfo* seqInfo;
     ten_DatInfo* listIterInfo;
     ten_DatInfo* dRangeInfo;
@@ -1162,6 +1164,81 @@ libChars( State* state, String* str ) {
 }
 
 typedef struct {
+    char const* loc;
+} SplitIter;
+
+typedef enum {
+    SplitIter_STR,
+    SplitIter_SEP,
+    SplitIter_LAST
+} SplitIterMem;
+
+static ten_Tup
+splitIterNext( ten_PARAMS ) {
+    State*     state = (State*)ten;
+    SplitIter* iter  = dat;
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    if( iter->loc == NULL )
+        return retTup;
+    
+    ten_Var strVar = { .tup = mems, .loc = SplitIter_STR };
+    ten_Var sepVar = { .tup = mems, .loc = SplitIter_SEP };
+    String* str = tvGetObj( vget( strVar ) );
+    String* sep = tvGetObj( vget( sepVar ) );
+    
+    char const* loc = iter->loc;
+    char const* nxt = loc;
+    char const* end = str->buf + str->len;
+    while( nxt + sep->len < end ) {
+        if( !memcmp( nxt, sep->buf, sep->len ) ) {
+            iter->loc = nxt + sep->len;
+            vset( retVar, tvObj( strNew( state, loc, nxt - loc ) ) );
+            return retTup;
+        }
+        nxt++;
+    }
+    
+    iter->loc = NULL;
+    return retTup;
+}
+
+Closure*
+libSplit( State* state, String* str, String* sep ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUUU" );
+    ten_Var strVar = { .tup = &varTup, .loc = 0 };
+    ten_Var sepVar = { .tup = &varTup, .loc = 1 };
+    ten_Var datVar = { .tup = &varTup, .loc = 2 };
+    ten_Var funVar = { .tup = &varTup, .loc = 3 };
+    ten_Var clsVar = { .tup = &varTup, .loc = 4 };
+    
+    SplitIter* iter = ten_newDat( ten, lib->splitIterInfo, &datVar );
+    iter->loc = str->buf;
+    
+    vset( strVar, tvObj( str ) );
+    vset( sepVar, tvObj( sep ) );
+    ten_setMember( ten, &datVar, SplitIter_STR, &strVar );
+    ten_setMember( ten, &datVar, SplitIter_SEP, &sepVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "split#%llu", (ullong)(uintptr_t)iter ),
+        .params = NULL,
+        .cb     = splitIterNext
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( vget( clsVar ) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+typedef struct {
     bool finished;
 } ListIter;
 
@@ -1523,7 +1600,7 @@ libCat( State* state, Record* vals ) {
 }
 
 String*
-libJoin( State* state, Closure* iter, TVal sep ) {
+libJoin( State* state, Closure* iter, String* sep ) {
     ten_State* ten = (ten_State*)state;
     
     CharBuf buf; initCharBuf( state, &buf );
@@ -1543,7 +1620,7 @@ libJoin( State* state, Closure* iter, TVal sep ) {
         char const* str = fmtBuf( state );
         size_t      len = fmtLen( state );
         if( !tvIsUdf( vget( retVar ) ) ) {
-            str = fmtA( state, true, "%v", sep );
+            str = fmtA( state, true, "%v", tvObj( sep ) );
             len = fmtLen( state );
         }
         
@@ -2433,6 +2510,24 @@ charsFun( ten_PARAMS ) {
 }
 
 static ten_Tup
+splitFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var sepArg = { .tup = args, .loc = 1 };
+    expectArg( str, OBJ_STR );
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    Closure* cls = libChars( (State*)ten, tvGetObj( vget( strArg ) ) );
+    vset( retVar, tvObj( cls ) );
+    return retTup;
+}
+
+
+static ten_Tup
 itemsFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
@@ -2597,11 +2692,12 @@ joinFun( ten_PARAMS ) {
     ten_Var sepArg  = { .tup = args, .loc = 1 };
     
     expectArg( iter, OBJ_CLS );
+    expectArg( iter, OBJ_STR );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    String* str = libJoin( state, tvGetObj( vget( iterArg ) ), vget( sepArg ) );
+    String* str = libJoin( state, tvGetObj( vget( iterArg ) ), tvGetObj( vget( sepArg ) ) );
     vset( retVar, tvObj( str ) );
     
     return retTup;
@@ -2999,6 +3095,7 @@ libInit( State* state ) {
     IDENT( rseq );
     IDENT( bytes );
     IDENT( chars );
+    IDENT( split );
     IDENT( items );
     IDENT( drange );
     IDENT( irange );
@@ -3126,6 +3223,7 @@ libInit( State* state ) {
     FUN( rseq, 1, false );
     FUN( bytes, 1, false );
     FUN( chars, 1, false );
+    FUN( split, 2, false );
     FUN( items, 1, false );
     FUN( drange, 2, true );
     FUN( irange, 2, true );
@@ -3194,6 +3292,15 @@ libInit( State* state ) {
             .tag   = "StrIter",
             .size  = sizeof(StrIter),
             .mems  = StrIter_LAST,
+            .destr = NULL
+        }
+    );
+    lib->splitIterInfo = ten_addDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "SplitIter",
+            .size  = sizeof(SplitIter),
+            .mems  = SplitIter_LAST,
             .destr = NULL
         }
     );

@@ -34,7 +34,7 @@ DecT
 libClock( State* state );
 
 DecT
-libRand( State* state )
+libRand( State* state );
 
 TVal
 libLog( State* state, TVal val );
@@ -79,6 +79,9 @@ Closure*
 libChars( State* state, String* str );
 
 Closure*
+libSplit( State* state, String* str, String* sep );
+
+Closure*
 libItems( State* state, Record* list );
 
 Closure*
@@ -106,14 +109,13 @@ String*
 libCat( State* state, Record* rec );
 
 String*
-libJoin( State* state, Closure* seq, TVal sep );
+libJoin( State* state, Closure* seq, String* sep );
 
 TVal
 libBcmp( State* state, String* str1, SymT opr, String* str2 );
 
 TVal
 libCcmp( State* state, String* str1, SymT opr, String* str2 );
-
 
 void
 libEach( State* state, Closure* seq, Closure* what );
