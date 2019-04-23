@@ -70,7 +70,9 @@ main( void ) {
         fprintf( stderr, "  Passed\n" );
     }
     
+    fprintf( stderr, "Running 'fiber.inc'\n" );
     test_fiber( ten );
+    fprintf( stderr, "  Passed\n" );
     
     ten_free( ten );
     return 0;

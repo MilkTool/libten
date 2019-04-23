@@ -11,7 +11,8 @@ for( uint i = 0 ; i < retc ; i++ )
 regs.sp = dstv + retc;
 
 
-if( fib->virs.top == fib->virs.base || fib->virs.buf[fib->virs.top-1].nats )
+VirAR* top = &fib->virs.buf[fib->virs.top-1];
+if( fib->virs.top == 0 || top->nats )
     EXIT;
 else
     fib->pop( state, fib );

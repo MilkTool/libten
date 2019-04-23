@@ -1,7 +1,7 @@
 PROFILE ?= release
 SOURCES := $(wildcard src/*.c)
 HEADERS := $(wildcard src/*.h)
-INCLUDE := $(wildcard src/inc/*.inc) $(wildcard src/inc/ops/*.c)
+INCLUDE := $(wildcard src/inc/*.inc) $(wildcard src/inc/ops/*.inc)
 CCFLAGS := -std=c99 -Wall -Wno-unused -Wno-multichar -D ten_LIBM
 LINK    := 
 CC      ?= gcc

@@ -72,7 +72,6 @@ fibNew( State* state, Closure* cls, SymT* tag ) {
     fib->virs.cap      = vcap;
     fib->virs.top      = 0;
     fib->virs.buf      = vbuf;
-    fib->virs.base     = 0;
     fib->stack.cap     = scap;
     fib->stack.buf     = sbuf;
     fib->top           = NULL;
@@ -277,8 +276,8 @@ fibCont( State* state, Fiber* fib, Tup* args ) {
 static void
 popVir( State* state, Fiber* fib );
 
-static ConAR*
-convertNats( State* state, NatAR* nats );
+static void
+convertFibNats( State* state, Fiber* fib );
 
 void
 fibYield( State* state, Tup* vals, bool pop ) {
@@ -297,29 +296,7 @@ fibYield( State* state, Tup* vals, bool pop ) {
     if( valc != 1 )
         *(fib->rptr->sp++) = tvTup( valc );
     
-    // Convert all NatARs to ConARs.
-    tenAssert( fib->cons == NULL );
-    fib->cons = convertNats( state, fib->nats );
-    fib->nats = NULL;
-    
-    // Since there won't be any NatARs anymore,
-    // make sure we start popping VirARs when
-    // continued.
-    if( fib->virs.top > fib->virs.base )
-        fib->pop = popVir;
-    else
-        fib->pop = NULL;
-    
-    for( uint i = 0 ; i < fib->virs.base ; i++ )
-        tenAssert( fib->virs.buf[i].nats == NULL );
-    
-    for( uint i = fib->virs.base ; i < fib->virs.top ; i++ ) {
-        VirAR* vir = &fib->virs.buf[i];
-        
-        tenAssert( vir->cons == NULL );
-        vir->cons = convertNats( state, vir->nats );
-        vir->nats = NULL;
-    }
+    convertFibNats( state, fib );
     
     if( pop )
         fib->pop( state, fib );
@@ -529,7 +506,7 @@ contNext( State* state, Fiber* fib, Tup* args ) {
         // The ConARs in fib->cons will only be finished
         // by the pop function if there are also VirARs on
         // the stack; otherwise do it here.
-        if( fib->virs.top == fib->virs.base ) {
+        if( fib->virs.top == 0 ) {
             finishCons( state, &fib->cons );
             fib->cons = NULL;
             fib->pop  = NULL;
@@ -1163,7 +1140,7 @@ allocVir( State* state ) {
 }
 
 static ConAR*
-convertNats( State* state, NatAR* nats ) {
+convertNats( State* state, NatAR* nats, ConAR* tail ) {
     ConAR*  first = NULL;
     ConAR** end   = &first;
     
@@ -1189,15 +1166,41 @@ convertNats( State* state, NatAR* nats ) {
         }
         stateCommitRaw( state, &conP );
         
-        ConAR* prev = *end;
-        if( prev )
-            con->prev = prev;
+        con->prev = *end;
         *end = con;
         
         nat = nat->prev;
     }
     
+    if( *end )
+        (**end).prev = tail;
+    else
+        *end = tail;
+    
     return first;
+}
+
+static void
+convertFibNats( State* state, Fiber* fib ) {
+    tenAssert( fib->cons == NULL );
+    fib->cons = convertNats( state, fib->nats, fib->cons );
+    fib->nats = NULL;
+    
+    // Since there won't be any NatARs anymore,
+    // make sure we start popping VirARs when
+    // continued.
+    if( fib->virs.top > 0 )
+        fib->pop = popVir;
+    else
+        fib->pop = NULL;
+    
+    for( uint i = 0 ; i < fib->virs.top ; i++ ) {
+        VirAR* vir = &fib->virs.buf[i];
+        
+        tenAssert( vir->cons == NULL );
+        vir->cons = convertNats( state, vir->nats, vir->cons );
+        vir->nats = NULL;
+    }
 }
 
 
@@ -1233,19 +1236,6 @@ finishCon( State* state, ConAR* con, bool free ) {
         fibPush( state, fib, 0 );
         return;
     }
-    
-    uint  obase = fib->virs.base;
-    fib->virs.base = fib->virs.top;
-    
-    void* opush = fib->push;
-    void* opud  = fib->pud;
-    void* opop  = fib->pop;
-    void* opod  = fib->pod;
-    
-    fib->push = pushFib;
-    fib->pud  = NULL;
-    fib->pop  = NULL;
-    fib->pod  = NULL;
     
     uint argc = cls->fun->nParams;
     if( cls->fun->vargIdx )
@@ -1294,14 +1284,6 @@ finishCon( State* state, ConAR* con, bool free ) {
     regs->sp = dstv + retc;
     if( retc != 1 )
         *(regs->sp++) = tvTup( retc );
-
-
-    
-    fib->virs.base  = obase;
-    fib->push       = opush;
-    fib->pud        = opud;
-    fib->pop        = opop;
-    fib->pod        = opod;
 }
 
 static void
@@ -1340,14 +1322,15 @@ popFibNats( State* state, Fiber* fib ) {
 
 static void
 popVir( State* state, Fiber* fib ) {
-    VirAR* top = &fib->virs.buf[--fib->virs.top];
-    fib->rptr->cls = top->base.cls;
-    fib->rptr->lcl = fib->stack.buf + top->base.lcl;
-    fib->rptr->ip  = top->ip;
+    VirAR* top = &fib->virs.buf[fib->virs.top-1];
     
     finishCons( state, &top->cons );
     
-    if( fib->virs.top > fib->virs.base ) {
+    fib->rptr->cls = top->base.cls;
+    fib->rptr->lcl = fib->stack.buf + top->base.lcl;
+    fib->rptr->ip  = top->ip;
+    fib->virs.top--;
+    if( fib->virs.top > 0 ) {
         fib->top = (AR*)(top - 1);
     }
     else {
@@ -1496,58 +1479,64 @@ genTrace( State* state, Fiber* fib ) {
     if( fib->tagged )
         tag = symBuf( state, fib->tag );
     
-    // TODO: reimplement this for ConARs.
+    if( state->config.ndebug )
+        return;
     
-    // Generate stack trace.
-    if( !state->config.ndebug ) {
-        if( fib->rptr->ip ) {
-            VirFun* vir  = &fib->rptr->cls->fun->u.vir;
-            ullong place = fib->rptr->ip - vir->code;
-            
-            tenAssert( vir->dbg );
-            
-            uint      nLines = vir->dbg->nLines;
-            LineInfo* lines  = vir->dbg->lines;
-            for( uint i = 0 ; i < nLines ; i++ ) {
-                if( lines[i].start <= place && place < lines[i].end ) {
-                    uint        line  = lines[i].line;
-                    char const* file  = symBuf( state, vir->dbg->file );
-                    statePushTrace( state, tag, file, line );
-                    break;
-                }
-            }
-        }
+    
+    // We can only generate a trace entry for the
+    // current position when in a bytecode function.
+    if( fib->rptr->ip ) {
+        VirFun* vir  = &fib->rptr->cls->fun->u.vir;
+        ullong place = fib->rptr->ip - vir->code;
         
-        for( long i = (long)fib->virs.top - 1 ; i >= 0 ; i-- ) {
-            NatAR* nIt = fib->virs.buf[i].nats;
-            while( nIt ) {
-                statePushTrace( state, tag, nIt->file, nIt->line );
-                nIt = nIt->prev;
-            }
-            if( !fib->virs.buf[i].ip )
-                continue;
-            
-            VirFun* vir   = &fib->virs.buf[i].base.cls->fun->u.vir;
-            ullong  place = fib->virs.buf[i].ip - vir->code;
-            tenAssert( vir->dbg );
-            
-            uint      nLines = vir->dbg->nLines;
-            LineInfo* lines  = vir->dbg->lines;
-            for( uint i = 0 ; i < nLines ; i++ ) {
-                if( lines[i].start <= place && place < lines[i].end ) {
-                    uint        line = lines[i].line;
-                    char const* file = symBuf( state, vir->dbg->file );
-                    statePushTrace( state, tag, file, line );
-                    break;
-                }
-            }
-        }
+        tenAssert( vir->dbg );
         
-        NatAR* nIt = fib->nats;
-        while( nIt ) {
-            statePushTrace( state, tag, nIt->file, nIt->line );
-            nIt = nIt->prev;
+        uint      nLines = vir->dbg->nLines;
+        LineInfo* lines  = vir->dbg->lines;
+        for( uint i = 0 ; i < nLines ; i++ ) {
+            if( lines[i].start <= place && place < lines[i].end ) {
+                uint        line  = lines[i].line;
+                char const* file  = symBuf( state, vir->dbg->file );
+                statePushTrace( state, tag, file, line );
+                break;
+            }
         }
+    }
+    
+    // All NatAR's should have been converted to ConARs by
+    // this point, so we only use VirARs and NatARs for the
+    // trace.
+    
+    for( long i = (long)fib->virs.top - 1 ; i >= 0 ; i-- ) {
+        VirAR* vir = &fib->virs.buf[i];
+        
+        tenAssert( vir->nats == NULL );
+        
+        ConAR* con = fib->virs.buf[i].cons;
+        while( con ) {
+            statePushTrace( state, tag, con->file, con->line );
+            con = con->prev;
+        }
+        VirFun* fun   = &vir->base.cls->fun->u.vir;
+        ullong  place = vir->ip - fun->code;
+        tenAssert( fun->dbg );
+        
+        uint      nLines = fun->dbg->nLines;
+        LineInfo* lines  = fun->dbg->lines;
+        for( uint i = 0 ; i < nLines ; i++ ) {
+            if( lines[i].start <= place && place < lines[i].end ) {
+                uint        line = lines[i].line;
+                char const* file = symBuf( state, fun->dbg->file );
+                statePushTrace( state, tag, file, line );
+                break;
+            }
+        }
+    }
+    
+    ConAR* con = fib->cons;
+    while( con ) {
+        statePushTrace( state, tag, con->file, con->line );
+        con = con->prev;
     }
     
     if( fib->parent )
@@ -1561,6 +1550,7 @@ onError( State* state, Defer* defer ) {
         return;
     
     Fiber* fib = (void*)defer - (uintptr_t)&((Fiber*)NULL)->defer;
+    convertFibNats( state, fib );
     genTrace( state, fib );
     
     // Set the fiber's error values from the state.

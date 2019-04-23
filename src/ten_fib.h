@@ -80,7 +80,6 @@ struct Fiber {
     // Dynamic stack/array of VirARs.
     struct {
         VirAR* buf;
-        uint   base;
         uint   top;
         uint   cap;
     } virs;
