@@ -117,6 +117,12 @@ libBcmp( State* state, String* str1, SymT opr, String* str2 );
 TVal
 libCcmp( State* state, String* str1, SymT opr, String* str2 );
 
+String*
+libBsub( State* state, String* str, IntT n );
+
+String*
+libCsub( State* state, String* str, IntT n );
+
 void
 libEach( State* state, Closure* seq, Closure* what );
 

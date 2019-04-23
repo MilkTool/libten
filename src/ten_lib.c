@@ -2692,7 +2692,7 @@ joinFun( ten_PARAMS ) {
     ten_Var sepArg  = { .tup = args, .loc = 1 };
     
     expectArg( iter, OBJ_CLS );
-    expectArg( iter, OBJ_STR );
+    expectArg( sep, OBJ_STR );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
