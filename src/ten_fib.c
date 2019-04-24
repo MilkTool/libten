@@ -1133,6 +1133,7 @@ allocVir( State* state ) {
         
         fib->virs.cap = vcap;
         fib->virs.buf = vbuf;
+        stateCommitRaw( state, &bufP );
     }
     
     return &fib->virs.buf[fib->virs.top++];
