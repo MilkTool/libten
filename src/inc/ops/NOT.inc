@@ -7,9 +7,15 @@ if( tvIsInt( arg ) ) {
     regs.sp[-1] = tvInt( ~tvGetInt( arg ) );
 }
 else {
-    stateErrFmtA(
-        state, ten_ERR_TYPE,
-        "Wrong type (~ %t), expected (~ Log) or (~ Int)",
-        arg
-    );
+    if( tvIsTup( arg ) )
+        stateErrFmtA(
+            state, ten_ERR_TYPE,
+            "Passed tuple to operator."
+        );
+    else
+        stateErrFmtA(
+            state, ten_ERR_TYPE,
+            "Wrong type (~ %t), expected (~ Log) or (~ Int)",
+            arg
+        );
 }

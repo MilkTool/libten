@@ -146,6 +146,11 @@ advance( State* state ) {
     com->lex.nChar = com->p.src->next( com->p.src );
 }
 
+static int
+iswhite( int c ) {
+    return isspace( c ) && c != '\n';
+}
+
 static bool
 maybeChar( State* state, bool buf, int c ) {
     ComState* com = state->comState;
@@ -624,7 +629,7 @@ static void
 lex( State* state ) {
     ComState* com = state->comState;
     
-    takeAll( maybeType( state, false, isblank ) );
+    takeAll( maybeType( state, false, iswhite ) );
     
     if( lexComment( state ) ) {
         lex( state );

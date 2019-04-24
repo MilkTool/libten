@@ -9,9 +9,15 @@ if( tvIsInt( arg1 ) && tvIsInt( arg2 ) ) {
         regs.sp[-1] = tvInt( (uint32_t)tvGetInt( arg1 ) << shift );
 }
 else {
-    stateErrFmtA(
-        state, ten_ERR_TYPE,
-        "Wrong types (%t >> %t), expected (Int >> Int)",
-        arg1, arg2
-    );
+    if( tvIsTup( arg1 ) || tvIsTup( arg2 ) )
+        stateErrFmtA(
+            state, ten_ERR_TYPE,
+            "Passed tuple to operator."
+        );
+    else
+        stateErrFmtA(
+            state, ten_ERR_TYPE,
+            "Wrong types (%t >> %t), expected (Int >> Int)",
+            arg1, arg2
+        );
 }
