@@ -90,8 +90,6 @@ struct Fiber {
         uint  cap;
     } stack;
     
-    
-    AR*    top;
     void*  pod;
     void*  pud;
     void (*pop)( State* state, Fiber* fib );

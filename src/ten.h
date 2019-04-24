@@ -518,29 +518,6 @@ ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args );
 ten_Var*
 ten_fibType( ten_State* s );
 
-// Errors.
-
-ten_ErrNum
-ten_getErrNum( ten_State* s, ten_Var* fib );
-
-void
-ten_getErrVal( ten_State* s, ten_Var* fib, ten_Var* dst );
-
-char const*
-ten_getErrStr( ten_State* s, ten_Var* fib );
-
-ten_Trace*
-ten_getTrace( ten_State* s, ten_Var* fib );
-
-void
-ten_clearError( ten_State* s, ten_Var* fib );
-
-void
-ten_propError( ten_State* s, ten_Var* fib );
-
-jmp_buf*
-ten_swapErrJmp( ten_State* s, jmp_buf* errJmp );
-
 // Data objects.
 bool
 ten_isDat( ten_State* s, ten_Var* var, ten_DatInfo* info );
@@ -568,5 +545,28 @@ ten_addDatInfo( ten_State* s, ten_DatConfig* config );
 
 ten_Var*
 ten_datType( ten_State* s, ten_DatInfo* info );
+
+// Errors.
+
+ten_ErrNum
+ten_getErrNum( ten_State* s, ten_Var* fib );
+
+void
+ten_getErrVal( ten_State* s, ten_Var* fib, ten_Var* dst );
+
+char const*
+ten_getErrStr( ten_State* s, ten_Var* fib );
+
+ten_Trace*
+ten_getTrace( ten_State* s, ten_Var* fib );
+
+void
+ten_clearError( ten_State* s, ten_Var* fib );
+
+void
+ten_propError( ten_State* s, ten_Var* fib );
+
+jmp_buf*
+ten_swapErrJmp( ten_State* s, jmp_buf* errJmp );
 
 #endif

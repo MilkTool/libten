@@ -74,7 +74,6 @@ fibNew( State* state, Closure* cls, SymT* tag ) {
     fib->virs.buf      = vbuf;
     fib->stack.cap     = scap;
     fib->stack.buf     = sbuf;
-    fib->top           = NULL;
     fib->pod           = NULL;
     fib->pud           = NULL;
     fib->pop           = NULL;
@@ -1309,16 +1308,14 @@ popFibNats( State* state, Fiber* fib ) {
     fib->rptr->checkpoint   = top->checkpoint;
     
     fib->nats = fib->nats->prev;
-    if( fib->nats ) {
-        fib->top = &fib->nats->base;
-    }
-    else {
-        fib->top = NULL;
+    if( !fib->nats ) {
         fib->pop = NULL;
         fib->pod = NULL;
     }
 }
 
+static void
+popVirNats( State* state, Fiber* fib );
 
 static void
 popVir( State* state, Fiber* fib ) {
@@ -1331,7 +1328,11 @@ popVir( State* state, Fiber* fib ) {
     fib->rptr->ip  = top->ip;
     fib->virs.top--;
     if( fib->virs.top > 0 ) {
-        fib->top = (AR*)(top - 1);
+        top--;
+        if( top->nats ) {
+            fib->pop = popVirNats;
+            fib->pod = top;
+        }
     }
     else {
         finishCons( state, &fib->cons );
@@ -1340,10 +1341,8 @@ popVir( State* state, Fiber* fib ) {
         if( fib->nats ) {
             fib->pop  = popFibNats;
             fib->pod  = NULL;
-            fib->pop( state, fib );
         }
         else {
-            fib->top = NULL;
             fib->pop = NULL;
             fib->pod = NULL;
         }
@@ -1365,11 +1364,7 @@ popVirNats( State* state, Fiber* fib ) {
     fib->rptr->checkpoint   = top->checkpoint;
     
     vir->nats = vir->nats->prev;
-    if( vir->nats ) {
-        fib->top = &vir->nats->base;
-    }
-    else {
-        fib->top = &vir->base;
+    if( !vir->nats ) {
         fib->pop = popVir;
         fib->pod = NULL;
     }
@@ -1408,8 +1403,6 @@ pushVir( State* state, Fiber* fib, NatAR* nat ) {
     }
     ar->cls = fib->rptr->cls;
     ar->lcl = fib->rptr->lcl - fib->stack.buf;
-    
-    fib->top = ar;
 }
 
 static void
@@ -1445,8 +1438,6 @@ pushFib( State* state, Fiber* fib, NatAR* nat ) {
     }
     ar->cls = fib->rptr->cls;
     ar->lcl = fib->rptr->lcl - fib->stack.buf;
-    
-    fib->top = ar;
 }
 
 static void
