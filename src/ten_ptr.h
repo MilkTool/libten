@@ -14,7 +14,7 @@ struct PtrInfo {
     Tup     typeTup;
     TVal*   typePtr;
     TVal    typeVal;
-    void  (*destr)( ten_State* core, void* addr );
+    void  (*destr)( void* addr );
 };
 
 void

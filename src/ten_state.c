@@ -541,6 +541,8 @@ mallocRaw( State* state, size_t nsz ) {
 
 static void*
 reallocRaw( State* state, void* old, size_t osz, size_t nsz ) {
+    tenAssert( state->gcProg == false );
+    
     size_t need = state->memUsed + nsz;
     if( need > state->memLimit )
         collect( state, nsz );
@@ -626,6 +628,7 @@ collect( State* state, size_t extra ) {
     // Every 5th cycle we do a full traversal to
     // scan for Pointers and Symbols as well as
     // normal objects.
+    state->gcProg = true;
     if( state->gcCount++ % 5 == 0 ) {
         state->gcFull = true;
         symStartCycle( state );
@@ -696,6 +699,7 @@ collect( State* state, size_t extra ) {
     
     // Tell the Symbol and Pointer components that we're
     // done collecting.
+    state->gcProg = false;
     if( state->gcFull ) {
         state->gcFull = false;
         symFinishCycle( state );
@@ -706,6 +710,7 @@ collect( State* state, size_t extra ) {
 static void
 onError( State* state ) {
     CHECK_STATE;
+    tenAssert( state->gcProg == false );
     
     Defer* dIt = state->defers;
     while( dIt ) {

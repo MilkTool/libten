@@ -239,6 +239,7 @@ struct State {
     // track of which cycle we're performing now and when to do
     // the next full collection.
     bool gcFull;
+    bool gcProg;
     uint gcCount;
     
     // List of GC objects.

@@ -729,6 +729,7 @@ libBin( State* state, String* str ) {
 }
 
 typedef struct {
+    State*   state;
     IdxIter* iter;
 } RecIter;
 
@@ -738,10 +739,10 @@ typedef enum {
 } RecIterMem;
 
 static void
-recIterDestr( ten_State* ten, void* dat ) {
+recIterDestr( void* dat ) {
     RecIter* iter = dat;
     if( iter->iter )
-        idxIterFree( (State*)ten, iter->iter );
+        idxIterFree( iter->state, iter->iter );
 }
 
 static ten_Tup
@@ -792,7 +793,8 @@ libKeys( State* state, Record* rec ) {
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
     RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
-    iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
+    iter->iter  = idxIterMake( state, tpGetPtr( rec->idx ) );
+    iter->state = state;
     
     vset( recVar, tvObj( rec ) );
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
@@ -859,7 +861,8 @@ libVals( State* state, Record* rec ) {
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
     RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
-    iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
+    iter->iter  = idxIterMake( state, tpGetPtr( rec->idx ) );
+    iter->state = state;
     
     vset( recVar, tvObj( rec ) );
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
@@ -928,7 +931,8 @@ libPairs( State* state, Record* rec ) {
     ten_Var clsVar = { .tup = &varTup, .loc = 3 };
     
     RecIter* iter = ten_newDat( ten, lib->recIterInfo, &datVar );
-    iter->iter = idxIterMake( state, tpGetPtr( rec->idx ) );
+    iter->iter  = idxIterMake( state, tpGetPtr( rec->idx ) );
+    iter->state = state;
     
     vset( recVar, tvObj( rec ) );
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );

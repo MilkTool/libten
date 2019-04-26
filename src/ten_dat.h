@@ -13,7 +13,7 @@ struct DatInfo {
     TVal    typeVal;
     size_t size;
     uint   nMems;
-    void   (*destr)( ten_State* state, void* buf );
+    void   (*destr)( void* buf );
 };
 
 struct Data {

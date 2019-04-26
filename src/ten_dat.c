@@ -113,5 +113,5 @@ void
 datDestruct( State* state, Data* dat ) {
     stateFreeRaw( state, dat->mems, sizeof(TVal)*dat->info->nMems );
     if( dat->info->destr )
-        dat->info->destr( (ten_State*)state, dat->data );
+        dat->info->destr( dat->data );
 }

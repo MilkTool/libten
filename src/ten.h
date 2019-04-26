@@ -49,7 +49,7 @@ typedef struct {
     /* A function to be called before a Data object is freed by
      * the GC.  This should not free the given `buf` pointer.
      */
-    void (*destr)( ten_State* s, void* buf );
+    void (*destr)( void* buf );
 } ten_DatConfig;
 
 
@@ -72,7 +72,7 @@ typedef struct {
      * (with the same address and <ten_PtrInfo>) have expired from
      * the VM.
      */
-    void (*destr)( ten_State* s, void* addr );
+    void (*destr)( void* addr );
 } ten_PtrConfig;
 
 /* An array of internal Ten values, allows the user to reference
@@ -129,9 +129,6 @@ typedef struct {
 
 typedef enum {
     ten_ERR_NONE,
-    #ifdef ten_TEST
-        ten_ERR_TEST,
-    #endif
     ten_ERR_FATAL,
     ten_ERR_SYSTEM,
     ten_ERR_RECORD,
@@ -181,10 +178,10 @@ typedef struct ten_Source {
     void       (*finl)( struct ten_Source* src );
 } ten_Source;
 
-typedef void* (*FreallocFun)( void* udata,  void* old, size_t osz, size_t nsz );
+typedef void* (*ten_MemFun)( void* udata,  void* old, size_t osz, size_t nsz );
 typedef struct ten_Config {
     void*       udata;
-    FreallocFun frealloc;
+    ten_MemFun  frealloc;
     
     bool ndebug;
     
@@ -214,9 +211,6 @@ ten_pushA( ten_State* s, char const* pat, ... );
 
 ten_Tup
 ten_pushV( ten_State* s, char const* pat, va_list ap );
-
-ten_Tup
-ten_top( ten_State* s );
 
 void
 ten_pop( ten_State* s );
@@ -310,9 +304,6 @@ ten_pathSource( ten_State* s, char const* path );
 ten_Source*
 ten_stringSource( ten_State* s, char const* string, char const* name );
 
-void
-ten_freeSource( ten_State* s, ten_Source* src );
-
 
 // Compilation.
 void
@@ -336,9 +327,6 @@ ten_isUdf( ten_State* s, ten_Var* var );
 bool
 ten_areUdf( ten_State* s, ten_Tup* tup );
 
-void
-ten_setUdf( ten_State* s, ten_Var* dst );
-
 ten_Var*
 ten_udfType( ten_State* s );
 
@@ -348,18 +336,12 @@ ten_isNil( ten_State* s, ten_Var* var );
 bool
 ten_areNil( ten_State* s, ten_Tup* tup );
 
-void
-ten_setNil( ten_State* s, ten_Var* dst );
-
 ten_Var*
 ten_nilType( ten_State* s );
 
 // Logical values.
 bool
 ten_isLog( ten_State* s, ten_Var* var );
-
-void
-ten_setLog( ten_State* s, bool log, ten_Var* dst );
 
 bool
 ten_getLog( ten_State* s, ten_Var* var );
@@ -371,9 +353,6 @@ ten_logType( ten_State* s );
 bool
 ten_isInt( ten_State* s, ten_Var* var );
 
-void
-ten_setInt( ten_State* s, long in, ten_Var* dst );
-
 long
 ten_getInt( ten_State* s, ten_Var* var );
 
@@ -383,9 +362,6 @@ ten_intType( ten_State* s );
 // Decimal values.
 bool
 ten_isDec( ten_State* s, ten_Var* var );
-
-void
-ten_setDec( ten_State* s, double dec, ten_Var* dst );
 
 double
 ten_getDec( ten_State* s, ten_Var* var );
@@ -530,9 +506,6 @@ ten_setMember( ten_State* s, ten_Var* dat, unsigned mem, ten_Var* val );
 
 void
 ten_getMember( ten_State* s, ten_Var* dat, unsigned mem, ten_Var* dst );
-
-ten_Tup
-ten_getMembers( ten_State* s, ten_Var* dat );
 
 ten_DatInfo*
 ten_getDatInfo( ten_State* s, ten_Var* dat );

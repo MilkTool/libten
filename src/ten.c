@@ -26,7 +26,7 @@
 
 ten_Version const ten_VERSION = {
     .major = 0,
-    .minor = 3,
+    .minor = 4,
     .patch = 0
 };
 
@@ -139,8 +139,8 @@ ten_free( ten_State* s ) {
     State* state = (State*)s;
     stateFinl( state );
     
-    void*       udata    = state->config.udata;
-    FreallocFun frealloc = state->config.frealloc;
+    void*      udata    = state->config.udata;
+    ten_MemFun frealloc = state->config.frealloc;
     frealloc( udata, s, sizeof(State), 0 );
 }
 
@@ -196,14 +196,6 @@ ten_pushV( ten_State* s, char const* pat, va_list ap ) {
         }
     }
     
-    ten_Tup t; memcpy( &t, &tup, sizeof(Tup) );
-    return t;
-}
-
-ten_Tup
-ten_top( ten_State* s ) {
-    State* state = (State*)s;
-    Tup    tup = stateTop( state );
     ten_Tup t; memcpy( &t, &tup, sizeof(Tup) );
     return t;
 }
@@ -646,9 +638,7 @@ ten_executeExpr( ten_State* s, ten_Source* src, ten_ComScope scope ) {
     api->val1 = tvUdf();
     fibPropError( state, fib );
     
-    ten_Tup t;
-    memcpy( &t, &ret, sizeof(Tup) );
-    return t;
+    return ten_dup( s, (ten_Tup*)&ret );
 }
 
 bool
@@ -665,12 +655,6 @@ ten_areUdf( ten_State* s, ten_Tup* tup ) {
             return false;
     }
     return true;
-}
-
-void
-ten_setUdf( ten_State* s, ten_Var* dst ) {
-    State* state = (State*)s;
-    vset( *dst, tvUdf() );
 }
 
 ten_Var*
@@ -694,13 +678,6 @@ ten_areNil( ten_State* s, ten_Tup* tup ) {
     }
     return true;
 }
-
-void
-ten_setNil( ten_State* s, ten_Var* dst ) {
-    State* state = (State*)s;
-    vset( *dst, tvUdf() );
-}
-
 ten_Var*
 ten_nilType( ten_State* s ) {
     State* state = (State*)s;
@@ -711,12 +688,6 @@ bool
 ten_isLog( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
     return tvIsLog( vget( *var ) );
-}
-
-void
-ten_setLog( ten_State* s, bool log, ten_Var* dst ) {
-    State* state = (State*)s;
-    vset( *dst, tvLog( log ) );
 }
 
 bool
@@ -738,11 +709,6 @@ ten_isInt( ten_State* s, ten_Var* var ) {
     return tvIsInt( vget( *var ) );
 }
 
-void
-ten_setInt( ten_State* s, long in, ten_Var* dst ) {
-    State* state = (State*)s;
-    vset( *dst, tvInt( in ) );
-}
 
 long
 ten_getInt( ten_State* s, ten_Var* var ) {
@@ -761,13 +727,6 @@ bool
 ten_isDec( ten_State* s, ten_Var* var ) {
     State* state = (State*)s;
     return tvIsDec( vget( *var ) );
-}
-
-void
-ten_setDec( ten_State* s, double dec, ten_Var* dst ) {
-    State* state = (State*)s;
-    funAssert( !isnan( dec ), "NaN given as Dec value", NULL );
-    vset( *dst, tvDec( dec ) );
 }
 
 double
@@ -1221,9 +1180,7 @@ ten_cont( ten_State* s, ten_Var* fib, ten_Tup* args ) {
     
     Tup tup = fibCont( state, fibO, (Tup*)args );
     
-    ten_Tup t;
-    memcpy( &t, &tup, sizeof(Tup) );
-    return t;
+    return ten_dup( s, (ten_Tup*)&tup );
 }
 
 void
@@ -1439,24 +1396,6 @@ ten_getMember( ten_State* s, ten_Var* dat, unsigned mem, ten_Var* dst ) {
     
     funAssert( mem < datO->info->nMems, "No member %u", mem );
     vset( *dst, datO->mems[mem] );
-}
-
-ten_Tup
-ten_getMembers( ten_State* s, ten_Var* dat ) {
-    State* state = (State*)s;
-    TVal datV = vget( *dat );
-    funAssert(
-        tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
-        "Wrong type for 'dat', need Dat",
-        NULL
-    );
-    Data* datO = tvGetObj( datV );
-    
-    Tup tup = { .base = &datO->mems, .offset = 0, .size = datO->info->nMems };
-    
-    ten_Tup t;
-    memcpy( &t, &tup, sizeof(Tup) );
-    return t;
 }
 
 ten_DatInfo*

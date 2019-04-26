@@ -1531,8 +1531,10 @@ genTrace( State* state, Fiber* fib ) {
         con = con->prev;
     }
     
+    /*
     if( fib->parent )
         genTrace( state, fib->parent );
+    */
 }
 
 
