@@ -1838,6 +1838,7 @@ parVarRecEntry( State* state, void* udat ) {
     else
     if( com->tok.type == ':' ) {
         lex( state );
+        parDelim( state );
         parKey( state );
         dat->size++;
     }
@@ -1945,6 +1946,7 @@ parKeyRecEntry( State* state, void* udat ) {
     else
     if( com->tok.type == ':' ) {
         lex( state );
+        parDelim( state );
         parKey( state );
         dat->size++;
     }
