@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <time.h>
 
 // For detecting UTF-8 character type.
@@ -462,7 +463,7 @@ libClock( State* state ) {
 
 DecT
 libRand( State* state ) {
-    return 1.0 /((long long)rand()*rand());
+    return (double)rand()/INT_MAX;
 }
 
 TVal
