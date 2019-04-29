@@ -2545,12 +2545,12 @@ splitFun( ten_PARAMS ) {
     ten_Var strArg = { .tup = args, .loc = 0 };
     ten_Var sepArg = { .tup = args, .loc = 1 };
     expectArg( str, OBJ_STR );
-    expectArg( str, OBJ_STR );
+    expectArg( sep, OBJ_STR );
     
     ten_Tup retTup = ten_pushA( ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
-    Closure* cls = libChars( (State*)ten, tvGetObj( vget( strArg ) ) );
+    Closure* cls = libSplit( (State*)ten, tvGetObj( vget( strArg ) ), tvGetObj( vget( sepArg ) ) );
     vset( retVar, tvObj( cls ) );
     return retTup;
 }
