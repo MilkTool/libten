@@ -2,6 +2,7 @@
 #define ten_lib_h
 #include "ten_types.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 void
 libInit( State* state );
@@ -122,6 +123,12 @@ libBsub( State* state, String* str, IntT n );
 
 String*
 libCsub( State* state, String* str, IntT n );
+
+size_t
+libBlen( State* state, String* str );
+
+size_t
+libClen( State* state, String* str );
 
 void
 libEach( State* state, Closure* seq, Closure* what );

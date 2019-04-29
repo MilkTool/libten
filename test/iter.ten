@@ -2,7 +2,7 @@ def s: seq( 1, 2, 3 )
 assert( s() = 1, "1" )
 assert( s() = 2, "2" )
 assert( s() = 3, "3" )
-assert( s() != udf, "4" )
+assert( s() = nil, "4" )
 
 def rec: { .k1: 'v1', .k2: 'v2', .k3: 'v3' }
 
@@ -11,7 +11,7 @@ def k: keys( rec )
 def keySet@(k()): true
 def keySet@(k()): true
 def keySet@(k()): true
-assert( k() != udf, "5" )
+assert( k() = nil, "5" )
 
 assert( keySet.k1, "6" )
 assert( keySet.k2, "7" )
@@ -22,7 +22,7 @@ def v: vals( rec )
 def valSet@(v()): true
 def valSet@(v()): true
 def valSet@(v()): true
-assert( v() != udf, "9" )
+assert( v() = nil, "9" )
 
 assert( valSet.v1, "10" )
 assert( valSet.v2, "11" )
@@ -42,7 +42,7 @@ def ( k4, v4 ): p()
 def pairSet@k1@v1: true
 def pairSet@k2@v2: true
 def pairSet@k3@v3: true
-assert( k4 != udf &? v4 != udf, "13" )
+assert( k4 = nil &? v4 = nil, "13" )
 
 assert( pairSet.k1.v1, "14" )
 assert( pairSet.k2.v2, "16" )
@@ -52,19 +52,19 @@ def b: bytes"abc"
 assert( b() = 97, "18" )
 assert( b() = 98, "19" )
 assert( b() = 99, "20" )
-assert( b() != udf, "21" )
+assert( b() = nil, "21" )
 
 def c: chars"ガはラ"
 assert( c() = 'ガ', "22" )
 assert( c() = 'は', "23" )
 assert( c() = 'ラ', "24" )
-assert( c() != udf, "25" )
+assert( c() = nil, "25" )
 
 def l: items{ .car: 1, .cdr: { .car: 2, .cdr: { .car: 3, .cdr: nil } } }
 assert( l() = 1, "26" )
 assert( l() = 2, "27" )
 assert( l() = 3, "28" )
-assert( l() != udf, "29" )
+assert( l() = nil, "29" )
 
 def d: drange( 1.0, -5.0, -0.5 )
 assert( d() = 1.0, "30" )

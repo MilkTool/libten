@@ -2115,7 +2115,7 @@ parSignal( State* state ) {
     
     GenLbl* lbl = genGetLbl( state, com->gen, tvGetSym( com->tok.value ) );
     if( !lbl )
-        errCom( state, "No signal handler for '%v' in scope", com->tok.type );
+        errCom( state, "No signal handler for '%v' in scope", com->tok.value );
     
     lex( state );
     if( com->tok.type != ':' )

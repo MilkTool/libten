@@ -85,6 +85,8 @@ typedef enum {
     IDENT_ccmp,
     IDENT_bsub,
     IDENT_csub,
+    IDENT_blen,
+    IDENT_clen,
     
     IDENT_each,
     IDENT_fold,
@@ -751,7 +753,7 @@ keyIterNext( ten_PARAMS ) {
     State*   state = (State*)ten;
     RecIter* iter  = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( !iter->iter )
         return retTup;
@@ -819,7 +821,7 @@ valIterNext( ten_PARAMS ) {
     State*   state = (State*)ten;
     RecIter* iter  = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( !iter->iter )
         return retTup;
@@ -887,7 +889,7 @@ pairIterNext( ten_PARAMS ) {
     State*   state = (State*)ten;
     RecIter* iter  = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "UU" );
+    ten_Tup retTup = ten_pushA( ten, "NN" );
     ten_Var keyVar = { .tup = &retTup, .loc = 0 };
     ten_Var valVar = { .tup = &retTup, .loc = 1 };
     if( !iter->iter )
@@ -967,7 +969,7 @@ seqNext( ten_PARAMS ) {
     State* state = (State*)ten;
     Seq*   seq   = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( seq->next < 0 )
         return retTup;
@@ -976,9 +978,10 @@ seqNext( ten_PARAMS ) {
     Record* vals = tvGetObj( vget( valsVar ) );
     
     TVal next = recGet( (State*)ten, vals, tvInt( seq->next++ ) );
-    vset( retVar, next );
     if( tvIsUdf( next ) )
         seq->next = -1;
+    else
+        vset( retVar, next );
     
     return retTup;
 }
@@ -1028,7 +1031,7 @@ byteIterNext( ten_PARAMS ) {
     State*   state = (State*)ten;
     StrIter* iter  = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( iter->loc < 0 )
         return retTup;
@@ -1115,7 +1118,7 @@ charIterNext( ten_PARAMS ) {
     State*   state = (State*)ten;
     StrIter* iter  = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( iter->loc < 0 )
         return retTup;
@@ -1183,7 +1186,7 @@ splitIterNext( ten_PARAMS ) {
     State*     state = (State*)ten;
     SplitIter* iter  = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( iter->loc == NULL )
         return retTup;
@@ -1259,7 +1262,7 @@ listIterNext( ten_PARAMS ) {
     
     ListIter* iter = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( iter->finished )
         return retTup;
@@ -1328,7 +1331,7 @@ dRangeNext( ten_PARAMS ) {
     
     DRange* range = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
     DecT start = range->start;
@@ -1391,7 +1394,7 @@ iRangeNext( ten_PARAMS ) {
     
     IRange* range = dat;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     
     IntT start = range->start;
@@ -1616,7 +1619,7 @@ libJoin( State* state, Closure* iter, String* sep ) {
     if( ten_size( ten, &retTup ) != 1 )
         panic( "Iterator returned tuple" );
     
-    while( !tvIsUdf( vget( retVar ) ) ) {
+    while( !tvIsNil( vget( retVar ) ) ) {
         fmtA( state, false, "%v", vget( retVar ) );
         
         ten_pop( ten );
@@ -1775,6 +1778,27 @@ libCsub( State* state, String* str, IntT n ) {
     return NULL;
 }
 
+size_t
+libBlen( State* state, String* str ) {
+    return str->len;
+}
+
+size_t
+libClen( State* state, String* str ) {
+    size_t count = 0;
+    
+    char const* end  = str->buf;
+    size_t      left = str->len;
+    uint32_t    chr  = 0;
+    while( left > 0 ) {
+        unext( state, &end, &left, &chr );
+        count++;
+    }
+    
+    return count;
+}
+
+
 void
 libEach( State* state, Closure* iter, Closure* what ) {
     ten_State* ten = (ten_State*)state;
@@ -1782,7 +1806,7 @@ libEach( State* state, Closure* iter, Closure* what ) {
     
     ten_Tup sArgTup = ten_pushA( ten, "" );
     ten_Tup sRetTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &sArgTup );
-    while( !ten_areUdf( ten, &sRetTup ) ) {
+    while( !ten_areNil( ten, &sRetTup ) ) {
         ten_call( ten, stateTmp( state, tvObj( what ) ), &sRetTup );
         ten_pop( ten );
         ten_pop( ten );
@@ -1805,7 +1829,7 @@ libFold( State* state, Closure* iter, TVal agr, Closure* how ) {
     ten_Tup sArgTup = ten_pushA( ten, "" );
     ten_Tup sRetTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &sArgTup );
     ten_Var sRetVar = { .tup = &sRetTup, .loc = 0 };
-    while( !ten_areUdf( ten, &sRetTup ) ) {
+    while( !ten_areNil( ten, &sRetTup ) ) {
         if( ten_size( ten, &sRetTup ) != 1 )
             panic( "Iterator returned tuple" );
         
@@ -1893,7 +1917,7 @@ libExplode( State* state, Closure* iter ) {
     ten_Tup argTup = ten_pushA( ten, "" );
     ten_Tup retTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &argTup );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
-    while( !ten_areUdf( ten, &retTup ) ) {
+    while( !ten_areNil( ten, &retTup ) ) {
         if( ten_size( ten, &retTup ) != 1 )
             panic( "Iterator returned tuple" );
         
@@ -2790,6 +2814,40 @@ csubFun( ten_PARAMS ) {
     return retTup;
 }
 
+
+static ten_Tup
+blenFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    size_t len = libBlen( state, tvGetObj( vget( strArg ) ) );
+    vset( retVar, tvInt( len ) );
+    
+    return retTup;
+}
+
+static ten_Tup
+clenFun( ten_PARAMS ) {
+    State* state = (State*)ten;
+    
+    ten_Var strArg = { .tup = args, .loc = 0 };
+    expectArg( str, OBJ_STR );
+    
+    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    size_t len = libClen( state, tvGetObj( vget( strArg ) ) );
+    vset( retVar, tvInt( len ) );
+    
+    return retTup;
+}
+
+
 static ten_Tup
 eachFun( ten_PARAMS ) {
     State* state = (State*)ten;
@@ -3118,6 +3176,8 @@ libInit( State* state ) {
     IDENT( ccmp );
     IDENT( bsub );
     IDENT( csub );
+    IDENT( blen );
+    IDENT( clen );
     
     IDENT( each );
     IDENT( fold );
@@ -3246,6 +3306,8 @@ libInit( State* state ) {
     FUN( ccmp, 3, false );
     FUN( bsub, 2, false );
     FUN( csub, 2, false );
+    FUN( blen, 1, false );
+    FUN( clen, 1, false );
     
     FUN( each, 2, false );
     FUN( fold, 3, false );
