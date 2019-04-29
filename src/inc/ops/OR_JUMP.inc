@@ -14,9 +14,9 @@ if( tvIsTup( arg ) )
     );
 
 instr* dst = fun->labels[opr];
-if( ( tvIsLog( arg ) && tvGetLog( arg ) ) || !tvIsNil( arg ) ) {
-    regs.ip = dst;
+if( ( tvIsLog( arg ) && !tvGetLog( arg ) ) || tvIsNil( arg ) ) {
+    regs.sp--;
 }
 else {
-    regs.sp--;
+    regs.ip = dst;
 }

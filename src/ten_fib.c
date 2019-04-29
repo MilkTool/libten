@@ -74,8 +74,6 @@ fibNew( State* state, Closure* cls, SymT* tag ) {
     fib->virs.buf      = vbuf;
     fib->stack.cap     = scap;
     fib->stack.buf     = sbuf;
-    fib->pod           = NULL;
-    fib->pud           = NULL;
     fib->pop           = NULL;
     fib->push          = pushFib;
     fib->state         = ten_FIB_STOPPED;
@@ -509,7 +507,6 @@ contNext( State* state, Fiber* fib, Tup* args ) {
             finishCons( state, &fib->cons );
             fib->cons = NULL;
             fib->pop  = NULL;
-            fib->pod  = NULL;
         }
         else {
             fib->pop( state, fib );
@@ -1311,7 +1308,6 @@ popFibNats( State* state, Fiber* fib ) {
     fib->nats = fib->nats->prev;
     if( !fib->nats ) {
         fib->pop = NULL;
-        fib->pod = NULL;
     }
 }
 
@@ -1332,7 +1328,6 @@ popVir( State* state, Fiber* fib ) {
         top--;
         if( top->nats ) {
             fib->pop = popVirNats;
-            fib->pod = top;
         }
     }
     else {
@@ -1341,18 +1336,16 @@ popVir( State* state, Fiber* fib ) {
         
         if( fib->nats ) {
             fib->pop  = popFibNats;
-            fib->pod  = NULL;
         }
         else {
             fib->pop = NULL;
-            fib->pod = NULL;
         }
     }
 }
 
 static void
 popVirNats( State* state, Fiber* fib ) {
-    VirAR* vir = fib->pod;
+    VirAR* vir = &fib->virs.buf[fib->virs.top-1];
     
     NatAR* top = vir->nats;
     fib->rptr->cls = top->base.cls;
@@ -1367,7 +1360,6 @@ popVirNats( State* state, Fiber* fib ) {
     vir->nats = vir->nats->prev;
     if( !vir->nats ) {
         fib->pop = popVir;
-        fib->pod = NULL;
     }
 }
 
@@ -1376,7 +1368,7 @@ static void
 pushVir( State* state, Fiber* fib, NatAR* nat ) {
     AR* ar = NULL;
     if( nat ) {
-        VirAR* vir = fib->pud;
+        VirAR* vir = &fib->virs.buf[fib->virs.top-1];
         nat->prev = vir->nats;
         vir->nats = nat;
         
@@ -1388,7 +1380,6 @@ pushVir( State* state, Fiber* fib, NatAR* nat ) {
         ar = &nat->base;
         
         fib->pop = popVirNats;
-        fib->pod = vir;
     }
     else {
         VirAR* vir = allocVir( state );
@@ -1400,7 +1391,6 @@ pushVir( State* state, Fiber* fib, NatAR* nat ) {
         ar = &vir->base;
         
         fib->pop  = popVir;
-        fib->pod  = NULL;
     }
     ar->cls = fib->rptr->cls;
     ar->lcl = fib->rptr->lcl - fib->stack.buf;
@@ -1421,7 +1411,6 @@ pushFib( State* state, Fiber* fib, NatAR* nat ) {
         ar = &nat->base;
         
         fib->pop  = popFibNats;
-        fib->pod  = NULL;
     }
     else {
         VirAR* vir = allocVir( state );
@@ -1433,9 +1422,7 @@ pushFib( State* state, Fiber* fib, NatAR* nat ) {
         ar = &vir->base;
         
         fib->push = pushVir;
-        fib->pud  = vir;
         fib->pop  = popVir;
-        fib->pod  = NULL;
     }
     ar->cls = fib->rptr->cls;
     ar->lcl = fib->rptr->lcl - fib->stack.buf;
