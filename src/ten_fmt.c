@@ -97,6 +97,9 @@ static void
 fmtSym( State* state, SymT sym, bool q );
 
 static void
+fmtVal( State* state, TVal val, bool q );
+
+static void
 fmtType( State* state, TVal val ) {
     if( tvIsObj( val ) ) {
         void*  obj = tvGetObj( val );
@@ -244,9 +247,6 @@ fmtStr( State* state, String* str, bool q ) {
             fmtRaw( state, "\"" );
     }
 }
-
-static void
-fmtVal( State* state, TVal val, bool q );
 
 static TVal
 nextKey( State* state, IdxIter* iter, uint seqEnd ) {

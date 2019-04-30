@@ -1209,6 +1209,7 @@ splitIterNext( ten_PARAMS ) {
     }
     
     iter->loc = NULL;
+    vset( retVar, tvObj( strNew( state, loc, end - loc ) ) );
     return retTup;
 }
 
