@@ -1732,12 +1732,9 @@ parConditional( State* state, bool tail ) {
         SymT    exitSym = symGet( state, "$e", 2 );
         GenLbl* exitLbl = genLbl( state, exitSym );
         
-        while( opc != OPC_LAST ) {
-            genInstr( state, opc, exitLbl->which );
-            parCompare( state, &dat );
-            
-            opc = matchOpCode( state, opers );
-        }
+        genInstr( state, opc, exitLbl->which );
+        parExpr( state, false );
+        
         uint place = genGetPlace( state, com->gen );
         genMovLbl( state, com->gen, exitLbl, place );
         
