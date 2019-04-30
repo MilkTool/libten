@@ -114,9 +114,9 @@ fmtType( State* state, TVal val ) {
                 Record* rec = obj;
                 TVal tagK = tvSym( symGet( state, "tag", 3 ) );
                 TVal tagV = recGet( state, rec, tagK );
-                if( !tvIsSym( tagV ) ) {
+                if( !tvIsUdf( tagV ) ) {
                     fmtRaw( state, ":" );
-                    fmtSym( state, tvGetSym( tagV ), false );
+                    fmtVal( state, tagV, false );
                 }
             } break;
             case OBJ_FUN: {

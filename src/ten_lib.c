@@ -1753,7 +1753,7 @@ libCsub( State* state, String* str, IntT n ) {
     }
     else {
         char const* start  = buf + len;
-        while( start >= buf && n > 0 ) {
+        while( start > buf && n < 0 ) {
             uint len = 1;
             while( start > buf && isAfterChr( *start ) ) {
                 start--;
@@ -1769,9 +1769,14 @@ libCsub( State* state, String* str, IntT n ) {
                 goto fail;
             if( len < 1 || len > 4 )
                 goto fail;
+            
+            start--;
+            n++;
         }
         
-        return strNew( state, start, start - (buf + len) );
+        if( n < 0 )
+            panic( "Given 'n' is larger than string length" );
+        return strNew( state, start, (buf + len) - start );
     }
     
     fail: panic( "Format is not UTF-8" );
