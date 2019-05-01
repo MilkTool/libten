@@ -156,7 +156,7 @@ maybeChar( State* state, bool buf, int c ) {
     ComState* com = state->comState;
     if( com->lex.nChar != c )
         return false;
-    if( buf )
+    if( buf && com->lex.nChar != ten_PAD )
         *putCharBuf( state, &com->lex.chars ) = com->lex.nChar;
     advance( state );
     return true;
@@ -167,7 +167,7 @@ takeChar( State* state, bool buf, int c ) {
     ComState* com = state->comState;
     
     int nChar = com->lex.nChar;
-    if( buf )
+    if( buf && nChar != ten_PAD)
         *putCharBuf( state, &com->lex.chars ) = nChar;
     advance( state );
     if( nChar != c )
