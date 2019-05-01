@@ -172,6 +172,11 @@ struct ten_Trace {
     ten_Trace*  next;
 };
 
+enum {
+    ten_EOF = -1,
+    ten_PAD = -2
+};
+
 typedef struct ten_Source {
     char const* name;
     int        (*next)( struct ten_Source* src );

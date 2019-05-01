@@ -1199,7 +1199,7 @@ splitIterNext( ten_PARAMS ) {
     char const* loc = iter->loc;
     char const* nxt = loc;
     char const* end = str->buf + str->len;
-    while( nxt + sep->len < end ) {
+    while( nxt + sep->len <= end ) {
         if( !memcmp( nxt, sep->buf, sep->len ) ) {
             iter->loc = nxt + sep->len;
             vset( retVar, tvObj( strNew( state, loc, nxt - loc ) ) );
@@ -1755,6 +1755,8 @@ libCsub( State* state, String* str, IntT n ) {
     else {
         char const* start  = buf + len;
         while( start > buf && n < 0 ) {
+            start--;
+            
             uint len = 1;
             while( start > buf && isAfterChr( *start ) ) {
                 start--;
@@ -1771,7 +1773,6 @@ libCsub( State* state, String* str, IntT n ) {
             if( len < 1 || len > 4 )
                 goto fail;
             
-            start--;
             n++;
         }
         

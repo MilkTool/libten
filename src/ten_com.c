@@ -237,7 +237,7 @@ skipBang( State* state ) {
         if( !maybeChar( state, false, '!' ) )
             errLex( state, "Unexpected character '#'" );
 
-        while( !maybeChar( state, false, -1 ) && !takeChar( state, false, '\n' ) )
+        while( !maybeChar( state, false, ten_EOF ) && !takeChar( state, false, '\n' ) )
             ;
     }
 }
@@ -377,8 +377,8 @@ lexNum( State* state ) {
 }
 
 
-#define notEOF()     (state->comState->lex.nChar >= 0)
-#define hasEOF()     (state->comState->lex.nChar <  0)
+#define notEOF()     (state->comState->lex.nChar != -1)
+#define hasEOF()     (state->comState->lex.nChar == -1)
 #define notNewline() (state->comState->lex.nChar != '\n' && state->comState->lex.nChar != '\r')
 #define hasNewline() (state->comState->lex.nChar == '\n' || state->comState->lex.nChar == '\r')
 #define untilOne( B, Q ) \
@@ -609,8 +609,19 @@ lexOther( State* state ) {
     if( maybeChar( state, false, ',' ) || maybeChar( state, false, '\n' ) )
         type = TOK_DELIM;
     else
-    if( maybeChar( state, false, -1 ) )
+    if( maybeChar( state, false, ten_EOF ) )
         type = TOK_END;
+    else
+    if( maybeChar( state, false, ten_PAD ) ) {
+        takeAll( maybeChar( state, false, ten_PAD ) );
+        return 
+            lexWord( state )  ||
+            lexNum( state )   ||
+            lexSym( state )   ||
+            lexStr( state )   ||
+            lexOper( state )  ||
+            lexOther( state );
+    }
     else
         return false;
     
