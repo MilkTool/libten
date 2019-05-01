@@ -1,12 +1,13 @@
 TVal var = regs.sp[-2];
 TVal val = regs.sp[-1];
-tenAssert( tvIsRef( var ) );
-
 if( tvIsTup( val ) )
     stateErrFmtA(
         state, ten_ERR_ASSIGN,
         "Tuple assignment without tuple pattern"
     );
+
+tenAssert( tvIsRef( var ) );
+
 if( tvIsUdf( val ) )
     stateErrFmtA(
         state, ten_ERR_ASSIGN,

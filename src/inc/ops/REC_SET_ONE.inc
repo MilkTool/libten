@@ -1,3 +1,9 @@
+if( tvIsTup( regs.sp[-1] ) )
+    stateErrFmtA(
+        state, ten_ERR_ASSIGN,
+        "Tuple assignment without tuple pattern"
+    );
+
 TVal dst = regs.sp[-3];
 if( !tvIsObj( dst ) || datGetTag( tvGetObj( dst ) ) != OBJ_REC )
     stateErrFmtA(
@@ -7,12 +13,6 @@ if( !tvIsObj( dst ) || datGetTag( tvGetObj( dst ) ) != OBJ_REC )
 
 TVal key = regs.sp[-2];
 TVal val = regs.sp[-1];
-
-if( tvIsTup( val ) )
-    stateErrFmtA(
-        state, ten_ERR_ASSIGN,
-        "Tuple assignment without tuple pattern"
-    );
 
 recSet( state, tvGetObj( dst ), key, val );
 regs.sp -= 2;

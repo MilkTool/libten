@@ -70,9 +70,6 @@ idxNew( State* state ) {
 
 Index*
 idxSub( State* state, Index* idx, uint top ) {
-    if( top == 0 )
-        top = idx->nextLoc;
-    
     Part subP;
     Index* sub = stateAllocObj( state, &subP, sizeof(Index), OBJ_IDX );
     
@@ -96,6 +93,8 @@ idxSub( State* state, Index* idx, uint top ) {
         locs[i] = UINT_MAX;
     
     uint rcap = top;
+    if( IDX_INIT_REFS_CAP > top )
+        rcap = IDX_INIT_REFS_CAP;
     
     Part refsP;
     uint* refs = stateAllocRaw( state, &refsP, sizeof(uint)*rcap );
