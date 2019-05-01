@@ -309,7 +309,13 @@ fmtRec( State* state, Record* rec ) {
         fmtRaw( state, ", " );
     
      
-    while( !tvIsUdf( val ) ) {
+    while( !tvIsUdf( key ) ) {
+        if( tvIsUdf( val ) ) {
+            key = nextKey( state, iter, loc );
+            val = tvIsUdf( key )? tvUdf() : recGet( state, rec, key );
+            continue;
+        }
+        
         if( isIdent( state, key ) ) {
             fmtRaw( state, "." );
             fmtVal( state, key, false );
