@@ -2908,7 +2908,7 @@ static ten_Tup
 sepFun( ten_PARAMS ) {
     State* state = (State*)ten;
     
-    ten_Var recArg = { .tup = args, .loc = 1 };
+    ten_Var recArg = { .tup = args, .loc = 0 };
     expectArg( rec, OBJ_REC );
     
     Record* rec = tvGetObj( vget( recArg ) );
