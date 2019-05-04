@@ -1057,6 +1057,7 @@ parValueKey( State* state ) {
     if( com->tok.type != '@' )
         return false;
     lex( state );
+    parDelim( state );
     if( !parPrim( state, false ) )
         errPar( state, "Expected primary expression after '@'" );
     
@@ -1069,6 +1070,7 @@ parIdentKey( State* state ) {
     if( com->tok.type != '.' )
         return false;
     lex( state );
+    parDelim( state );
     if( com->tok.type != TOK_IDENT )
         errPar( state, "Expected identifier after '.'" );
     
@@ -1527,6 +1529,7 @@ parSecondary( State* state, void* udat ) {
     while( true ) {
         if( com->tok.type == '@' ) {
             lex( state );
+            parDelim( state );
             if( !parPrim( state, false ) )
                 errPar( state, "Unexpected token" );
             genInstr( state, OPC_GET_FIELD, 0 );
@@ -1534,6 +1537,7 @@ parSecondary( State* state, void* udat ) {
         else
         if( com->tok.type == '.' ) {
             lex( state );
+            parDelim( state );
             if( com->tok.type != TOK_IDENT )
                 errPar( state, "Expected identifier after '.'" );
             genConst( state, com->tok.value );
