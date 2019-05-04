@@ -1506,60 +1506,56 @@ parPrim( State* state, bool tail ) {
            parWhenExpr( state, tail );
 }
 
-static void
-finPath( State* state ) {
-    ComState* com = state->comState;
-    if( com->tok.type == '.' ) {
-        lex( state );
-        if( com->tok.type != TOK_IDENT )
-            errPar( state, "Expected identifier after '.'" );
-        genConst( state, com->tok.value );
-        genInstr( state, OPC_GET_FIELD, 0 );
-        
-        lex( state );
-        com->popc = 0;
-        finPath( state );
-        
-    }
-    else
-    if( com->tok.type == '@' ) {
-        lex( state );
-        if( !parPrim( state, false ) )
-            errPar( state, "Unexpected token" );
-        genInstr( state, OPC_GET_FIELD, 0 );
-        com->popc = 0;
-        finPath( state );
-    }
-}
-
-static bool
-parPath( State* state ) {
-    if( !parPrim( state, false ) )
-        return false;
-    finPath( state );
-    return true;
-}
-
 typedef struct {
     bool tail;
 } OperDat;
 
 static bool
-parCall( State* state, void* udat ) {
-    OperDat* dat = udat;
+parSecondary( State* state, void* udat ) {
+    ComState* com = state->comState;
+    OperDat*  dat = udat;
     
-    if( !parPath( state ) )
+    // It's safe to pass `true` to indicate a tailcall
+    // here since the only primary expressions that'll
+    // be effected `do-for`, `if-else`, and `when-in`
+    // will consume the rest of the expression, not
+    // allowing for any additional operators to act on
+    // the result.
+    if( !parPrim( state, dat->tail ) )
         errPar( state, "Invalid expression" );
     
-    while( parPath( state ) ) {
-        genInstr( state, OPC_CALL, 0 );
+    while( true ) {
+        if( com->tok.type == '@' ) {
+            lex( state );
+            if( !parPrim( state, false ) )
+                errPar( state, "Unexpected token" );
+            genInstr( state, OPC_GET_FIELD, 0 );
+        }
+        else
+        if( com->tok.type == '.' ) {
+            lex( state );
+            if( com->tok.type != TOK_IDENT )
+                errPar( state, "Expected identifier after '.'" );
+            genConst( state, com->tok.value );
+            genInstr( state, OPC_GET_FIELD, 0 );
+            
+            lex( state );
+        }
+        else
+        if( parPrim( state, false ) ) {
+            genInstr( state, OPC_CALL, 0 );
+
+            
+            // Tail call?  We can only be sure if both
+            // the `tail` flag is set and the next token
+            // is a delimiter, and thus not another operator.
+            if( dat->tail && state->comState->tok.type == TOK_DELIM )
+                genInstr( state, OPC_RETURN, 0 );
+        }
+        else {
+            break;
+        }
     }
-    
-    // If this is a tailcall then add a RETURN
-    // instruction after the last CALL instruction,
-    // this tells the VM to optimize it as a tail call.
-    if( dat->tail && state->comState->tok.type == TOK_DELIM )
-        genInstr( state, OPC_RETURN, 0 );
     
     state->comState->popc = 0;
     return true;
@@ -1636,7 +1632,7 @@ parExponent( State* state, void* udat ) {
     OperCode powOper = { '^', OPC_POW };
     
     OperCode* opers[] = { &powOper, NULL };
-    parBinaryOper( state, opers, udat, parCall );
+    parBinaryOper( state, opers, udat, parSecondary );
     return true;
 }
 
