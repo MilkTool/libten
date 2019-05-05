@@ -57,7 +57,7 @@ ifeq ($(PROFILE),debug)
     POSTFIX := -debug
 else
     ifeq ($(PROFILE),release)
-        CCFLAGS += -O2 -D NDEBUG
+        CCFLAGS += -O2 -g -D NDEBUG
         POSTFIX := 
     else
         $(error "Invalid build profile")

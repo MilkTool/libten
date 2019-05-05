@@ -33,11 +33,9 @@ char const* tests[] = {
 
 int
 main( void ) {
-    ten_State* ten = NULL;
-    
-    jmp_buf errJmp;
-    int sig = setjmp( errJmp );
-    if( sig ) {
+    ten_State* volatile ten = NULL;
+    jmp_buf             jmp;
+    if( setjmp( jmp ) ) {
         ten_ErrNum  err = ten_getErrNum( ten, NULL );
         char const* msg = ten_getErrStr( ten, NULL );
         fprintf( stderr, "Error: %s\n", msg );
@@ -62,7 +60,7 @@ main( void ) {
         ten_free( ten );
         exit( 1 );
     }
-    ten = ten_make( NULL, &errJmp );
+    ten = ten_make( NULL, &jmp );
     
     for( unsigned i = 0 ; tests[i] != NULL ; i++ ) {
         fprintf( stderr, "Running '%s'...\n", tests[i] );

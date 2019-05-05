@@ -28,20 +28,16 @@ assert( valSet.v1, "10" )
 assert( valSet.v2, "11" )
 assert( valSet.v3, "12" )
 
-def pairSet: {
-  .k1: { .v1: false }
-  .k2: { .v2: false }
-  .k3: { .v3: false }
-}
+def pairSet: {}
 def p: pairs( rec )
 def ( k1, v1 ): p()
 def ( k2, v2 ): p()
 def ( k3, v3 ): p()
 def ( k4, v4 ): p()
 
-def pairSet@k1@v1: true
-def pairSet@k2@v2: true
-def pairSet@k3@v3: true
+def pairSet@k1: { @v1: true }
+def pairSet@k2: { @v2: true }
+def pairSet@k3: { @v3: true }
 assert( k4 = nil &? v4 = nil, "13" )
 
 assert( pairSet.k1.v1, "14" )

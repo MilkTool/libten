@@ -1996,29 +1996,19 @@ parKeyRec( State* state, bool def ) {
 static instr
 finFieldDst( State* state, bool def ) {
     ComState* com = state->comState;
-    
+
     if( parKey( state ) ) {
-        while( com->tok.type == '@' || com->tok.type == '.' ) {
-            genInstr( state, OPC_GET_FIELD, 0 );
-            if( !parKey( state ) )
-                errPar( state, "Invalid record key" );
-        }
-    }
-    
-    if( com->tok.type == ':' ) {
         if( def )
             return inMake( OPC_REC_DEF_ONE, 0 );
         else
             return inMake( OPC_REC_SET_ONE, 0 );
     }
-        
+    
     if( com->tok.type == '(' ) {
-        parKey( state );
         return parKeyTup( state, def );
     }
-    else
+    
     if( com->tok.type == '{' ) {
-        parKey( state );
         return parKeyRec( state, def );
     }
     
