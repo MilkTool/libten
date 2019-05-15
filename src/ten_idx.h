@@ -7,6 +7,10 @@
 // must provide the same number of value slots as there were keys
 // in the Index when the record was created or when it last added
 // a new key to the Index.
+//
+// For a high level explanation of how records work, and their
+// relationship with indices, see ../docs/articles/Records.md.
+
 #ifndef ten_idx_h
 #define ten_idx_h
 #include "ten_types.h"
@@ -37,12 +41,6 @@
 // the more common smaller Indexes are fast, but the
 // larger ones aren't prohibitively expensive in terms
 // of memory.
-//
-// See (TODO: Add Link) for more on the common designs
-// for hash maps.
-//
-// See (TODO: Add Link) for more on the design used by
-// this Index implementation in particular.
 
 struct Index {
     

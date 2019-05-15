@@ -4,6 +4,10 @@
 // redefined to `udf` are removed; at least this is how the Record
 // sees it, in reality the Index keeps a ref count for each key
 // and increments when a key is added or decrements when removed.
+//
+// For a high level explanation of how records work, and their
+// relationship with indices, see ../docs/articles/Records.md.
+
 #ifndef ten_rec_h
 #define ten_rec_h
 #include "ten_types.h"
