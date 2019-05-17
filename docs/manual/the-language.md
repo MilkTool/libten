@@ -67,9 +67,10 @@ keywords.
 
 Integral literals are given as a sequence of digits, and decimals
 as the same with an intermediate or trailing decimal point `.`.
+Underscores can also be inserted after the first digit for formatting.
 
-    int = digit_chr & { digit_chr }
-    dec = int & "." & [ int ]
+    int = digit_chr & { digit_chr | '_' }
+    dec = int & "." & { digit_chr | '_' }
 
 While the above are Ten's syntactic rules for these literals, there's
 an additional constraint on the size of the represented value; the
