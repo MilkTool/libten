@@ -34,9 +34,7 @@ Record objects are represented in the Ten runtime with the struct:
 
     struct Record {
         TPtr idx;
-
-        TVal* vals;
-        uint  cap;
+        TPtr vals;
     };
 
 The `TPtr` type represents a tagged pointer, capable of holding both a 48 bit
@@ -49,13 +47,11 @@ The `idx` field holds a pointer to the record's index along with a tag
 to indicate if the record has been marked for separation (any bit in
 the TPtr's tag is set); more on record separation below.
 
-The `cap` and `vals` fields together define a dynamic array of Ten values
-to serve as field slots; these will generally, but not always, contain the
-same number of fields as defined in the index.  The `cap` field needs to
-be included for when the size of `vals` and the number of keys in the index
-defer, which will happen when a new key is added to the index through a
-different record; the size will be adjusted when a new definition is added
-to the record.
+The `vals` field defines a dynamic array of field values, with the
+pointer portion containing a `TVal*` to the value array, and the tag
+giving the array size as a row of the
+[`recCapTable`](../../src/ten_tables.h#L16) in
+[`ten_tables.h`](../../src/ten_tables.h).
 
 The `sep()` function available in Ten's prelude can be called on a record
 to mark it for separation, since the actual separation occurs lazily, this
@@ -79,17 +75,6 @@ system plays will with common programming practices in most paradigms, since
 objects or data structures created at the same point in a program will often
 be used in a similar fashion and make use of the same set of keys, though
 there are of course exceptions.
-
-It's important to note that records are currently optimized for size rather
-than fast growth; so the `vals` array will never contain more fields than
-are defined in the index.  This makes populating records with fields that
-have already been defined in the index quite fast, but defining original
-fields can be prohibitively slow as the `vals` array will be reallocated
-for each new definition.  In the future I may add `ogrowth()` and `osize()`
-functions to the prelude to mark a record to be optimized for fast growth
-or small size respectively; may also add a `map()` function to simultaneously
-mark a record for separation and fast growth, optimizing it for use as a
-regular hashmap.
 
 The full record implementation can be found in
 [`ten_rec.h`](../../src/ten_rec.h).
@@ -129,7 +114,7 @@ Ten's index objects are represented by the structure:
         } map;
 
         struct {
-            size_t cap;
+            uint   row;
             uint*  buf;
         } refs;
     };
@@ -154,7 +139,10 @@ beyond the number of items available in the table.  The `keys` and
 
 The index keeps track of the number of records for which a particular field
 (slot) is defined in the `refs` array; when this reaches `0` it can be
-recycled to associate it with a new key.
+recycled to associate it with a new key.  The `refs.row` keeps track of
+the size of the array as a row of the
+[`recCapTable`](../../src/ten_tables.h#L16) in
+[`ten_tables.h`](../../src/ten_tables.h).
 
 The full index implementation can be found in
 [`ten_idx.h`](../../src/ten_idx.h).
@@ -177,9 +165,8 @@ language level type for each.  For example Ten's prelude includes a few
 functions for dealing with LISP style lists with nodes as above.
 
 ## Disadvantages
-One of the major disadvantages to Ten's record system it isn't especially
-suitable for representing unique hashmaps since record growth is inefficient
-and an index with a single record will use more memory than a normal record
-without an index.  The growth problem may be mitigated in the future by
-introducing a growth optimization flag; but this won't do anything to reduce
-memory overhead.
+One of the major disadvantages to Ten's record system is that it isn't
+especially suitable for representing unique hashmaps since the record-index
+separation adds additional memory overhead in the form of the record's value
+array, and this overhead will only be offset when multiple record instances
+are created with the same index.
