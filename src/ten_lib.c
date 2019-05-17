@@ -760,8 +760,8 @@ keyIterNext( ten_PARAMS ) {
     
     ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
     Record* rec  = tvGetObj( vget( recVar ) );
-    uint    cap  = rec->cap;
-    TVal*   vals = rec->vals;
+    uint    cap  = recCap( rec );
+    TVal*   vals = recVals( rec );
     
     TVal key;
     uint loc;
@@ -828,8 +828,8 @@ valIterNext( ten_PARAMS ) {
     
     ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
     Record* rec  = tvGetObj( vget( recVar ) );
-    uint    cap  = rec->cap;
-    TVal*   vals = rec->vals;
+    uint    cap  = recCap( rec );
+    TVal*   vals = recVals( rec );
     
     TVal key;
     uint loc;
@@ -897,8 +897,8 @@ pairIterNext( ten_PARAMS ) {
     
     ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
     Record* rec  = tvGetObj( vget( recVar ) );
-    uint    cap  = rec->cap;
-    TVal*   vals = rec->vals;
+    uint    cap  = recCap( rec );
+    TVal*   vals = recVals( rec );
     
     TVal key;
     uint loc;

@@ -12,4 +12,8 @@ extern size_t const fastGrowthMapCapTableSize;
 extern uint const   slowGrowthMapCapTable[];
 extern size_t const slowGrowthMapCapTableSize;
 
+// This table is for sizing record value arrays.
+extern uint const   recCapTable[];
+extern size_t const recCapTableSize;
+
 #endif

@@ -11,6 +11,7 @@
 #ifndef ten_rec_h
 #define ten_rec_h
 #include "ten_types.h"
+#include "ten_tables.h"
 
 struct Record {
     
@@ -23,13 +24,19 @@ struct Record {
     // its Index being replaced with a copy of the original.
     TPtr idx;
     
-    TVal* vals;
-    uint  cap;
+    // A pointer to the array of field values, tagged with
+    // the array's size given as a row number of the
+    // recCapTable table.
+    TPtr vals;
 };
 
 #define recSize( STATE, REC ) (sizeof(Record))
 #define recTrav( STATE, REC ) (recTraverse( STATE, REC ))
 #define recDest( STATE, REC ) (recDestruct( STATE, REC ))
+
+#define recCap( REC )  (recCapTable[tpGetTag( (REC)->vals )])
+#define recVals( REC ) (tpGetPtr( (REC)->vals ))
+#define recIdx( REC )  (tpGetPtr( (REC)->idx ))
 
 
 void

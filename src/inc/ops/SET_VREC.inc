@@ -13,9 +13,9 @@ TVal    vVar = regs.sp[-3];
 tenAssert( tvIsRef( vVar ) );
 RefT vRef = tvGetRef( vVar );
 
-Index* recIdx  = tpGetPtr( rec->idx );
-TVal*  recVals = rec->vals;
-uint   recCap  = rec->cap;
+Index* recIdx  = recIdx( rec );
+TVal*  recVals = recVals( rec );
+uint   recCap  = recCap( rec );
 bool   recMrk[recCap]; memset( recSet, 0, sizeof(bool)*recCap );
 
 TVal (*pairs)[2] = (TVal (*)[2])(regs.sp - 3 - 2*opr);

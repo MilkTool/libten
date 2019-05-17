@@ -69,12 +69,13 @@ struct Index {
     
     // This is a map of ref counts, for each key `buf[loc]`
     // keeps track of its current ref count, where `loc`
-    // is the locator allocated for the key.
+    // is the locator allocated for the key.  The `row`
+    // indicates the capacity of `buf` as a row of the
+    // recCapTable table.
     struct {
-        size_t cap;
+        size_t row;
         uint*  buf;
     } refs;
-    #define IDX_INIT_REFS_CAP (4)
 };
 
 #define idxSize( STATE, IDX ) (sizeof(Index))

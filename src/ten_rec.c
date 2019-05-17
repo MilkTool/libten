@@ -4,6 +4,7 @@
 #include "ten_ptr.h"
 #include "ten_state.h"
 #include "ten_assert.h"
+#include "ten_tables.h"
 #include <limits.h>
 
 void
@@ -17,7 +18,8 @@ recNew( State* state, Index* idx ) {
     Record* rec = stateAllocObj( state, &recP, sizeof(Record), OBJ_REC );
     
     tenAssert( idx->nextLoc < USHRT_MAX );
-    ushort cap = idx->nextLoc;
+    uint row = idx->refs.row;
+    uint cap = recCapTable[row];
     
     Part valsP;
     TVal* vals = stateAllocRaw( state, &valsP, sizeof(TVal)*cap );
@@ -25,8 +27,7 @@ recNew( State* state, Index* idx ) {
         vals[i] = tvUdf();
     
     rec->idx  = tpMake( 0, idx );
-    rec->cap  = cap;
-    rec->vals = vals;
+    rec->vals = tpMake( row, vals );
     
     stateCommitObj( state, &recP );
     stateCommitRaw( state, &valsP );
@@ -48,8 +49,8 @@ recIndex( State* state, Record* rec ) {
 void
 recDef( State* state, Record* rec, TVal key, TVal val ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = rec->cap;
-    TVal*  vals = rec->vals;
+    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = recCapTable[ tpGetTag( rec->vals ) ];
     
     if( tvIsUdf( key ) )
         stateErrFmtA( state, ten_ERR_RECORD, "Use of `udf` as record key" );
@@ -92,7 +93,8 @@ recDef( State* state, Record* rec, TVal key, TVal val ) {
     if( i >= cap ) {
         Part valsP = {.ptr = vals, .sz = sizeof(TVal)*cap };
         
-        uint ncap = idx->nextLoc;
+        uint nrow = idx->refs.row;
+        uint ncap = recCapTable[nrow];
         if( ncap == UINT_MAX )
             stateErrFmtA( state, ten_ERR_RECORD, "Record exceeds max size" );
         TVal* nvals = stateResizeRaw( state, &valsP, sizeof(TVal)*ncap );
@@ -100,8 +102,9 @@ recDef( State* state, Record* rec, TVal key, TVal val ) {
             nvals[j] = tvUdf();
         
         stateCommitRaw( state, &valsP );
-        cap  = rec->cap  = ncap;
-        vals = rec->vals = nvals;
+        vals = nvals;
+        
+        rec->vals = tpMake( nrow, nvals );
     }
     
     vals[i] = val;
@@ -110,8 +113,8 @@ recDef( State* state, Record* rec, TVal key, TVal val ) {
 void
 recSet( State* state, Record* rec, TVal key, TVal val ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = rec->cap;
-    TVal*  vals = rec->vals;
+    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = recCapTable[ tpGetTag( rec->vals ) ];
     
     if( tvIsUdf( key ) )
         stateErrFmtA( state, ten_ERR_RECORD, "Use of `udf` as record key" );
@@ -128,8 +131,8 @@ recSet( State* state, Record* rec, TVal key, TVal val ) {
 TVal
 recGet( State* state, Record* rec, TVal key ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = rec->cap;
-    TVal*  vals = rec->vals;
+    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = recCapTable[ tpGetTag( rec->vals ) ];
     
     if( tvIsUdf( key ) )
         stateErrFmtA( state, ten_ERR_RECORD, "Use of `udf` as record key" );
@@ -154,8 +157,8 @@ freeIterDefer( State* state, Defer* d ) {
 void
 recForEach( State* state, Record* rec, void* dat, RecEntryCb cb ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = rec->cap;
-    TVal*  vals = rec->vals;
+    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = recCapTable[ tpGetTag( rec->vals ) ];
     
     IdxIter* it = idxIterMake( state, idx );
     
@@ -182,8 +185,8 @@ recForEach( State* state, Record* rec, void* dat, RecEntryCb cb ) {
 void
 recTraverse( State* state, Record* rec ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = rec->cap;
-    TVal*  vals = rec->vals;
+    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = recCapTable[ tpGetTag( rec->vals ) ];
     
     stateMark( state, idx );
     for( uint i = 0 ; i < cap ; i++ )
@@ -193,8 +196,8 @@ recTraverse( State* state, Record* rec ) {
 void
 recDestruct( State* state, Record* rec ) {
     Index* idx  = tpGetPtr( rec->idx );
-    uint   cap  = rec->cap;
-    TVal*  vals = rec->vals;
+    TVal*  vals = tpGetPtr( rec->vals );
+    uint   cap  = recCapTable[ tpGetTag( rec->vals ) ];
     
     if( !datIsDead( idx ) )
         for( uint i = 0 ; i < cap ; i++ )

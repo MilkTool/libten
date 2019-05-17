@@ -21,9 +21,9 @@ TVal (*pairs)[2] = (TVal (*)[2])(regs.sp - 3 - 2*opr);
 Record* dRec = tvGetObj( dst );
 Record* sRec = tvGetObj( src );
 
-Index* srcIdx  = tpGetPtr( dRec->idx );
-TVal*  srcVals = dRec->vals;
-uint   srcCap  = dRec->cap;
+Index* srcIdx  = recIdx( dRec );
+TVal*  srcVals = recVals( dRec );
+uint   srcCap  = recCap( dRec );
 bool   srcMrk[srcCap]; memset( srcMrk, 0, sizeof(bool)*srcCap );
 
 for( uint i = 0 ; i < opr ; i++ ) {

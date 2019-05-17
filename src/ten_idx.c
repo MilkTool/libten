@@ -45,7 +45,7 @@ idxNew( State* state ) {
         locs[i] = UINT_MAX;
     
     
-    uint rcap = IDX_INIT_REFS_CAP;
+    uint rcap = recCapTable[0];
     
     Part refsP;
     uint* refs = stateAllocRaw( state, &refsP, sizeof(uint)*rcap );
@@ -57,7 +57,7 @@ idxNew( State* state ) {
     idx->map.cap    = mcap;
     idx->map.keys   = keys;
     idx->map.locs   = locs;
-    idx->refs.cap   = rcap;
+    idx->refs.row   = 0;
     idx->refs.buf   = refs;
     
     stateCommitObj( state, &idxP );
@@ -92,9 +92,10 @@ idxSub( State* state, Index* idx, uint top ) {
     for( uint i = 0 ; i < mcap ; i++ )
         locs[i] = UINT_MAX;
     
-    uint rcap = top;
-    if( IDX_INIT_REFS_CAP > top )
-        rcap = IDX_INIT_REFS_CAP;
+    uint row = 0;
+    while( row < recCapTableSize && recCapTable[row] < top )
+        row++;
+    uint rcap = recCapTable[row];
     
     Part refsP;
     uint* refs = stateAllocRaw( state, &refsP, sizeof(uint)*rcap );
@@ -108,7 +109,7 @@ idxSub( State* state, Index* idx, uint top ) {
     sub->map.cap    = mcap;
     sub->map.keys   = keys;
     sub->map.locs   = locs;
-    sub->refs.cap   = rcap;
+    sub->refs.row   = row;
     sub->refs.buf   = refs;
     
     for( uint i = 0 ; i < idx->map.cap ; i++ ) {
@@ -165,7 +166,7 @@ idxAddByKey( State* state, Index* idx, TVal key ) {
             uint loc = idx->nextLoc++;
             idx->map.locs[i] = loc;
             
-            if( loc >= idx->refs.cap )
+            if( loc >= recCapTable[idx->refs.row] )
                 growRefs( state, idx );
             idx->refs.buf[loc] = 0;
         }
@@ -243,13 +244,7 @@ void
 idxDestruct( State* state, Index* idx ) {
     stateFreeRaw( state, idx->map.keys, sizeof(TVal)*idx->map.cap );
     stateFreeRaw( state, idx->map.locs, sizeof(uint)*idx->map.cap );
-    stateFreeRaw( state, idx->refs.buf, sizeof(uint)*idx->refs.cap );
-    
-    // Cap of 0 tells records that the Index has been destructed,
-    // otherwise the record may try to unref its keys when we're
-    // destructing everything while finalizing the State.
-    idx->map.cap  = 0;
-    idx->refs.cap = 0;
+    stateFreeRaw( state, idx->refs.buf, sizeof(uint)*recCapTable[idx->refs.row] );
 }
 
 static uint
@@ -346,13 +341,19 @@ growMap( State* state, Index* idx, bool clean ) {
 
 static void
 growRefs( State* state, Index* idx ) {
-    size_t cap = idx->refs.cap * 2;
+    if( idx->refs.row + 1 > recCapTableSize )
+        stateErrFmtA(
+            state, ten_ERR_RECORD,
+            "Record index exceeds max size"
+        );
+    uint ocap = recCapTable[idx->refs.row];
+    uint ncap = recCapTable[idx->refs.row + 1];
     
-    Part  bufP = { .ptr = idx->refs.buf, .sz = sizeof(uint)*idx->refs.cap };
-    uint* buf  = stateResizeRaw( state, &bufP, sizeof(uint)*cap );
+    Part  bufP = { .ptr = idx->refs.buf, .sz = sizeof(uint)*ocap };
+    uint* buf  = stateResizeRaw( state, &bufP, sizeof(uint)*ncap );
     stateCommitRaw( state, &bufP );
     
-    idx->refs.cap = cap;
+    idx->refs.row++;
     idx->refs.buf = buf;
 }
 

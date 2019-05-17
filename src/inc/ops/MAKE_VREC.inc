@@ -16,9 +16,9 @@ Index*  idx = tvGetObj( *iv );
 Record* rec = recNew( state, idx );
 *iv = tvObj( rec );
 
-Index* srcIdx  = tpGetPtr( src->idx );
-TVal*  srcVals = src->vals;
-uint   srcCap  = src->cap;
+Index* srcIdx  = recIdx( src );
+TVal*  srcVals = recVals( src );
+uint   srcCap  = recCap( src );
 bool   srcMrk[srcCap]; memset( srcMrk, 0, sizeof(bool)*srcCap );
 
 for( uint i = 0 ; i < opr ; i++ ) {

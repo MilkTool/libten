@@ -77,4 +77,5 @@
         stateErrFmtA( state, ten_ERR_PANIC, FMT );              \
     } while( 0 )
 
+#define elemsof( ARRAY ) (sizeof(ARRAY)/sizeof((ARRAY)[0]))
 #endif
