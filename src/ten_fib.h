@@ -11,6 +11,9 @@ implementations in `inc/ops/`; the stack system used for Ten's
 activation records is a bit... complex, and warrants an in depth
 explanation.  Which I should write, when I figure out how this
 will work.
+
+For a higher level explanation of how Ten's native function re-entry
+works see ../docs/articles/Re-Entry.md.
 */
 #ifndef ten_fib_h
 #define ten_fib_h
