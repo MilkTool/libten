@@ -493,7 +493,7 @@ do {                                                                        \
     #define tvEqual( TV1, TV2 ) \
         ((TV1).tag == (TV2).tag && (TV1).u.val == (TV2).u.val)
 
-    #define tvHash( TVAL ) ((TVAL).tag*(TVAL).u.val)
+    #define tvHash( TVAL ) ((TVAL).u.val^(TVAL).tag)
     
     #define tvMark( TVAL )                                          \
         switch( (TVAL).tag ) {                                      \
