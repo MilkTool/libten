@@ -228,32 +228,6 @@ do {                                                                        \
     }                                                                       \
 } while( 0 )
 
-
-// Due to the way we encode short symbols directly into a value
-// as the OR of its characters... we'd get a lot of collision
-// if we just use the raw value as a hash key, since symbols
-// with the same prefix would collide often.  So we define a
-// static hash function for symbols, here, this'll be used in
-// tvHash() defined below.
-#define bhash( SALT, BYTE ) ( (SALT)*37 + (BYTE) )
-#define ahash( BYTES )                      \
-    bhash(                                  \
-        bhash(                              \
-            bhash(                          \
-                bhash(                      \
-                    bhash( 0LLU, BYTES[0] ),\
-                    BYTES[1]                \
-                ),                          \
-                BYTES[2]                    \
-            ),                              \
-            BYTES[3]                        \
-        ),                                  \
-        BYTES[4]                            \
-    )
-
-#define shash( SYM ) ahash( ((char*)&(SYM)) )
-
-
 // This type is used to attach a tag with some extra
 // data to the unused bits of a pointer to save some
 // memory.  We have two definitions, since we'll want
@@ -423,10 +397,9 @@ do {                                                                        \
     
     #define tvEqual( TV1, TV2 ) \
         ((TV1).nan == (TV2).nan)
-    
-    #define tvHash( TVAL ) \
-        (tvIsSym( TVAL ) ? shash( (TVAL).nan ) : (TVAL).nan )
 
+    #define tvHash( TVAL ) ((TVAL).nan)
+    
     #define tvMark( TVAL )                                          \
         switch( tvGetTag( TVAL ) ) {                                \
             case VAL_OBJ:                                           \
@@ -519,10 +492,9 @@ do {                                                                        \
     
     #define tvEqual( TV1, TV2 ) \
         ((TV1).tag == (TV2).tag && (TV1).u.val == (TV2).u.val)
-    
-    #define tvHash( TVAL ) \
-        (tvIsSym( TVAL )? shash( (TVAL).u.val ) : (TVAL).tag*(TVAL).u.val)
 
+    #define tvHash( TVAL ) ((TVAL).tag*(TVAL).u.val)
+    
     #define tvMark( TVAL )                                          \
         switch( (TVAL).tag ) {                                      \
             case VAL_OBJ:                                           \

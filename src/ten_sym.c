@@ -7,7 +7,7 @@
 #include <limits.h>
 
 #define SYM_SHORT_LIM (4)
-#define SYM_SIZE_BYTE (5)
+#define SYM_META_BYTE (5)
 
 typedef union {
     SymT s;
@@ -43,7 +43,7 @@ struct SymState {
     } nodes;
     
     SymNode* recycled;
-    SymBuf   symBuf;
+    char     symBuf[5];
 };
 
 static uint
@@ -131,10 +131,15 @@ symGet( State* state, char const* buf, size_t len ) {
     if( len <= SYM_SHORT_LIM ) {
         SymBuf u;
         u.s = 0;
-        u.b[SYM_SIZE_BYTE] = len + 1;
-        
-        for( uint i = 0 ; i < len ; i++ )
+        u.b[SYM_META_BYTE] = len + 1;
+        for( uint i = 0 ; i < len ; i++ ) {
+            u.b[SYM_META_BYTE] += buf[i];
             u.b[i] = buf[i];
+        }
+        
+        for( uint i = 0 ; i <= SYM_SHORT_LIM ; i++ )
+            u.b[i] ^= u.b[SYM_META_BYTE];
+        
         return u.s;
     }
     
@@ -206,9 +211,11 @@ symBuf( State* state, SymT sym ) {
     // persistent symbol buffer and return a pointer
     // to its contents.
     SymBuf u = {.s = sym };
-    if( u.b[SYM_SIZE_BYTE] ) {
-        symState->symBuf = u;
-        return symState->symBuf.b;
+    if( u.b[SYM_META_BYTE] ) {
+        for( uint i = 0 ; i <= SYM_SHORT_LIM ; i++ )
+            symState->symBuf[i] = u.b[i] ^ u.b[SYM_META_BYTE];
+        
+        return symState->symBuf;
     }
     
     // Otherwise return the node buffer.
@@ -223,8 +230,12 @@ symLen( State* state, SymT sym ) {
     // If it's a short symbol then extract the
     // length from the symbol value itself.
     SymBuf u = {.s = sym };
-    if( u.b[SYM_SIZE_BYTE] )
-        return u.b[SYM_SIZE_BYTE] - 1;
+    if( u.b[SYM_META_BYTE] ) {
+        char len = u.b[SYM_META_BYTE] - 1;
+        for( uint i = 0 ; i <= SYM_META_BYTE ; i++ )
+            len -= u.b[i] ^ u.b[SYM_META_BYTE];
+        return len;
+    }
     
     // Otherwise return the length from the respective node.
     tenAssert( sym < symState->next );
@@ -241,7 +252,7 @@ symMark( State* state, SymT sym ) {
     SymState* symState = state->symState;
     
     SymBuf u = {.s = sym };
-    if( u.b[SYM_SIZE_BYTE] )
+    if( u.b[SYM_META_BYTE] )
         return;
     
     tenAssert( sym < symState->next );
