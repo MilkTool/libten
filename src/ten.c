@@ -26,7 +26,7 @@
 
 ten_Version const ten_VERSION = {
     .major = 0,
-    .minor = 4,
+    .minor = 5,
     .patch = 0
 };
 

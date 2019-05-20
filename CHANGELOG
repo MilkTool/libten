@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - 2019-05-22
+## [0.5.0] - 2019-05-19
+### Changed
+- Change the C API a bit.
+- Smaller record foorprint.
+- Better record growth rate.
+- Hash short symbols at creation time.
+
+## [0.3.0] - 2019-04-22
 ### Added
 - Re-Entrancy for native function calls.
 - Tests for native function re-entrancy.
@@ -19,3 +26,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 [0.3.0]: https://github.com/ten-lang/libten/releases/tag/v0.3.0
+[0.5.0]: https://github.com/ten-lang/libten/releases/tag/v0.5.0
