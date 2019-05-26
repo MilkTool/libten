@@ -21,7 +21,7 @@ value within each record.  So the value associated with a key for a
 particular record can be accessed as the value in the mapped slot of that
 record's value array.
 
-![Record-Index Interaction](../assets/record-index-interaction.svg)
+![Record-Index Interaction][record-index-interaction.svg]
 
 The above diagram demonstrates a sequence of interactions with `Record 1`
 and `Record 2`, both of which share a common `Index`.  While both records
@@ -50,8 +50,7 @@ the TPtr's tag is set); more on record separation below.
 The `vals` field defines a dynamic array of field values, with the
 pointer portion containing a `TVal*` to the value array, and the tag
 giving the array size as a row of the
-[`recCapTable`](../../src/ten_tables.h#L16) in
-[`ten_tables.h`](../../src/ten_tables.h).
+[`recCapTable`][recCapTable] in [`ten_tables.h`][ten_tables.h].
 
 The `sep()` function available in Ten's prelude can be called on a record
 to mark it for separation, since the actual separation occurs lazily, this
@@ -77,7 +76,7 @@ be used in a similar fashion and make use of the same set of keys, though
 there are of course exceptions.
 
 The full record implementation can be found in
-[`ten_rec.h`](../../src/ten_rec.h).
+[`ten_rec.h`][ten_rec.h].
 
 ## Index Implementation
 Indices are just regular hashmaps that map an arbitrary Ten value to a
@@ -130,8 +129,8 @@ since the index will grow whenever a definition puts `stepLimit > stepTarget`.
 
 The `map` structure implements the map array itself, with `cap` giving the
 current capacity of the map and `row` giving a row within the
-[`fastGrowthMapCapTable`](../../src/ten_tables.h#L10) in
-[`ten_tables.h`](../../src/ten_tables.h).  Both of these are required,
+[`fastGrowthMapCapTable`][fastGrowthMapCapTable] in
+[`ten_tables.h`][ten_tables.h].  Both of these are required,
 though they'll reflect the same value in smaller tables, because the
 growth algorithm will resort to exponential growth when the `row` goes
 beyond the number of items available in the table.  The `keys` and
@@ -141,11 +140,11 @@ The index keeps track of the number of records for which a particular field
 (slot) is defined in the `refs` array; when this reaches `0` it can be
 recycled to associate it with a new key.  The `refs.row` keeps track of
 the size of the array as a row of the
-[`recCapTable`](../../src/ten_tables.h#L16) in
-[`ten_tables.h`](../../src/ten_tables.h).
+[`recCapTable`][recCapTable] in
+[`ten_tables.h`][ten_tables.h].
 
 The full index implementation can be found in
-[`ten_idx.h`](../../src/ten_idx.h).
+[`ten_idx.h`][ten_idx.h].
 
 ## Advantages
 The main advantage of Ten's record system is that it allows for good memory
@@ -170,3 +169,10 @@ especially suitable for representing unique hashmaps since the record-index
 separation adds additional memory overhead in the form of the record's value
 array, and this overhead will only be offset when multiple record instances
 are created with the same index.
+
+[record-index-interaction.svg]: ../assets/record-index-interaction.svg
+[ten_tables.h]:                 ../../src/ten_tables.h
+[ten_rec.h]:                    ../../src/ten_rec.h
+[ten_idx.h]:                    ../../src/ten_idx.h
+[fastGrowthMapCapTable]:        ../../src/ten_tables.h#L10
+[recCapTable]:                  ../../src/ten_tables.h#L16
