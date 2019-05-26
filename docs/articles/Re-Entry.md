@@ -57,7 +57,7 @@ semantics of fibers.
 To achieve these features, the stack is structured a bit... unconventionally;
 here's what it looks like:
 
-![AR Stack Organization](../assets/ar-stack-organization.svg)
+![AR Stack Organization][ar-stack-organization.svg]
 
 Each box in the diagram, except the `Fiber` box, represents an activation
 record, which contains the data needed to restore the function call it
@@ -202,7 +202,7 @@ their continued existence independent of the native C stack, which will
 be partially destroyed in the yield.  The following diagram gives a flattened
 view of this conversion on the previously illustrated stack setup.
 
-![AR Stack Conversion](../assets/ar-stack-organization-conversion.svg)
+![AR Stack Conversion][ar-stack-organization-conversion.svg]
 
 The linkage fields, used to tie the ARs together into a stack, are omitted
 from this discussion as the linkage itself is less important than the
@@ -254,5 +254,10 @@ still be available and accessible via the restored tuples in `ctx`.
 ## Note
 This description needs some work... It's difficult to describe the
 re-entry system at a reasonable level of abstraction.  Checkout the code
-([`ten_fib.h`](../../src/ten_fib.h) and [`ten_fib.c`](../../src/ten_fib.c))
+([`ten_fib.h`][ten_fib.h] and [`ten_fib.c`][ten_fib.c])
 to try and get a better grasp of how this all works.
+
+[ar-stack-organization.svg]:               ../assets/ar-stack-organization.svg
+[ar-stack-organization-conversion.svg]:    ../assets/ar-stack-organization-conversion.svg
+[ten_fib.h]:                               ../../src/ten_fib.h
+[ten_fib.c]:                               ../../src/ten_fib.c
