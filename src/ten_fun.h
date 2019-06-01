@@ -1,3 +1,16 @@
+/***********************************************************************
+This component of the VM implements Ten's Function data type, which
+represents the immutable parts of Ten's callable Closure type.
+Basically this consists of constants, code, and debug info if debugging
+is enabled.
+
+Each instance of the Function type can either be a virtual or native
+function, tagged respectively as `ten_VIR` or `ten_NAT`.  Virtual
+functions are backed by Ten's bytecode and native functions are backed
+by a native function callback provided by either the host application
+or by the prelude implemented in `ten_lib.*`.
+***********************************************************************/
+
 #ifndef ten_fun_h
 #define ten_fun_h
 #include "ten.h"

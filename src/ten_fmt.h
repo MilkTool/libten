@@ -1,11 +1,18 @@
-// This component implements sprintf() like string formatting with
-// an extension for formatting Ten values.  It maintaines an internal
-// buffer which serves as the destination for all format calls, and
-// allows the string to be built up from multiple calls to the format
-// functions.  The format functions support all the standard patterns
-// with the addition of `%v` for the stringified form of a value,
-// `%q` for the stringified form of a value including the quotes on
-// strings and symbols, and `%t` for the type of a value.
+/***********************************************************************
+This component implements `sprintf()` like string formatting with an
+extension for formatting Ten values.  The component maintains an
+internal buffer which serves as the destination for all format call,
+and allows output string to be build up from multiple call to the
+formatter.
+
+The module supports three extra format specifiers, in addition to the
+standard ones.  The `%v` specifier expects a `TVal` value, and converts
+the Ten value into a stringified form, omitting quotation marks from
+string and symbol contents.  The `%q` specifier is similar to `%v` but
+keeps the quotes in the stringified value.  The `%t` specifier adds
+the typename of the value to the formatter's output buffer.
+***********************************************************************/
+
 #ifndef ten_fmt_h
 #define ten_fmt_h
 #include "ten_types.h"

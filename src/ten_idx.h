@@ -1,15 +1,10 @@
-// This component implements the Index type, which serves as the
-// lookup table used to tie record keys to specific slots in the
-// group of records that link to it.  Multiple records can share
-// a single Index, this lends to efficiency, but means that care
-// must be taken in the way records are used to avoid polluting
-// the Index with keys since all records that link to an Index
-// must provide the same number of value slots as there were keys
-// in the Index when the record was created or when it last added
-// a new key to the Index.
-//
-// For a high level explanation of how records work, and their
-// relationship with indices, see ../docs/articles/Records.md.
+/**********************************************************************
+This component implements Ten's Index data type, which serves as a
+shared lookup table for record instances.  This relationship between
+records and indices is a pretty important part of both this library,
+and the Ten language itself, and is described in detail in
+`../docs/articles/Records.md`.
+**********************************************************************/
 
 #ifndef ten_idx_h
 #define ten_idx_h

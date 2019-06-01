@@ -1,10 +1,9 @@
-// Here we implement the code generator.  We keep this separate from
-// the compiler itself despite the performance overhead to allow for
-// a bit more flexibility between the two components, and to keep each
-// at a manageable size.  For example we can pretty easily extend the
-// code generator to produce a serialized function as output instead
-// of a VM dependent function object; without touching the compiler
-// code.
+/**********************************************************************
+This component implements the low level code generator for Ten bytecode,
+which augments the higher level code generation implemented in the
+compiler.  This component decides how to represent variables, upvalues,
+constants, etc. and how scoping is implemented.
+**********************************************************************/
 #ifndef ten_gen_h
 #define ten_gen_h
 #include "ten_types.h"

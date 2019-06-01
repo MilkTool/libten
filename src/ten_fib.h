@@ -1,20 +1,16 @@
-/*
-Here we implement the Fiber type, which represents a thread of
-execution.  Unlike most interpreter implementations, which put
-the main interpreter loop in a separate VM file, in Ten it makes
-sense to put the interpreter loop in the Fiber implementation
-since the Fiber is where all the execution state will be stored.
+/**********************************************************************
+This component implements Ten's Fiber data type; which represents a
+lightweight user thread managed by the VM.  These are cooperative
+threads with no simultaneous execution and self-contained execution
+errors.
 
-While most of the fiber's implementation is fairly straightforward,
-and the bulk of it is really implemented in the individual operation
-implementations in `inc/ops/`; the stack system used for Ten's
-activation records is a bit... complex, and warrants an in depth
-explanation.  Which I should write, when I figure out how this
-will work.
+The implementation of fibers is fairly straightforward for the most
+part, but Ten allows for native function continuation, which allows
+native functions to be continued after an interruption; implementing
+this complicates the fiber code a bit, so it's explained in
+`../docs/articles/Re-Entry.md`.
+**********************************************************************/
 
-For a higher level explanation of how Ten's native function re-entry
-works see ../docs/articles/Re-Entry.md.
-*/
 #ifndef ten_fib_h
 #define ten_fib_h
 #include "ten.h"

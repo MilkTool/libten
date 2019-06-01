@@ -1,3 +1,10 @@
+/***********************************************************************
+This component implements Ten's Data data type, which consists of a block
+of raw native memory and a set of virtual Ten variables; both of which
+can be accessed from native code, but remain managed by the virtual
+machine.
+***********************************************************************/
+
 #ifndef ten_dat_h
 #define ten_dat_h
 #include "ten.h"
@@ -11,9 +18,9 @@ struct DatInfo {
     Tup     typeTup;
     TVal*   typePtr;
     TVal    typeVal;
-    size_t size;
-    uint   nMems;
-    void   (*destr)( void* buf );
+    size_t  size;
+    uint    nMems;
+    void    (*destr)( void* buf );
 };
 
 struct Data {

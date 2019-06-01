@@ -1,5 +1,11 @@
-// This component defines the API presented to users for
-// interacting with the Ten VM.
+/**********************************************************************
+This component implements the API presented to users for
+interacting with the Ten VM.  The API functions and
+structures are declared here, but not described at all as
+the API if fully documented in the reference manual, which
+can be found in `../docs/manual`.
+**********************************************************************/
+
 #ifndef ten_api_h
 #define ten_api_h
 #include <setjmp.h>
@@ -8,122 +14,40 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-/* Represents an instance of the Ten runtime.  Since the runtime
- * doesn't keep any global data members, its global state goes in here.
- * A ten_State can be created with <ten_make> and should be released
- * with <ten_free> when no longer needed.
- */
 typedef struct ten_State ten_State;
-
-/* Represents a type of user data object, one of these should be
- * initialized with <ten_initDatInfo> before being passed to
- * <ten_newDat> to create a new Data object with the respective
- * info.
- */
 typedef struct ten_DatInfo ten_DatInfo;
 
-
-/* Configuration used to initialize <ten_DatInfo> instances, tells
- * Ten how to create, maintain, and destroy Data objects of the
- * associated type.
- */
 typedef struct {
-    /* A tag used to differentiate Data objects of different types,
-     * the type name of a tagged Data object will have the form
-     * 'Dat:tag'.
-     */
     char const* tag;
-    
-    /* The size (in bytes) of the object's data buffer, this is
-     * fixed per <ten_DatInfo> to avoid the memory overhead of
-     * storing it in each Data object.
-     */
-    unsigned size;
-    
-    /* The number of 'members' to allocate for the object, these
-     * are Ten variables for storing values associated with the
-     * Data object.
-     */
-    unsigned mems;
-    
-    /* A function to be called before a Data object is freed by
-     * the GC.  This should not free the given `buf` pointer.
-     */
-    void (*destr)( void* buf );
+    unsigned    size;
+    unsigned    mems;
+    void      (*destr)( void* buf );
 } ten_DatConfig;
 
-
-/* Represents the type of a pointer object.  One of these should
- * be initialized with <ten_initPtrInfo> before being passed to
- * <ten_setPtr> to create a pointer with the respective info.
- */
 typedef struct ten_PtrInfo ten_PtrInfo;
 
-/* Configuration for initializing a <ten_PtrInfo>, it tells Ten
- * how to create, maintain, and destroy the associated pointers.
- */
 typedef struct {
-    /* A tag used to differentiate between different pointer types,
-     * the type name of a tagged pointer will have the form 'Ptr:tag'.
-     */
     char const* tag;
-    
-    /* A function to be called when all instances of a given pointer
-     * (with the same address and <ten_PtrInfo>) have expired from
-     * the VM.
-     */
-    void (*destr)( void* addr );
+    void      (*destr)( void* addr );
 } ten_PtrConfig;
 
-/* An array of internal Ten values, allows the user to reference
- * internal VM state without interfering with the GC or depending
- * on internal structures.
- */
 typedef struct {
     char pri[32];
 } ten_Tup;
 
-
-/* A specific variable within a <ten_Tup>, instances of this
- * struct will be passed to most API functions to pass in
- * Ten values.  The `tup` and `loc` fields should be field
- * in by the user with a tuple and the variable's position
- * within the tuple respectively.
- */
 typedef struct {
     ten_Tup* tup;
     unsigned loc;
 } ten_Var;
 
-/* Expands to the parameter list of a <ten_FunCb> callback.
- */
 #define ten_PARAMS ten_State* ten, ten_Tup* args, ten_Tup* mems, void* dat
 
-/* Callback type for native functions to be used in Ten code.
- */
 typedef ten_Tup (*ten_FunCb)( ten_PARAMS );
 
-
-/* Parameters for bulding a Ten function from a native callback.
- */
 typedef struct {
-    /* The name of the function, used for error reporting and such,
-     * can be omited with NULL.
-     */
     char const*  name;
-    
-    /* A NULL terminated list of parameter names, used for error
-     * reporting and such.  This is required since it's also used
-     * to determine the number of parameters expected by the
-     * callback.
-     * The last parameter name can end in '...' to indicate that
-     * it's a variadic parameter.
-     */
     char const** params;
-    
-    /* The actual function callback.
-     */
-    ten_FunCb cb;
+    ten_FunCb    cb;
 } ten_FunParams;
 
 

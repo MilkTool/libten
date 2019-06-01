@@ -1,3 +1,8 @@
+/***********************************************************************
+This file defines macros for assertion, which will be disabled in
+release builds of the library.
+***********************************************************************/
+
 #ifndef ten_assert_h
 #define ten_assert_h
 

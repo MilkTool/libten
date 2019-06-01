@@ -1,3 +1,12 @@
+/**********************************************************************
+This component implements Ten's prelude library, which is the set of
+functions loaded into all instances of the Ten runtime.  This library
+isn't optional since any Ten code should be able to expect their
+availability; and really they're a part of the Ten language as much
+as its syntax or semantic rules.  Everything implemented in this
+component is described in Ten's reference manual: `../docs/manual/`.
+**********************************************************************/
+
 #ifndef ten_lib_h
 #define ten_lib_h
 #include "ten_types.h"

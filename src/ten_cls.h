@@ -1,3 +1,7 @@
+/***********************************************************************
+This component implements Ten's Closure data type.
+***********************************************************************/
+
 #ifndef ten_cls_h
 #define ten_cls_h
 #include "ten_types.h"

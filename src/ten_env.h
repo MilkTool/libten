@@ -1,6 +1,9 @@
-// The environment component of Ten implements the VM's global
-// environment, as well as the global stack which is used for
-// allocating variables when no fiber is running.
+/***********************************************************************
+This component implements the global variable pool of a Ten instance,
+and the global stack, which serves as the current value stack when no
+fibers are running.
+***********************************************************************/
+
 #ifndef ten_env_h
 #define ten_env_h
 #include "ten_types.h"
