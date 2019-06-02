@@ -1,10 +1,11 @@
-// Here we implement NTab (Name Table).  This type is used throughout
-// the code base to map names (as symbols) to array indices.  This
-// is basically the same as the Index type, but specialized for the
-// purpose of mapping names.  Since it'll mostly be used for
-// compilation and debugging, we can optimize them more for size than
-// performance; and since they won't contain any GC objects or pointers,
-// we only need to scan for symbols.
+/***********************************************************************
+This implements the NTab data structure, used elsewhere throughout the
+runtime.  This is basically another form of hashmap, but unlike the Index
+type NTab isn't considered a Ten object.  Since these will mostly be used
+during compilation, and generally won't live very long; it's implemented
+as a separate chaining hashmap rather than an open addressing hashmap as
+is the index implementation; to optimize lookup time instead of size.
+***********************************************************************/
 
 #ifndef ten_ntab_h
 #define ten_ntab_h

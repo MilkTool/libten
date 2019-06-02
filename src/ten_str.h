@@ -1,3 +1,9 @@
+/***********************************************************************
+This component implements Ten's String data type, and immutable
+sequence of bytes.  String instances aren't sensitive to any
+particular encoding; any byte sequence is allowed.
+***********************************************************************/
+
 #ifndef ten_str_h
 #define ten_str_h
 #include "ten_types.h"

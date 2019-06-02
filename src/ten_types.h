@@ -1,10 +1,7 @@
-// This file defines the types used globally throughout
-// the language implementation.  Other files will define
-// there own local types.  Most of the structs that we
-// typedef here will also be defined elsewhere, we just
-// put all the typedefs together here to avoid having to
-// repeat them in other files since C99 doesn't allow
-// redefinitions of typedefs.
+/**********************************************************************
+This file defines some typedefs and related operations (as macros)
+which are used throughout the rest of the runtime implementation.
+**********************************************************************/
 
 #ifndef ten_types_h
 #define ten_types_h

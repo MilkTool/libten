@@ -1,3 +1,11 @@
+/**********************************************************************
+This component implements the runtime's `State`, which is the central
+component of the VM; implementing memory management, error management,
+and responsible for managing the lifetime of the other components.
+
+A pointer to the runtime's `State*` is directly cast to `ten_State*`
+before being given to the host application. 
+**********************************************************************/
 // The State instance is the center of a Ten VM, it represents the
 // global VM state and is responsible for managing resources and
 // handling errors.  This is where all the other components come

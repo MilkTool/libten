@@ -1,12 +1,10 @@
-// This component implements the  Record object type, which is
-// basically just an array of values linked to an Index.  New
-// fields defined in a Record will be added to its Index, fields
-// redefined to `udf` are removed; at least this is how the Record
-// sees it, in reality the Index keeps a ref count for each key
-// and increments when a key is added or decrements when removed.
-//
-// For a high level explanation of how records work, and their
-// relationship with indices, see ../docs/articles/Records.md.
+/***********************************************************************
+This component implements Ten's Record data type, which is a form of
+hashmap frontent that uses a shared lookup table (Index) internally.
+This relationship between records and indices is especially important
+to Ten, both this implementation and as a language, and is explored in
+`../docs/articles/Records.md`.
+***********************************************************************/
 
 #ifndef ten_rec_h
 #define ten_rec_h

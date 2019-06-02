@@ -1,5 +1,11 @@
-// This defines all the constant tables to be used throughout the
-// rest of the implementation.
+/***********************************************************************
+This is a collection of tables used elsewhere in the code base.
+Optimizing these tables allows for the optimization of the growth
+rate of various abstract structures used in Ten, and thus improve
+the performance of the VM itself.  These tables haven't yet been
+optimized in any way.
+***********************************************************************/
+
 #ifndef ten_tables_h
 #define ten_tables_h
 #include <stddef.h>

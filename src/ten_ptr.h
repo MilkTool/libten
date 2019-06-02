@@ -1,3 +1,18 @@
+/***********************************************************************
+This component implements Ten's Pointer data type, which is similar to
+the Data data type in that it's used exclusively for interacting with
+native code.  Unlike Data values though, pointers REFER to a block of
+C memory, rather than containing one; so the memory itself is exclusively
+managed by native code.
+
+This type is loosely similar to Lua's lightuserdata type, except unlike
+Lua's equivalent; Ten's pointers can keep track of the original C data
+type (from which the pointer was cast) so preserves some degree of type
+safety, and Ten allows registration of a destructor callback, which will
+be called when all occurences of the pointer reference expire from the
+Ten runtime.
+***********************************************************************/
+
 #ifndef ten_ptr_h
 #define ten_ptr_h
 #include "ten.h"
