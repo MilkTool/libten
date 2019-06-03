@@ -448,6 +448,9 @@ ten_addDatInfo( ten_State* s, ten_DatConfig* config );
 ten_Var*
 ten_datType( ten_State* s, ten_DatInfo* info );
 
+ten_Tup
+ten_members( ten_State* s, ten_Var* dat );
+
 // Errors.
 
 ten_ErrNum

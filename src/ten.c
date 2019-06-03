@@ -1203,11 +1203,9 @@ ten_call_( ten_State* s, ten_Var* cls, ten_Tup* args, char const* file, unsigned
     );
     Closure* clsO = tvGetObj( clsV );
     
-    Tup tup = fibCall_( state, clsO, (Tup*)args, file, line );
-    
-    ten_Tup t;
-    memcpy( &t, &tup, sizeof(Tup) );
-    return t;
+    ten_Tup tup = { 0 };
+    *(Tup*)&tup = fibCall_( state, clsO, (Tup*)args, file, line );
+    return tup;
 }
 
 void
@@ -1437,4 +1435,24 @@ ten_datType( ten_State* s, ten_DatInfo* info ) {
         return &((DatInfo*)info)->typeVar;
     else
         return &state->apiState->typeVars[OBJ_DAT];
+}
+
+ten_Tup
+ten_members( ten_State* s, ten_Var* dat ) {
+    State* state = (State*)s;
+    TVal datV = vget( *dat );
+    funAssert(
+        tvIsObj( datV ) && datGetTag( tvGetObj( datV ) ) == OBJ_DAT,
+        "Wrong type for 'dat', need Dat",
+        NULL
+    );
+    Data* datO = tvGetObj( datV );
+    
+    ten_Tup tup = { 0 };
+    *(Tup*)&tup = (Tup){
+        .base   = &datO->mems,
+        .offset = 0,
+        .size   = datO->info->nMems
+    };
+    return tup;
 }
