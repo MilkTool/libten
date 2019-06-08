@@ -152,8 +152,10 @@ advance( State* state ) {
         com->lex.text.top = 0;
         com->lex.line++;
     }
-    if( com->lex.nChar >= 0 )
+    else
+    if( com->lex.nChar >= 0 ) {
         *putCharBuf( state, &com->lex.text ) = com->lex.nChar;
+    }
     com->lex.nChar = com->p.src->next( com->p.src );
 }
 
@@ -509,8 +511,12 @@ lexOper( State* state ) {
     if( maybeChar( state, false, '+' ) )
         type = '+';
     else
-    if( maybeChar( state, false, '-' ) )
-        type = '-';
+    if( maybeChar( state, false, '-' ) ) {
+        if( maybeChar( state, false, '>' ) )
+            type = '->';
+        else
+            type = '-';
+    }
     else
     if( maybeChar( state, false, '!' ) ) {
         if( maybeChar( state, false, '?' ) )
@@ -1745,7 +1751,7 @@ parConditional( State* state, bool tail ) {
     };
     
     OperDat dat = { .tail = tail };
-    parCompare(  state, &dat );
+    parCompare( state, &dat );
     
     OpCode opc = matchOpCode( state, opers );
     
@@ -1762,6 +1768,22 @@ parConditional( State* state, bool tail ) {
         genMovLbl( state, com->gen, exitLbl, place );
         
         genCloseLblScope( state, com->gen );
+    }
+}
+
+static void
+parAssert( State* state, bool tail ) {
+    ComState* com = state->comState;
+    parConditional( state, tail );
+    
+    if( com->tok.type == '->' ) {
+        lex( state );
+        parDelim( state );
+        
+        parConditional( state, false );
+        
+        // And the assertion instruction itself.
+        genInstr( state, OPC_ASSERT, 0 );
     }
 }
 
@@ -2146,7 +2168,7 @@ parExpr( State* state, bool tail ) {
         return;
     if( parSignal( state ) )
         return;
-    parConditional( state, tail );
+    parAssert( state, tail );
 }
 
 

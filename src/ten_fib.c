@@ -52,6 +52,9 @@ onError( State* state, Defer* defer );
 static void
 pushFib( State* state, Fiber* fib, NatAR* nat );
 
+static LineInfo*
+findLine( State* state, VirFun* fun, uint place );
+
 
 Fiber*
 fibNew( State* state, Closure* cls, SymT* tag ) {
@@ -1113,6 +1116,9 @@ doLoop( State* state, Fiber* fib ) {
         CASE(RETURN)
             #include "inc/ops/RETURN.inc"
         BREAK;
+        CASE(ASSERT)
+            #include "inc/ops/ASSERT.inc"
+        BREAK;
     END
     
     // Restore old register set.
@@ -1452,6 +1458,20 @@ ensureStack( State* state, Fiber* fib, uint n ) {
     fib->rptr->lcl = fib->stack.buf + olcl;
 }
 
+static LineInfo*
+findLine( State* state, VirFun* fun, uint place ) {
+    if( !fun->dbg )
+        return NULL;
+    
+    uint      nLines = fun->dbg->nLines;
+    LineInfo* lines  = fun->dbg->lines;
+    for( uint i = 0 ; i < nLines ; i++ ) {
+        if( lines[i].start <= place && place < lines[i].end )
+            return &lines[i];
+    }
+    return NULL;
+}
+
 static void
 genTrace( State* state, Fiber* fib ) {
     char const* tag = NULL;
@@ -1465,21 +1485,14 @@ genTrace( State* state, Fiber* fib ) {
     // We can only generate a trace entry for the
     // current position when in a bytecode function.
     if( fib->rptr->ip ) {
-        VirFun* vir  = &fib->rptr->cls->fun->u.vir;
-        ullong place = fib->rptr->ip - vir->code;
+        VirFun* fun  = &fib->rptr->cls->fun->u.vir;
+        ullong place = fib->rptr->ip - fun->code;
         
-        tenAssert( vir->dbg );
+        LineInfo* line = findLine( state, fun, place );
+        tenAssert( line );
         
-        uint      nLines = vir->dbg->nLines;
-        LineInfo* lines  = vir->dbg->lines;
-        for( uint i = 0 ; i < nLines ; i++ ) {
-            if( lines[i].start <= place && place < lines[i].end ) {
-                uint        line  = lines[i].line;
-                char const* file  = symBuf( state, vir->dbg->file );
-                statePushTrace( state, tag, file, line );
-                break;
-            }
-        }
+        char const* file  = symBuf( state, fun->dbg->file );
+        statePushTrace( state, tag, file, line->line );
     }
     
     // All NatAR's should have been converted to ConARs by
@@ -1498,18 +1511,12 @@ genTrace( State* state, Fiber* fib ) {
         }
         VirFun* fun   = &vir->base.cls->fun->u.vir;
         ullong  place = vir->ip - fun->code;
-        tenAssert( fun->dbg );
+
+        LineInfo* line = findLine( state, fun, place );
+        tenAssert( line );
         
-        uint      nLines = fun->dbg->nLines;
-        LineInfo* lines  = fun->dbg->lines;
-        for( uint i = 0 ; i < nLines ; i++ ) {
-            if( lines[i].start <= place && place < lines[i].end ) {
-                uint        line = lines[i].line;
-                char const* file = symBuf( state, fun->dbg->file );
-                statePushTrace( state, tag, file, line );
-                break;
-            }
-        }
+        char const* file  = symBuf( state, fun->dbg->file );
+        statePushTrace( state, tag, file, line->line );
     }
     
     ConAR* con = fib->cons;

@@ -67,7 +67,8 @@ typedef enum {
     ten_ERR_ARITH,
     ten_ERR_ASSIGN,
     ten_ERR_TUPLE,
-    ten_ERR_PANIC
+    ten_ERR_PANIC,
+    ten_ERR_ASSERT
 } ten_ErrNum;
 
 typedef enum {

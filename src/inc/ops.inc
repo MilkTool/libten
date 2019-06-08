@@ -136,3 +136,5 @@ OP( JUMP, SE( 0, 0 ) )
 
 OP( CALL, SE( 0, 0 ) )
 OP( RETURN, SE( 0, 0 ) )
+
+OP( ASSERT, SE( 0, 0 ) )
