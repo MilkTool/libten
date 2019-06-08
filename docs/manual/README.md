@@ -29,8 +29,9 @@ language, it's based on the [Lua Reference Manual][lua-manual].
     * [3.11 - Shifts][ch3.11]
     * [3.12 - Comparisons][ch3.12]
     * [3.13 - Replacement][ch3.13]
-    * [3.14 - Fix][ch3.14]
-    * [3.15 - Scripts][ch3.15]
+    * [3.14 - Assertion][ch3.14]
+    * [3.15 - Fix][ch3.15]
+    * [3.16 - Scripts][ch3.16]
 * [4 - The Prelude][ch4]
     * [4.1 - Type Checking][ch4.1]
     * [4.2 - Type Conversion][ch4.2]
@@ -105,6 +106,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [ch3.13]:     the-language.md#3.13
 [ch3.14]:     the-language.md#3.14
 [ch3.15]:     the-language.md#3.15
+[ch3.16]:     the-language.md#3.15
 [ch4]:        the-prelude.md
 [ch4.1]:      the-prelude.md#4.1
 [ch4.2]:      the-prelude.md#4.2

@@ -642,15 +642,36 @@ also has `!?` which evaluates the right expression only if the left is `udf`.
                 | comparison & "|?" & expression
                 | comparison & "!?" & expression
 
+## <a name="3.14">3.14 - Assertion</a>
+Ten's assertion operator `->` provides a nice syntax for confirming
+the value of an expression.  This is an alternative to the prelude's
+`assert()` function, which reports the line on which the assertion
+occurs as an error message if the left operand isn't equal to the
+right.
 
-## <a name="3.14">3.14 - Fix</a>
+Unlike the equality operators `=` and `~=`, the assertion operator
+works on tuples, compares strings by contents rather than identity,
+and allows `udf` values.  Without these semantics the operator's
+usefulness would be limited, since things like:
+
+    myStr -> "some string"
+
+Wouldn't work properly.  I haven't figured out a good way to compare
+records in a useful way here; so for now we still compare records by
+identity.
+
+
+    assertion = comparison
+              | comparison & "->" & comparison
+
+## <a name="3.15">3.15 - Fix</a>
 The `!` FIX operator is another unary operator unique to Ten.  It's
 designed to make working with `udf` values a bit easier in some situations
 by converting them to `nil`.  If the given operand is not `udf` then
 this operator does nothing, just returning the given operator; otherwise,
 if the operand is `udf`, then it returns `nil` in its place.
 
-## <a name="3.15">3.15 - Scripts</a>
+## <a name="3.16">3.16 - Scripts</a>
 Ten scripts are UTF-8 or ASCII encoded text in some medium, which
 contains a sequence of Ten expressions to be evaluated in order.
 Scripts can also optionally be prefixed with a
@@ -662,7 +683,7 @@ which, if provided, are ignored by the compiler.
 If the medium of a Ten script is a file, then its filename extension
 should be `.ten`.
 
-    expression = replacement
+    expression = assertion
 
     BOM    = ? unicode byte order mark ?
     BANG   = ? line beginning in `#!`  ?
