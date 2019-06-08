@@ -1902,6 +1902,16 @@ Returns `true` if the given value has a `Dat` value.
 Creates a new `Dat` object based on the given `ten_DatInfo`.
 Returns a pointer to the object's memory buffer.
 
+
+### <a name="fun-ten_getDat">`ten_getDat( ten, buf, dst )`</a>
+    ten     : ten_State*
+    buf     : void*
+    dst     : ten_Var*
+
+Copies the `Data` object associated with the given `buf` into `dst`.
+The `buf` should be a pointer previously returned by either `ten_newDat()`
+or `ten_getDatBuf()`.
+
 ### <a name="fun-ten_datType">`ten_datType( ten, info )`</a>
     ten     : ten_State*
     return  : ten_Var*    : Sym
@@ -1940,6 +1950,15 @@ Returns the `ten_DatInfo` associated with the given `dat`.
     return  : void*
 
 Returns the given `dat`'s memory buffer.
+
+
+### <a name="fun-ten_members">`ten_members( ten, dat )`</a>
+    ten     : ten_State*
+    dat     : ten_Var*    : Dat
+    return  : ten_Tup
+
+Returns the tuple of member variables associated with the given
+`Data` object.
 
 
 ### <a name="fun-ten_getErrNum">`ten_getErrNum( ten, fib )`</a>

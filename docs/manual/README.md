@@ -403,6 +403,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`ten_fibType( ten )`][a-ten_fibType]
 - [`ten_isDat( ten, var, info )`][a-ten_isDat]
 - [`ten_newDat( ten, info, dst )`][a-ten_newDat]
+- [`ten_getDat( ten, buf, dst )`](a-ten_getDat)
 - [`ten_getMember( ten, dat, mem, dst )`][a-ten_getMember]
 - [`ten_setMember( ten, dat, mem, src )`][a-ten_setMember]
 - [`ten_getMembers( ten, dat )`][a-ten_getMembers]
@@ -410,6 +411,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`ten_getDatBuf( ten, dat )`][a-ten_getDatBuf]
 - [`ten_addDatInfo( ten, config )`][a-ten_addDatInfo]
 - [`ten_datType( ten, info )`][a-ten_datType]
+- [`ten_members( ten, dat )`][a-ten_members]
 - [`ten_getErrNum( ten, fib )`][a-ten_getErrNum]
 - [`ten_getErrVal( ten, fib )`][a-ten_getErrVal]
 - [`ten_getTrace( ten, fib )`][a-ten_getTrace]
@@ -536,6 +538,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [a-ten_fibType]:        the-api.md#fun-ten_fibType
 [a-ten_isDat]:          the-api.md#fun-ten_isDat
 [a-ten_newDat]:         the-api.md#fun-ten_newDat
+[a-ten_getDat]:         the-api.md#fun-ten_getDat
 [a-ten_getMember]:      the-api.md#fun-ten_getMember
 [a-ten_setMember]:      the-api.md#fun-ten_setMember
 [a-ten_getMembers]:     the-api.md#fun-ten_getMem
@@ -543,6 +546,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [a-ten_getDatBuf]:      the-api.md#fun-ten_getDatBuf
 [a-ten_addDatInfo]:     the-api.md#fun-ten_addDatInfo
 [a-ten_datType]:        the-api.md#fun-ten_datType
+[a-ten_members]:        the-api.md#fun-ten_members
 [a-ten_getErrNum]:      the-api.md#fun-ten_getErrNum
 [a-ten_getErrVal]:      the-api.md#fun-ten_getErrVal
 [a-ten_getTrace]:       the-api.md#fun-ten_getTrace
