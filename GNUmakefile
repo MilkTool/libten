@@ -22,10 +22,11 @@ CPATH := $(shell readlink -f $(shell which $(COMPILER)))
 LPATH := $(shell readlink -f $(shell which $(LINKER)))
 SPATH := $(shell readlink -f $(shell which $(STRIPPER)))
 
-REMVER := sed -E 's/-[0-9]+(\.[0-9]+(\.[0-9]+)?)?//'
-CNAME := $(shell basename $(CPATH) | $(REMVER))
-LNAME := $(shell basename $(LPATH) | $(REMVER))
-SNAME := $(shell basename $(SPATH) | $(REMVER))
+TRIM1 := sed -E 's/-[0-9]+(\.[0-9]+(\.[0-9]+)?)?$$//'
+TRIM2 := sed -E 's/^.*-//'
+CNAME := $(shell basename $(CPATH) | $(TRIM1) | $(TRIM2))
+LNAME := $(shell basename $(LPATH) | $(TRIM1) | $(TRIM2))
+SNAME := $(shell basename $(SPATH) | $(TRIM1) | $(TRIM2))
 
 PREFIX ?= /usr/local/
 LIBDIR ?= $(shell if [ -d $(PREFIX)/lib64 ]; then echo $(PREFIX)/lib64; else echo $(PREFIX)/lib; fi )
