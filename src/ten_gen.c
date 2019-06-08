@@ -11,6 +11,8 @@
 #include "ten_macros.h"
 #include "ten_assert.h"
 
+#include <string.h>
+
 // Dynamic buffers.
 
 #define BUF_TYPE instr
@@ -107,6 +109,12 @@ genFinl( State* state, Finalizer* finl ) {
     stateRemoveScanner( state, &gen->scan );
     
     finlCodeBuf( state, &gen->code );
+    
+    for( uint i = 0 ; i < gen->lines.top ; i++ ) {
+        char* text = gen->lines.buf[i].text;
+        if( text )
+            stateFreeRaw( state, text, strlen( text ) + 1 );
+    }
     if( gen->debug )
         finlLineBuf( state, &gen->lines );
     if( gen->upvals )
@@ -370,19 +378,43 @@ genSetFunc( State* state, Gen* gen, SymT func ) {
     gen->func = func;
 }
 
+static void
+ensureLine( State* state, Gen* gen, uint linenum ) {
+    tenAssert( linenum >= gen->start );
+    while( gen->start + gen->lines.top <= linenum ) {
+        LineInfo* line = putLineBuf( state, &gen->lines );
+        line->line  = gen->start + gen->lines.top - 1;
+        line->text  = NULL;
+        line->start = gen->code.top;
+        line->end   = gen->code.top;
+    }
+}
+
 void
 genSetLine( State* state, Gen* gen, uint linenum ) {
     if( !gen->debug )
         return;
     
-    tenAssert( linenum >= gen->start );
-    while( gen->start + gen->lines.top <= linenum ) {
-        LineInfo* line = putLineBuf( state, &gen->lines );
-        line->line  = gen->start + gen->lines.top - 1;
-        line->start = gen->code.top;
-        line->end   = gen->code.top;
-    }
+    ensureLine( state, gen, linenum );
     gen->line = gen->lines.buf + gen->lines.top - 1;
+}
+
+
+void
+genSetLineText( State* state, Gen* gen, uint ln, char const* txt ) {
+    if( !gen->debug )
+        return;
+    ensureLine( state, gen, ln );
+    
+    size_t len = strlen( txt );
+    
+    Part  cpyP;
+    char* cpy = stateAllocRaw( state, &cpyP, len + 1 );
+    memcpy( cpy, txt, len + 1 );
+    stateCommitRaw( state, &cpyP );
+    
+    LineInfo* line = &gen->lines.buf[ln-gen->start];
+    line->text = cpy;
 }
 
 GenConst*

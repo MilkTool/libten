@@ -18,6 +18,7 @@ or by the prelude implemented in `ten_lib.*`.
 
 typedef struct {
     uint     line;
+    char*    text;
     uint     start;
     uint     end;
 } LineInfo;

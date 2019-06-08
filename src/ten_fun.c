@@ -114,6 +114,13 @@ funDestruct( State* state, Function* fun ) {
         stateFreeRaw( state, vir->code,   sizeof(instr)*vir->len );
         if( vir->dbg ) {
             DbgInfo* dbg = vir->dbg;
+    
+            for( uint i = 0 ; i < dbg->nLines ; i++ ) {
+                char* text = dbg->lines[i].text;
+                if( text )
+                    stateFreeRaw( state, text, strlen( text ) + 1 );
+            }
+            
             stateFreeRaw( state, dbg->lines, sizeof(LineInfo)*dbg->nLines );
             stateFreeRaw( state, dbg, sizeof(DbgInfo) );
         }

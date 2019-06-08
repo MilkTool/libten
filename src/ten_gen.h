@@ -57,6 +57,8 @@ genSetFunc( State* state, Gen* gen, SymT func );
 void
 genSetLine( State* state, Gen* gen, uint linenum );
 
+void
+genSetLineText( State* state, Gen* gen, uint ln, char const* txt );
 
 GenConst*
 genAddConst( State* state, Gen* gen, TVal val );

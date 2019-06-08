@@ -59,6 +59,11 @@ struct ComState {
         // of the token that's currently being parsed
         // in case they need to be converted to a value.
         CharBuf chars;
+        
+        // The full text of the current line, will be
+        // kept as debug info if debugging is enabled
+        // but used as an assertion message either way.
+        CharBuf text;
     } lex;
     
     // The next token, lexed from input characters.
@@ -141,8 +146,14 @@ errCom( State* state, char const* fmt, ... ) {
 static void
 advance( State* state ) {
     ComState* com = state->comState;
-    if( com->lex.nChar == '\n' )
+    if( com->lex.nChar == '\n' ) {
+        *putCharBuf( state, &com->lex.text ) = '\0';
+        genSetLineText( state, com->gen, com->lex.line, com->lex.text.buf );
+        com->lex.text.top = 0;
         com->lex.line++;
+    }
+    if( com->lex.nChar >= 0 )
+        *putCharBuf( state, &com->lex.text ) = com->lex.nChar;
     com->lex.nChar = com->p.src->next( com->p.src );
 }
 
@@ -2147,6 +2158,7 @@ comFinl( State* state, Finalizer* finl ) {
     
     stateRemoveScanner( state, &com->scan );
     finlCharBuf( state, &com->lex.chars );
+    finlCharBuf( state, &com->lex.text );
     stateFreeRaw( state, com, sizeof(ComState) );
 }
 
@@ -2183,6 +2195,7 @@ comInit( State* state ) {
     com->tok.value = tvUdf();
     
     initCharBuf( state, &com->lex.chars );
+    initCharBuf( state, &com->lex.text );
     
     stateInstallFinalizer( state, &com->finl );
     stateInstallScanner( state, &com->scan );
