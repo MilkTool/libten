@@ -21,7 +21,7 @@ for( uint i = 0 ; i < cnt1 ; i++ ) {
     if( tvIsObjType( tup1[i], OBJ_STR  ) && tvIsObjType( tup2[i], OBJ_STR ) ) {
          String* str1 = tvGetObj( tup1[i] );
          String* str2 = tvGetObj( tup2[i] );
-         if( str1->len == str2->len && !memcmp( str1->buf, str2->buf, str1->len ) )
+         if( str1->len != str2->len || memcmp( str1->buf, str2->buf, str1->len ) )
             goto fail;
     }
     else
