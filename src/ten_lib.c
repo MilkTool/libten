@@ -354,7 +354,12 @@ libPanic( State* state, TVal val ) {
 void
 libAssert( State* state, TVal cond, TVal what ) {
     if( ( tvIsLog( cond ) && tvGetLog( cond ) == false ) || tvIsNil( cond ) )
-        panic( "Assertion failed: %v", what );
+        stateErrFmtA(
+            state,
+            ten_ERR_ASSERT,
+            "Assertion Failed: %v",
+            what
+        );
 }
 
 void
@@ -433,7 +438,12 @@ libExpect( State* state, char const* what, SymT type, TVal val ) {
         return;
     }
     bad: {
-        panic( "Wrong type %t for '%s', need %v", val, what, tvSym( type ) );
+        stateErrFmtA(
+            state,
+            ten_ERR_ASSERT,
+            "Wrong type %t for '%s', need %v",
+            val, what, tvSym( type )
+        );
     }
 }
 
