@@ -1368,6 +1368,7 @@ ten_newDat( ten_State* s, ten_DatInfo* info, ten_Var* dst ) {
 
 void
 ten_getDat( ten_State* s, void* buf, ten_Var* dst ) {
+    State* state = (State*)s;
     vset( *dst, tvObj( buf - sizeof(Data) ) );
 }
 

@@ -612,8 +612,9 @@ lexOther( State* state ) {
     if( maybeChar( state, false, ten_EOF ) )
         type = TOK_END;
     else
-    if( maybeChar( state, false, ten_PAD ) ) {
+    if( maybeChar( state, false, ten_PAD ) || maybeType( state, false, iswhite ) ) {
         takeAll( maybeChar( state, false, ten_PAD ) );
+        takeAll( maybeType( state, false, iswhite ) );
         return 
             lexWord( state )  ||
             lexNum( state )   ||
