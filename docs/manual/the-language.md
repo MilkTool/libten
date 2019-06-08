@@ -664,6 +664,12 @@ identity.
     assertion = comparison
               | comparison & "->" & comparison
 
+The result of an assertion is the left operand, so we can do things like:
+
+    def myVar: getSomeVal() -> 'SomeVal'
+
+With the expected semantics.
+
 ## <a name="3.15">3.15 - Fix</a>
 The `!` FIX operator is another unary operator unique to Ten.  It's
 designed to make working with `udf` values a bit easier in some situations
