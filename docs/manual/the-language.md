@@ -668,7 +668,11 @@ The result of an assertion is the left operand, so we can do things like:
 
     def myVar: getSomeVal() -> 'SomeVal'
 
-With the expected semantics.
+With the expected semantics.  Since the assertion operator reports the
+full text of the line on which it occurs; an assertion message can be
+included as a comment, for example:
+
+    type( arg ) -> 'Rec:Point'    `The 'arg' needs to be a Point
 
 ## <a name="3.15">3.15 - Fix</a>
 The `!` FIX operator is another unary operator unique to Ten.  It's
