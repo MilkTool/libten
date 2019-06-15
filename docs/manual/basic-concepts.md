@@ -279,12 +279,13 @@ turn the type into a powerful tool for catching other types of bugs.
 
 The semantics of `udf` prevent it from being used in most places
 where other values are accepted.  The value can't be used as a
-record key, passed as an argument to a function call, or assigned
-to an existing variable; nor can it be compared with via the normal
-comparison operators, or passed as the predicate to a conditional.
-The value can only effectively be used as an operand to special
-operators for dealing with the value (all beginning in `!`), or as
-an initialization value for variable definitions (not mutations).
+record key, used in a record constructor, passed as an argument to
+a function call, or assigned to an existing variable; nor can it be
+compared with via the normal comparison operators, or passed as the
+predicate to a conditional.  The value can only effectively be used
+as an operand to special operators for dealing with the value (all
+beginning in `!`), or as an initialization value for variable and
+field definitions (not mutations).
 
 These semantics force the user to make explicit where they expect
 and allow for, a `udf` value to be received, by taking care to
