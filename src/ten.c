@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdarg.h>
 
 ten_Version const ten_VERSION = {
     .major = 0,
@@ -286,6 +287,27 @@ ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 ) {
     State* state = (State*)s;
     
     return tvEqual( vget( *var1 ), vget( *var2 ) );
+}
+
+ten_Case*
+ten_match( ten_State* s, ten_Var* var, ten_Tup* tup, ... ) {
+    va_list args; va_start( args, tup );
+    
+    ten_Case* mcase;
+    while( (mcase = va_arg( args, ten_Case* )) != ten_END ) {
+        funAssert(
+            ten_size( s, tup ) > mcase->which,
+            "Option out of tuple range", NULL
+        );
+        
+        if( ten_equal( s, var, &(ten_Var){ .tup = tup, .loc = mcase->which } ) ) {
+            va_end( args );
+            return mcase;
+        }
+    }
+    
+    va_end( args );
+    return ten_END;
 }
 
 void

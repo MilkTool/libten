@@ -14,8 +14,9 @@ can be found in `../docs/manual`.
 #include <stdarg.h>
 #include <stdio.h>
 
-typedef struct ten_State ten_State;
-typedef struct ten_DatInfo ten_DatInfo;
+typedef struct ten_State       ten_State;
+typedef struct ten_CallContext ten_CallContext;
+typedef struct ten_DatInfo     ten_DatInfo;
 
 typedef struct {
     char const* tag;
@@ -171,6 +172,17 @@ ten_expect( ten_State* s, char const* what, ten_Var* type, ten_Var* var );
 // Misc.
 bool
 ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 );
+
+typedef struct {
+    int   which;
+    void* thing;
+} ten_Case;
+
+#define ten_case( WHICH, THING ) &(ten_Case){ (WHICH), (THING) };
+#define ten_END                  NULL
+
+ten_Case*
+ten_match( ten_State* s, ten_Var* var, ten_Tup* tup, ... );
 
 void
 ten_copy( ten_State* s, ten_Var* src, ten_Var* dst );
