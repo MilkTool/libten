@@ -1083,7 +1083,7 @@ parValueKey( State* state ) {
 }
 
 static bool
-parIdentKey( State* state ) {
+parIdentKey( State* state, bool func ) {
     ComState* com = state->comState;
     if( com->tok.type != '.' )
         return false;
@@ -1092,14 +1092,15 @@ parIdentKey( State* state ) {
     if( com->tok.type != TOK_IDENT )
         errPar( state, "Expected identifier after '.'" );
     
+    state->comState->func = com->tok.value;
     genConst( state, com->tok.value );
     lex( state );
     return true;
 }
 
 static bool
-parKey( State* state ) {
-    return parValueKey( state ) || parIdentKey( state );
+parKey( State* state, bool func ) {
+    return parValueKey( state ) || parIdentKey( state, func );
 }
 
 
@@ -1117,7 +1118,7 @@ parRecordEntry( State* state, void* udat ) {
     if( dat->rexp )
         errPar( state, "Extra entries after record expansion" );
     
-    if( !parKey( state ) ) {
+    if( !parKey( state, false ) ) {
         if( com->tok.type == '..' ) {
             lex( state );
             parExpr( state, false );
@@ -1881,7 +1882,7 @@ parVarRecEntry( State* state, void* udat ) {
     if( com->tok.type == ':' ) {
         lex( state );
         parDelim( state );
-        parKey( state );
+        parKey( state, false );
         dat->size++;
     }
     else {
@@ -1929,7 +1930,7 @@ parKeyTupEntry( State* state, void* udat ) {
     if( dat->vtup )
         errPar( state, "Extra keys after '...'" );
     
-    if( !parKey( state ) )
+    if( !parKey( state, false ) )
         errPar( state, "Expected record key" );
     
     if( com->tok.type == '..' ) {
@@ -1978,7 +1979,7 @@ parKeyRecEntry( State* state, void* udat ) {
     if( dat->vrec )
         errPar( state, "Extra keys after '...'" );
     
-    if( !parKey( state ) )
+    if( !parKey( state, false ) )
         errPar( state, "Expected record key" );
     
     if( com->tok.type == '..' ) {
@@ -1989,7 +1990,7 @@ parKeyRecEntry( State* state, void* udat ) {
     if( com->tok.type == ':' ) {
         lex( state );
         parDelim( state );
-        parKey( state );
+        parKey( state, false );
         dat->size++;
     }
     else {
@@ -2031,7 +2032,7 @@ static instr
 finFieldDst( State* state, bool def ) {
     ComState* com = state->comState;
 
-    if( parKey( state ) ) {
+    if( parKey( state, true ) ) {
         if( def )
             return inMake( OPC_REC_DEF_ONE, 0 );
         else
@@ -2197,8 +2198,10 @@ comScan( State* state, Scanner* scan ) {
     tvMark( com->val2 );
     tvMark( com->tok.value );
     
-    if( state->gcFull )
+    if( state->gcFull ) {
         symMark( state, com->this );
+        tvMark( com->func );
+    }
 }
 
 void
@@ -2214,6 +2217,7 @@ comInit( State* state ) {
     com->val1      = tvUdf();
     com->val2      = tvUdf();
     com->this      = symGet( state, "this", 4 );
+    com->func      = tvUdf();
     com->tok.value = tvUdf();
     
     initCharBuf( state, &com->lex.chars );

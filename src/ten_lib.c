@@ -1229,7 +1229,7 @@ libSplit( State* state, String* str, String* sep ) {
     ten_setMember( ten, &datVar, SplitIter_SEP, &sepVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "split#%llu", (ullong)(uintptr_t)iter ),
+        .name   = fmtA( state, false, "split%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
         .cb     = ten_fun(splitIterNext)
     };
