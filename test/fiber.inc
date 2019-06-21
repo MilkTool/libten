@@ -1,16 +1,17 @@
 
-ten_Tup
-tf_reentry( ten_PARAMS ) {
+ten_define(reentry) {
+    ten_State* ten = call->ten;
+    
     struct {
         ten_Tup args;
         ten_Tup rets;
         long    num;
     } ctx;
     
-    ten_Var clsArg = { .tup = args, .loc = 0 };
+    ten_Var clsArg = ten_arg( 0 );
     ten_expect( ten, "cls", ten_clsType( ten ), &clsArg );
     
-    ten_Var ret = { .tup = &ctx.rets, .loc = 0 };
+    ten_Var ret = ten_var( ctx.rets, 0 );
     
     switch( ten_seek( ten, &ctx, sizeof(ctx) ) ) {
         case 0: goto cp0;
@@ -59,7 +60,7 @@ fiber_reentry1( ten_State* ten ) {
     ten_FunParams reentp = {
         .name   = "reentry",
         .params = (char const*[]){ "cls", NULL },
-        .cb     = tf_reentry
+        .cb     = ten_fun(reentry)
     };
     ten_newFun( ten, &reentp, &reentFunVar );
     ten_newCls( ten, &reentFunVar, NULL, &reentClsVar );
@@ -98,12 +99,11 @@ fiber_reentry1( ten_State* ten ) {
     ten_propError( ten, &mainFibVar );
 }
 
-ten_Tup
-tf_nreentry( ten_PARAMS ) {
-    ten_Tup vals = ten_pushA( ten, "" );
-    ten_yield( ten, &vals );
+ten_define(nreentry) {
+    ten_Tup vals = ten_pushA( call->ten, "" );
+    ten_yield( call->ten, &vals );
     
-    return ten_pushA( ten, "I", 123 );
+    return ten_pushA( call->ten, "I", 123 );
 }
 
 void
@@ -116,7 +116,7 @@ fiber_reentry2( ten_State* ten ) {
     ten_FunParams nreentp = {
         .name   = "nreentry",
         .params = (char const*[]){ NULL },
-        .cb     = tf_nreentry
+        .cb     = ten_fun(nreentry)
     };
     ten_newFun( ten, &nreentp, &nreentFunVar );
     ten_newCls( ten, &nreentFunVar, NULL, &nreentClsVar );

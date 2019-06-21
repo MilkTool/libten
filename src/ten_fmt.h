@@ -23,6 +23,14 @@ the typename of the value to the formatter's output buffer.
 void
 fmtInit( State* state );
 
+typedef enum {
+    FMT_VALS,
+    FMT_VARS    
+} FmtMode;
+
+void
+fmtMode( State* state, FmtMode mode );
+
 char const*
 fmtA( State* state, bool append, char const* fmt, ... );
 

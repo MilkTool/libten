@@ -23,6 +23,7 @@
 
 struct FmtState {
     Finalizer finl;
+    FmtMode   mode;
     
     CharBuf buf;
 };
@@ -41,11 +42,18 @@ fmtInit( State* state ) {
     initCharBuf( state, &fmt->buf );
     fmt->finl.cb = fmtFinl;
     
+    fmt->mode = FMT_VALS;
+    
     stateInstallFinalizer( state, &fmt->finl );
     stateCommitRaw( state, &fmtP );
     state->fmtState = fmt;
     
     *putCharBuf( state, &fmt->buf ) = '\0';
+}
+
+void
+fmtMode( State* state, FmtMode mode ) {
+    state->fmtState->mode = mode;
 }
 
 char const*
@@ -98,6 +106,9 @@ fmtSym( State* state, SymT sym, bool q );
 
 static void
 fmtVal( State* state, TVal val, bool q );
+
+static void
+fmtVar( State* state, ten_Var* var, bool q );
 
 static void
 fmtType( State* state, TVal val ) {
@@ -411,6 +422,12 @@ fmtVal( State* state, TVal val, bool q ) {
     }
 }
 
+
+static void
+fmtVar( State* state, ten_Var* var, bool q ) {
+    fmtVal( state, vget(*var), q );
+}
+
 char const*
 fmtV( State* state, bool append, char const* fmt, va_list ap ) {
     FmtState* fmtState = state->fmtState;
@@ -453,10 +470,16 @@ fmtV( State* state, bool append, char const* fmt, va_list ap ) {
         // Handle the custom patterns.
         switch( c[i+1] ) {
             case 'v':
-                fmtVal( state, va_arg( ap, TVal ), false );
+                if( fmtState->mode == FMT_VALS )
+                    fmtVal( state, va_arg( ap, TVal ), false );
+                else
+                    fmtVar( state, va_arg( ap, ten_Var* ), false );
             break;
             case 'q':
-                fmtVal( state, va_arg( ap, TVal ), true );
+                if( fmtState->mode == FMT_VALS )
+                    fmtVal( state, va_arg( ap, TVal ), true );
+                else
+                    fmtVar( state, va_arg( ap, ten_Var* ), true );
             break;
             case 't':
                 fmtType( state, va_arg( ap, TVal ) );

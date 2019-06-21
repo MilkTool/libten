@@ -758,18 +758,16 @@ recIterDestr( void* dat ) {
         idxIterFree( iter->state, iter->iter );
 }
 
-static ten_Tup
-keyIterNext( ten_PARAMS ) {
-    State*   state = (State*)ten;
-    RecIter* iter  = dat;
+ten_define(keyIterNext) {
+    State*   state = (State*)call->ten;
+    RecIter* iter  = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( !iter->iter )
         return retTup;
     
-    ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
-    Record* rec  = tvGetObj( vget( recVar ) );
+    Record* rec  = tvGetObj( vget( ten_mem( RecIter_REC ) ) );
     uint    cap  = recCap( rec );
     TVal*   vals = recVals( rec );
     
@@ -777,7 +775,7 @@ keyIterNext( ten_PARAMS ) {
     uint loc;
     
     loop: {
-        bool has = idxIterNext( (State*)ten, iter->iter, &key, &loc );
+        bool has = idxIterNext( state, iter->iter, &key, &loc );
         if( !has ) {
             idxIterFree( state, iter->iter );
             iter->iter = NULL;
@@ -813,9 +811,9 @@ libKeys( State* state, Record* rec ) {
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "keys#%llu", (ullong)(uintptr_t)iter ),
+        .name   = fmtA( state, false, "keys%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
-        .cb     = keyIterNext
+        .cb     = ten_fun(keyIterNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -826,18 +824,16 @@ libKeys( State* state, Record* rec ) {
     return cls;
 }
 
-static ten_Tup
-valIterNext( ten_PARAMS ) {
-    State*   state = (State*)ten;
-    RecIter* iter  = dat;
+ten_define(valIterNext) {
+    State*   state = (State*)call->ten;
+    RecIter* iter  = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     if( !iter->iter )
         return retTup;
     
-    ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
-    Record* rec  = tvGetObj( vget( recVar ) );
+    Record* rec  = tvGetObj( vget( ten_mem( RecIter_REC ) ) );
     uint    cap  = recCap( rec );
     TVal*   vals = recVals( rec );
     
@@ -845,7 +841,7 @@ valIterNext( ten_PARAMS ) {
     uint loc;
 
     loop: {
-        bool has = idxIterNext( (State*)ten, iter->iter, &key, &loc );
+        bool has = idxIterNext( state, iter->iter, &key, &loc );
         if( !has ) {
             idxIterFree( state, iter->iter );
             iter->iter = NULL;
@@ -881,9 +877,9 @@ libVals( State* state, Record* rec ) {
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "vals#%llu", (ullong)(uintptr_t)iter ),
+        .name   = fmtA( state, false, "vals%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
-        .cb     = valIterNext
+        .cb     = ten_fun(valIterNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -894,19 +890,17 @@ libVals( State* state, Record* rec ) {
     return cls;
 }
 
-static ten_Tup
-pairIterNext( ten_PARAMS ) {
-    State*   state = (State*)ten;
-    RecIter* iter  = dat;
+ten_define(pairIterNext){
+    State*   state = (State*)call->ten;
+    RecIter* iter  = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "NN" );
+    ten_Tup retTup = ten_pushA( call->ten, "NN" );
     ten_Var keyVar = { .tup = &retTup, .loc = 0 };
     ten_Var valVar = { .tup = &retTup, .loc = 1 };
     if( !iter->iter )
         return retTup;
     
-    ten_Var recVar = {.tup = mems, .loc = RecIter_REC };
-    Record* rec  = tvGetObj( vget( recVar ) );
+    Record* rec  = tvGetObj( vget( ten_mem( RecIter_REC ) ) );
     uint    cap  = recCap( rec );
     TVal*   vals = recVals( rec );
     
@@ -914,7 +908,7 @@ pairIterNext( ten_PARAMS ) {
     uint loc;
 
     loop: {
-        bool has = idxIterNext( (State*)ten, iter->iter, &key, &loc );
+        bool has = idxIterNext( state, iter->iter, &key, &loc );
         if( !has ) {
             idxIterFree( state, iter->iter );
             iter->iter = NULL;
@@ -951,9 +945,9 @@ libPairs( State* state, Record* rec ) {
     ten_setMember( ten, &datVar, RecIter_REC, &recVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "pairs#%llu", (ullong)(uintptr_t)iter ),
+        .name   = fmtA( state, false, "pairs%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
-        .cb     = pairIterNext
+        .cb     = ten_fun(pairIterNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -974,20 +968,18 @@ typedef enum {
     Seq_LAST
 } SeqMem;
 
-static ten_Tup
-seqNext( ten_PARAMS ) {
-    State* state = (State*)ten;
-    Seq*   seq   = dat;
+ten_define(seqNext) {
+    State* state = (State*)call->ten;
+    Seq*   seq   = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
+    ten_Var retVar = ten_var( retTup, 0 );
     if( seq->next < 0 )
         return retTup;
     
-    ten_Var valsVar = {.tup = mems, .loc = Seq_VALS };
-    Record* vals = tvGetObj( vget( valsVar ) );
+    Record* vals = tvGetObj( vget( ten_mem( Seq_VALS ) ) );
     
-    TVal next = recGet( (State*)ten, vals, tvInt( seq->next++ ) );
+    TVal next = recGet( state, vals, tvInt( seq->next++ ) );
     if( tvIsUdf( next ) )
         seq->next = -1;
     else
@@ -1002,10 +994,10 @@ libSeq( State* state, Record* vals ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup varTup = ten_pushA( ten, "UUUU" );
-    ten_Var valsVar = { .tup = &varTup, .loc = 0 };
-    ten_Var datVar  = { .tup = &varTup, .loc = 1 };
-    ten_Var funVar  = { .tup = &varTup, .loc = 2 };
-    ten_Var clsVar  = { .tup = &varTup, .loc = 3 };
+    ten_Var valsVar = ten_var( varTup, 0 );
+    ten_Var datVar  = ten_var( varTup, 1 );
+    ten_Var funVar  = ten_var( varTup, 2 );
+    ten_Var clsVar  = ten_var( varTup, 3 );
     
     Seq* seq = ten_newDat( ten, lib->seqInfo, &datVar );
     seq->next = 0;
@@ -1014,9 +1006,9 @@ libSeq( State* state, Record* vals ) {
     ten_setMember( ten, &datVar, Seq_VALS, &valsVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "seq#%llu", (ullong)(uintptr_t)seq ),
+        .name   = fmtA( state, false, "seq%llu", (ullong)(uintptr_t)seq ),
         .params = NULL,
-        .cb     = seqNext
+        .cb     = ten_fun(seqNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1036,18 +1028,16 @@ typedef enum {
     StrIter_LAST
 } StrIterMem;
 
-static ten_Tup
-byteIterNext( ten_PARAMS ) {
-    State*   state = (State*)ten;
-    StrIter* iter  = dat;
+ten_define(byteIterNext) {
+    State*   state = (State*)call->ten;
+    StrIter* iter  = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
+    ten_Var retVar = ten_var( retTup, 0 );
     if( iter->loc < 0 )
         return retTup;
     
-    ten_Var strVar = {.tup = mems, .loc = StrIter_STR };
-    String* str = tvGetObj( vget( strVar ) );
+    String* str = tvGetObj( vget( ten_mem( StrIter_STR ) ) );
     
     if( iter->loc < str->len )
         vset( retVar, tvInt( str->buf[iter->loc++] ) );
@@ -1063,10 +1053,10 @@ libBytes( State* state, String* str ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup varTup = ten_pushA( ten, "UUUU" );
-    ten_Var strVar = { .tup = &varTup, .loc = 0 };
-    ten_Var datVar = { .tup = &varTup, .loc = 1 };
-    ten_Var funVar = { .tup = &varTup, .loc = 2 };
-    ten_Var clsVar = { .tup = &varTup, .loc = 3 };
+    ten_Var strVar = ten_var( varTup, 0 );
+    ten_Var datVar = ten_var( varTup, 1 );
+    ten_Var funVar = ten_var( varTup, 2 );
+    ten_Var clsVar = ten_var( varTup, 3 );
     
     StrIter* iter = ten_newDat( ten, lib->strIterInfo, &datVar );
     iter->loc = 0;
@@ -1075,9 +1065,9 @@ libBytes( State* state, String* str ) {
     ten_setMember( ten, &datVar, StrIter_STR, &strVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "bytes#%llu", (ullong)(uintptr_t)iter ),
+        .name   = fmtA( state, false, "bytes%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
-        .cb     = byteIterNext
+        .cb     = ten_fun(byteIterNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1123,24 +1113,22 @@ cnext( State* state, char const** str, size_t* len, SymT* next ) {
     fail: panic( "Format is not UTF-8" );
 }
 
-static ten_Tup
-charIterNext( ten_PARAMS ) {
-    State*   state = (State*)ten;
-    StrIter* iter  = dat;
+ten_define(charIterNext) {
+    State*   state = (State*)call->ten;
+    StrIter* iter  = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
+    ten_Var retVar = ten_var( retTup, 0 );
     if( iter->loc < 0 )
         return retTup;
     
-    ten_Var strVar = {.tup = mems, .loc = StrIter_STR };
-    String* str = tvGetObj( vget( strVar ) );
+    String* str = tvGetObj( vget( ten_mem( StrIter_STR ) ) );
     
     if( iter->loc < str->len ) {
         char const* buf = str->buf + iter->loc;
         size_t      len = str->len - iter->loc;
         SymT        chr = 0;
-        cnext( (State*)ten, &buf, &len, &chr );
+        cnext( state, &buf, &len, &chr );
         iter->loc = buf - str->buf;
         vset(retVar, tvSym( chr ) );
     }
@@ -1156,10 +1144,10 @@ libChars( State* state, String* str ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup varTup = ten_pushA( ten, "UUUU" );
-    ten_Var strVar = { .tup = &varTup, .loc = 0 };
-    ten_Var datVar = { .tup = &varTup, .loc = 1 };
-    ten_Var funVar = { .tup = &varTup, .loc = 2 };
-    ten_Var clsVar = { .tup = &varTup, .loc = 3 };
+    ten_Var strVar = ten_var( varTup, 0 );
+    ten_Var datVar = ten_var( varTup, 1 );
+    ten_Var funVar = ten_var( varTup, 2 );
+    ten_Var clsVar = ten_var( varTup, 3 );
     
     StrIter* iter = ten_newDat( ten, lib->strIterInfo, &datVar );
     iter->loc = 0;
@@ -1168,9 +1156,9 @@ libChars( State* state, String* str ) {
     ten_setMember( ten, &datVar, StrIter_STR, &strVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "chars#%llu", (ullong)(uintptr_t)iter ),
+        .name   = fmtA( state, false, "chars%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
-        .cb     = charIterNext
+        .cb     = ten_fun(charIterNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1191,20 +1179,17 @@ typedef enum {
     SplitIter_LAST
 } SplitIterMem;
 
-static ten_Tup
-splitIterNext( ten_PARAMS ) {
-    State*     state = (State*)ten;
-    SplitIter* iter  = dat;
+ten_define(splitIterNext) {
+    State*     state = (State*)call->ten;
+    SplitIter* iter  = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
+    ten_Var retVar = ten_var( retTup, 0 );
     if( iter->loc == NULL )
         return retTup;
     
-    ten_Var strVar = { .tup = mems, .loc = SplitIter_STR };
-    ten_Var sepVar = { .tup = mems, .loc = SplitIter_SEP };
-    String* str = tvGetObj( vget( strVar ) );
-    String* sep = tvGetObj( vget( sepVar ) );
+    String* str = tvGetObj( vget( ten_mem( SplitIter_STR ) ) );
+    String* sep = tvGetObj( vget( ten_mem( SplitIter_SEP ) ) );
     
     char const* loc = iter->loc;
     char const* nxt = loc;
@@ -1229,11 +1214,11 @@ libSplit( State* state, String* str, String* sep ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup varTup = ten_pushA( ten, "UUUUU" );
-    ten_Var strVar = { .tup = &varTup, .loc = 0 };
-    ten_Var sepVar = { .tup = &varTup, .loc = 1 };
-    ten_Var datVar = { .tup = &varTup, .loc = 2 };
-    ten_Var funVar = { .tup = &varTup, .loc = 3 };
-    ten_Var clsVar = { .tup = &varTup, .loc = 4 };
+    ten_Var strVar = ten_var( varTup, 0 );
+    ten_Var sepVar = ten_var( varTup, 1 );
+    ten_Var datVar = ten_var( varTup, 2 );
+    ten_Var funVar = ten_var( varTup, 3 );
+    ten_Var clsVar = ten_var( varTup, 4 );
     
     SplitIter* iter = ten_newDat( ten, lib->splitIterInfo, &datVar );
     iter->loc = str->buf;
@@ -1246,7 +1231,7 @@ libSplit( State* state, String* str, String* sep ) {
     ten_FunParams p = {
         .name   = fmtA( state, false, "split#%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
-        .cb     = splitIterNext
+        .cb     = ten_fun(splitIterNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1266,20 +1251,18 @@ typedef enum {
     ListIter_LAST
 } ListIterMem;
 
-static ten_Tup
-listIterNext( ten_PARAMS ) {
-    State*    state = (State*)ten;
+ten_define(listIterNext) {
+    State*    state = (State*)call->ten;
     LibState* lib   = state->libState;
     
-    ListIter* iter = dat;
+    ListIter* iter = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
+    ten_Var retVar = ten_var( retTup, 0 );
     if( iter->finished )
         return retTup;
     
-    ten_Var cellVar = {.tup = mems, .loc = ListIter_CELL };
-    Record* cell = tvGetObj( vget( cellVar ) );
+    Record* cell = tvGetObj( vget( ten_mem( ListIter_CELL ) ) );
     
     TVal car = recGet( state, cell, tvSym( lib->idents[IDENT_car] ) );
     TVal cdr = recGet( state, cell, tvSym( lib->idents[IDENT_cdr] ) );
@@ -1291,7 +1274,7 @@ listIterNext( ten_PARAMS ) {
         panic( "Iteration over malformed list" );
     }
     
-    vset( cellVar, cdr );
+    vset( ten_mem( ListIter_CELL ), cdr );
     vset( retVar, car );
     return retTup;
 }
@@ -1302,10 +1285,10 @@ libItems( State* state, Record* list ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup varTup = ten_pushA( ten, "UUUU" );
-    ten_Var listVar = { .tup = &varTup, .loc = 0 };
-    ten_Var datVar  = { .tup = &varTup, .loc = 1 };
-    ten_Var funVar  = { .tup = &varTup, .loc = 2 };
-    ten_Var clsVar  = { .tup = &varTup, .loc = 3 };
+    ten_Var listVar = ten_var( varTup, 0 );
+    ten_Var datVar  = ten_var( varTup, 1 );
+    ten_Var funVar  = ten_var( varTup, 2 );
+    ten_Var clsVar  = ten_var( varTup, 3 );
     
     ListIter* iter = ten_newDat( ten, lib->listIterInfo, &datVar );
     iter->finished = false;
@@ -1314,9 +1297,9 @@ libItems( State* state, Record* list ) {
     ten_setMember( ten, &datVar, ListIter_CELL, &listVar );
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "items#%llu", (ullong)(uintptr_t)iter ),
+        .name   = fmtA( state, false, "items%llu", (ullong)(uintptr_t)iter ),
         .params = NULL,
-        .cb     = listIterNext
+        .cb     = ten_fun(listIterNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1335,15 +1318,14 @@ typedef struct {
    DecT next;
 } DRange;
 
-static ten_Tup
-dRangeNext( ten_PARAMS ) {
-    State*    state = (State*)ten;
+ten_define(dRangeNext) {
+    State*    state = (State*)call->ten;
     LibState* lib   = state->libState;
     
-    DRange* range = dat;
+    DRange* range = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     DecT start = range->start;
     DecT end   = range->end;
@@ -1363,9 +1345,9 @@ libDrange( State* state, DecT start, DecT end, DecT step ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup varTup = ten_pushA( ten, "UUU" );
-    ten_Var datVar  = { .tup = &varTup, .loc = 0 };
-    ten_Var funVar  = { .tup = &varTup, .loc = 1 };
-    ten_Var clsVar  = { .tup = &varTup, .loc = 2 };
+    ten_Var datVar  = ten_var( varTup, 0 );
+    ten_Var funVar  = ten_var( varTup, 1 );
+    ten_Var clsVar  = ten_var( varTup, 2 );
     
     if( (end < start && step >= 0.0) || ( end > start && step <= 0.0 ) )
         panic( "Range does not progress" );
@@ -1377,9 +1359,9 @@ libDrange( State* state, DecT start, DecT end, DecT step ) {
     range->next  = start;
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "drange#%llu", (ullong)(uintptr_t)range ),
+        .name   = fmtA( state, false, "drange%llu", (ullong)(uintptr_t)range ),
         .params = NULL,
-        .cb     = dRangeNext
+        .cb     = ten_fun(dRangeNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1398,15 +1380,14 @@ typedef struct {
 } IRange;
 
 
-static ten_Tup
-iRangeNext( ten_PARAMS ) {
-    State*    state = (State*)ten;
+ten_define(iRangeNext) {
+    State*    state = (State*)call->ten;
     LibState* lib   = state->libState;
     
-    IRange* range = dat;
+    IRange* range = call->data;
     
-    ten_Tup retTup = ten_pushA( ten, "N" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "N" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     IntT start = range->start;
     IntT end   = range->end;
@@ -1426,9 +1407,9 @@ libIrange( State* state, IntT start, IntT end, IntT step ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup varTup = ten_pushA( ten, "UUU" );
-    ten_Var datVar  = { .tup = &varTup, .loc = 0 };
-    ten_Var funVar  = { .tup = &varTup, .loc = 1 };
-    ten_Var clsVar  = { .tup = &varTup, .loc = 2 };
+    ten_Var datVar  = ten_var( varTup, 0 );
+    ten_Var funVar  = ten_var( varTup, 1 );
+    ten_Var clsVar  = ten_var( varTup, 2 );
     
     if( (end < start && step >= 0.0) || ( end > start && step <= 0.0 ) )
         panic( "Range does not progress" );
@@ -1440,9 +1421,9 @@ libIrange( State* state, IntT start, IntT end, IntT step ) {
     range->next  = start;
     
     ten_FunParams p = {
-        .name   = fmtA( state, false, "irange#%llu", (ullong)(uintptr_t)range ),
+        .name   = fmtA( state, false, "irange%llu", (ullong)(uintptr_t)range ),
         .params = NULL,
-        .cb     = iRangeNext
+        .cb     = ten_fun(iRangeNext)
     };
     ten_newFun( ten, &p, &funVar );
     ten_newCls( ten, &funVar, &datVar, &clsVar );
@@ -1626,7 +1607,7 @@ libJoin( State* state, Closure* iter, String* sep ) {
     
     ten_Tup argTup = ten_pushA( ten, "" );
     ten_Tup retTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &argTup );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Var retVar = ten_var( retTup, 0 );
     if( ten_size( ten, &retTup ) != 1 )
         panic( "Iterator returned tuple" );
     
@@ -1838,8 +1819,8 @@ libFold( State* state, Closure* iter, TVal agr, Closure* how ) {
     ten_State* ten = (ten_State*)state;
     
     ten_Tup hArgTup = ten_pushA( ten, "UU" );
-    ten_Var hAgrArg = { .tup = &hArgTup, .loc = 0 };
-    ten_Var hValArg = { .tup = &hArgTup, .loc = 1 };
+    ten_Var hAgrArg = ten_var( hArgTup, 0 );
+    ten_Var hValArg = ten_var( hArgTup, 1 );
     
     vset( hAgrArg, agr );
     
@@ -1885,7 +1866,7 @@ libCons( State* state, TVal car, TVal cdr ) {
     LibState*  lib = state->libState;
     
     ten_Tup varTup = ten_pushA( ten, "U" );
-    ten_Var recVar = { .tup = &varTup, .loc = 0 };
+    ten_Var recVar = ten_var( varTup, 0 );
     
     Record* rec = recNew( state, lib->cellIdx );
     vset( recVar, tvObj( rec ) );
@@ -1905,7 +1886,7 @@ libList( State* state, Record* vals ) {
     LibState*  lib = state->libState;
     
     ten_Tup varTup  = ten_pushA( ten, "U" );
-    ten_Var listVar = { .tup = &varTup, .loc = 0 };
+    ten_Var listVar = ten_var( varTup, 0 );
     vset( listVar, tvNil() );
     
     uint  i = 0;
@@ -1928,7 +1909,7 @@ libExplode( State* state, Closure* iter ) {
     LibState*  lib = state->libState;
     
     ten_Tup varTup  = ten_pushA( ten, "U" );
-    ten_Var listVar = { .tup = &varTup, .loc = 0 };
+    ten_Var listVar = ten_var( varTup, 0 );
     vset( listVar, tvNil() );
     
     ten_Tup argTup = ten_pushA( ten, "" );
@@ -2038,9 +2019,9 @@ libTrace( State* state, Fiber* fib ) {
         return NULL;
     
     ten_Tup varTup   = ten_pushA( ten, "UUU" );
-    ten_Var idxVar   = { .tup = &varTup, .loc = 0 };
-    ten_Var seqVar   = { .tup = &varTup, .loc = 1 };
-    ten_Var traceVar = { .tup = &varTup, .loc = 2 };
+    ten_Var idxVar   = ten_var( varTup, 0 );
+    ten_Var seqVar   = ten_var( varTup, 1 );
+    ten_Var traceVar = ten_var( varTup, 2 );
     
     Index* idx = idxNew( state );
     vset( idxVar, tvObj( idx ) );
@@ -2145,7 +2126,7 @@ libScript( State* state, Record* upvals, String* script ) {
     stateInstallDefer( state, (Defer*)&defer );
     
     ten_Tup varTup = ten_pushA( ten, "U" );
-    ten_Var clsVar = { .tup = &varTup, .loc = 0 };
+    ten_Var clsVar = ten_var( varTup, 0 );
     
     ten_Source* src = ten_stringSource( ten, script->buf, "<unknown>" );
     ten_compileScript( ten, (char const**)names, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
@@ -2181,7 +2162,7 @@ libExpr( State* state, Record* upvals, String* script ) {
     stateInstallDefer( state, (Defer*)&defer );
     
     ten_Tup varTup = ten_pushA( ten, "U" );
-    ten_Var clsVar = { .tup = &varTup, .loc = 0 };
+    ten_Var clsVar = ten_var( varTup, 0 );
     
     ten_Source* src = ten_stringSource( ten, script->buf, "<unknown>" );
     ten_compileExpr( ten, (char const**)names, src, ten_SCOPE_LOCAL, ten_COM_CLS, &clsVar );
@@ -2201,77 +2182,71 @@ libExpr( State* state, Record* upvals, String* script ) {
 #define expectArg( ARG, TYPE ) \
     libExpect( state, #ARG, state->libState->types[TYPE], vget( ARG ## Arg ) ) 
 
-static ten_Tup
-requireFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(require) {
+    State* state = (State*)call->ten;
     
-    ten_Var modArg = { .tup = args, .loc = 0 };
+    ten_Var modArg = ten_arg( 0 );
     expectArg( mod, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libRequire( state, tvGetObj( vget( modArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-importFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(import) {
+    State* state = (State*)call->ten;
     
-    ten_Var modArg = { .tup = args, .loc = 0 };
+    ten_Var modArg = ten_arg( 0 );
     expectArg( mod, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, libImport( state, tvGetObj( vget( modArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-typeFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(type) {
+    State* state = (State*)call->ten;
     
-    ten_Var valArg = { .tup = args, .loc = 0 };
+    ten_Var valArg = ten_arg( 0 );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, tvSym( libType( state, vget( valArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-panicFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(panic) {
+    State* state = (State*)call->ten;
     
-    ten_Var errArg = { .tup = args, .loc = 0 };
+    ten_Var errArg = ten_arg( 0 );
     panic( "%v", vget( errArg ) );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-assertFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(assert) {
+    State* state = (State*)call->ten;
     
-    ten_Var condArg = { .tup = args, .loc = 0 };
-    ten_Var whatArg = { .tup = args, .loc = 1 };
+    ten_Var condArg = ten_arg( 0 );
+    ten_Var whatArg = ten_arg( 1 );
     
     TVal cond = vget( condArg );
     TVal what = vget( whatArg );
     libAssert( state, cond, what );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-expectFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(expect) {
+    State* state = (State*)call->ten;
     
-    ten_Var whatArg = { .tup = args, .loc = 0 };
-    ten_Var typeArg = { .tup = args, .loc = 1 };
-    ten_Var valArg  = { .tup = args, .loc = 2 };
+    ten_Var whatArg = ten_arg( 0 );
+    ten_Var typeArg = ten_arg( 1 );
+    ten_Var valArg  = ten_arg( 2 );
     
     expectArg( what, OBJ_STR );
     String* what = tvGetObj( vget( whatArg ) );
@@ -2281,24 +2256,22 @@ expectFun( ten_PARAMS ) {
     
     libExpect( state, what->buf, type, vget( valArg ) );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-collectFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(collect) {
+    State* state = (State*)call->ten;
     libCollect( state );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-loaderFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(loader) {
+    State* state = (State*)call->ten;
     
-    ten_Var typeArg  = { .tup = args, .loc = 0 };
-    ten_Var loadrArg = { .tup = args, .loc = 1 };
-    ten_Var optArg   = { .tup = args, .loc = 2 };
+    ten_Var typeArg  = ten_arg( 0 );
+    ten_Var loadrArg = ten_arg( 1 );
+    ten_Var optArg   = ten_arg( 2 );
     
     expectArg( type, VAL_SYM );
     SymT type = tvGetSym( vget( typeArg ) );
@@ -2308,294 +2281,274 @@ loaderFun( ten_PARAMS ) {
     
     
     tenAssert( tvIsObjType( vget( optArg ), OBJ_REC ) );
-    ten_Tup varTup = ten_pushA( ten, "U" );
-    ten_Var transArg = { .tup = &varTup, .loc = 0 };
+    ten_Tup varTup = ten_pushA( call->ten, "U" );
+    ten_Var transArg = ten_var( varTup, 0 );
     
-    ten_recGet( ten, &optArg, ten_int( ten, 0 ), &transArg );
+    ten_recGet( call->ten, &optArg, ten_int( call->ten, 0 ), &transArg );
     
     Closure* trans = NULL;
-    if( !ten_isUdf( ten, &transArg ) ) {
+    if( !ten_isUdf( call->ten, &transArg ) ) {
         expectArg( trans, OBJ_CLS );
         trans = tvGetObj( vget( transArg ) );
     }
     
     libLoader( state, type, loadr, trans );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-clockFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(clock) {
+    State* state = (State*)call->ten;
     
-    return ten_pushA( ten, "D", libClock( state ) );
+    return ten_pushA( call->ten, "D", libClock( state ) );
 }
 
-static ten_Tup
-randFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(rand) {
+    State* state = (State*)call->ten;
     
-    return ten_pushA( ten, "D", libRand( state ) );
+    return ten_pushA( call->ten, "D", libRand( state ) );
 }
 
-static ten_Tup
-logFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(log) {
+    State* state = (State*)call->ten;
     
-    ten_Var valArg = { .tup = args, .loc = 0 };
+    ten_Var valArg = ten_arg( 0 );
     
     ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libLog( state, vget( valArg ) ) );
     return retTup;
 }
 
-static ten_Tup
-intFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(int) {
+    State* state = (State*)call->ten;
     
-    ten_Var valArg = { .tup = args, .loc = 0 };
+    ten_Var valArg = ten_arg( 0 );
     
-    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libInt( state, vget( valArg ) ) );
     return retTup;
 }
 
-static ten_Tup
-decFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(dec) {
+    State* state = (State*)call->ten;
     
-    ten_Var valArg = { .tup = args, .loc = 0 };
+    ten_Var valArg = ten_arg( 0 );
     
-    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libDec( state, vget( valArg ) ) );
     return retTup;
 }
 
-static ten_Tup
-symFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(sym) {
+    State* state = (State*)call->ten;
     
-    ten_Var valArg = { .tup = args, .loc = 0 };
+    ten_Var valArg = ten_arg( 0 );
     
-    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libSym( state, vget( valArg ) ) );
     return retTup;
 }
 
-static ten_Tup
-strFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(str) {
+    State* state = (State*)call->ten;
     
-    ten_Var valArg = { .tup = args, .loc = 0 };
+    ten_Var valArg = ten_arg( 0 );
     
-    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libStr( state, vget( valArg ) ) );
     return retTup;
 }
 
-static ten_Tup
-hexFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(hex) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var strArg = ten_arg( 0 );
     expectArg( str, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libHex( state, tvGetObj( vget( strArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-octFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(oct) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var strArg = ten_arg( 0 );
     expectArg( str, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libOct( state, tvGetObj( vget( strArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-binFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(bin) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var strArg = ten_arg( 0 );
     expectArg( str, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( (ten_State*)state, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libBin( state, tvGetObj( vget( strArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-keysFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(keys) {
+    State* state = (State*)call->ten;
     
-    ten_Var recArg = { .tup = args, .loc = 0 };
+    ten_Var recArg = ten_arg( 0 );
     expectArg( rec, OBJ_REC );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libKeys( (State*)ten, tvGetObj( vget( recArg ) ) );
+    Closure* cls = libKeys( state, tvGetObj( vget( recArg ) ) );
     vset( retVar, tvObj( cls ) );
     return retTup;
 }
 
-static ten_Tup
-valsFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(vals) {
+    State* state = (State*)call->ten;
     
-    ten_Var recArg = { .tup = args, .loc = 0 };
+    ten_Var recArg = ten_arg( 0 );
     expectArg( rec, OBJ_REC );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libVals( (State*)ten, tvGetObj( vget( recArg ) ) );
+    Closure* cls = libVals( state, tvGetObj( vget( recArg ) ) );
     vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
 
-static ten_Tup
-pairsFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(pairs) {
+    State* state = (State*)call->ten;
     
-    ten_Var recArg = { .tup = args, .loc = 0 };
+    ten_Var recArg = ten_arg( 0 );
     expectArg( rec, OBJ_REC );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libPairs( (State*)ten, tvGetObj( vget( recArg ) ) );
+    Closure* cls = libPairs( state, tvGetObj( vget( recArg ) ) );
     vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
 
-static ten_Tup
-seqFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(seq) {
+    State* state = (State*)call->ten;
     
-    ten_Var valsArg = { .tup = args, .loc = 0 };
+    ten_Var valsArg = ten_arg( 0 );
     tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libSeq( (State*)ten, tvGetObj( vget( valsArg ) ) );
+    Closure* cls = libSeq( state, tvGetObj( vget( valsArg ) ) );
     vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
 
-static ten_Tup
-rseqFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(rseq) {
+    State* state = (State*)call->ten;
     
-    ten_Var valsArg = { .tup = args, .loc = 0 };
+    ten_Var valsArg = ten_arg( 0 );
     expectArg( vals, OBJ_REC );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libSeq( (State*)ten, tvGetObj( vget( valsArg ) ) );
+    Closure* cls = libSeq( state, tvGetObj( vget( valsArg ) ) );
     vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
 
-static ten_Tup
-bytesFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(bytes) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var strArg = ten_arg( 0 );
     expectArg( str, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libBytes( (State*)ten, tvGetObj( vget( strArg ) ) );
+    Closure* cls = libBytes( state, tvGetObj( vget( strArg ) ) );
     vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
 
-static ten_Tup
-charsFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(chars) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var strArg = ten_arg( 0 );
     expectArg( str, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libChars( (State*)ten, tvGetObj( vget( strArg ) ) );
+    Closure* cls = libChars( state, tvGetObj( vget( strArg ) ) );
     vset( retVar, tvObj( cls ) );
     return retTup;
 }
 
-static ten_Tup
-splitFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(split) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
-    ten_Var sepArg = { .tup = args, .loc = 1 };
+    ten_Var strArg = ten_arg( 0 );
+    ten_Var sepArg = ten_arg( 1 );
     expectArg( str, OBJ_STR );
     expectArg( sep, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libSplit( (State*)ten, tvGetObj( vget( strArg ) ), tvGetObj( vget( sepArg ) ) );
+    Closure* cls = libSplit( state, tvGetObj( vget( strArg ) ), tvGetObj( vget( sepArg ) ) );
     vset( retVar, tvObj( cls ) );
     return retTup;
 }
 
 
-static ten_Tup
-itemsFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(items) {
+    State* state = (State*)call->ten;
     
-    ten_Var listArg = { .tup = args, .loc = 0 };
+    ten_Var listArg = ten_arg( 0 );
     expectArg( list, OBJ_REC );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
-    Closure* cls = libItems( (State*)ten, tvGetObj( vget( listArg ) ) );
+    Closure* cls = libItems( state, tvGetObj( vget( listArg ) ) );
     vset( retVar, tvObj( cls ) );
     
     return retTup;
 }
 
-static ten_Tup
-drangeFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(drange) {
+    State* state = (State*)call->ten;
     
-    ten_Var startArg = { .tup = args, .loc = 0 };
-    ten_Var endArg   = { .tup = args, .loc = 1 };
-    ten_Var optArg   = { .tup = args, .loc = 2 };
+    ten_Var startArg = ten_arg( 0 );
+    ten_Var endArg   = ten_arg( 1 );
+    ten_Var optArg   = ten_arg( 2 );
     
     expectArg( start, VAL_DEC );
     expectArg( end, VAL_DEC );
@@ -2613,20 +2566,19 @@ drangeFun( ten_PARAMS ) {
         step = tvGetDec( opt0 );
     }
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, tvObj( libDrange( state, start, end, step ) ) );
 
     return retTup;
 }
 
-static ten_Tup
-irangeFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(irange) {
+    State* state = (State*)call->ten;
     
-    ten_Var startArg = { .tup = args, .loc = 0 };
-    ten_Var endArg   = { .tup = args, .loc = 1 };
-    ten_Var optArg   = { .tup = args, .loc = 2 };
+    ten_Var startArg = ten_arg( 0 );
+    ten_Var endArg   = ten_arg( 1 );
+    ten_Var optArg   = ten_arg( 2 );
     
     expectArg( start, VAL_INT );
     expectArg( end, VAL_INT );
@@ -2644,43 +2596,40 @@ irangeFun( ten_PARAMS ) {
         step = tvGetInt( opt0 );
     }
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, tvObj( libIrange( state, start, end, step ) ) );
 
     return retTup;
 }
 
-static ten_Tup
-showFun( ten_PARAMS ) {
-    State* state = (State*)ten;
-    ten_Var valsArg = { .tup = args, .loc = 0 };
+ten_define(show) {
+    State* state = (State*)call->ten;
+    ten_Var valsArg = ten_arg( 0 );
     
     tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
     libShow( state, tvGetObj( vget( valsArg ) ) );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-warnFun( ten_PARAMS ) {
-    State* state = (State*)ten;
-    ten_Var valsArg = { .tup = args, .loc = 0 };
+ten_define(warn){
+    State* state = (State*)call->ten;
+    ten_Var valsArg = ten_arg( 0 );
     
     tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
     libWarn( state, tvGetObj( vget( valsArg ) ) );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-inputFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(input) {
+    State* state = (State*)call->ten;
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     String* str = libInput( state );
     vset( retVar, tvObj( str ) );
@@ -2688,41 +2637,38 @@ inputFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-ucodeFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(ucode) {
+    State* state = (State*)call->ten;
     
-    ten_Var chrArg = { .tup = args, .loc = 0 };
+    ten_Var chrArg = ten_arg( 0 );
     expectArg( chr, VAL_SYM );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, libUcode( state, tvGetSym( vget( chrArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-ucharFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(uchar) {
+    State* state = (State*)call->ten;
     
-    ten_Var codeArg = { .tup = args, .loc = 0 };
+    ten_Var codeArg = ten_arg( 0 );
     expectArg( code, VAL_INT );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, libUchar( state, tvGetInt( vget( codeArg ) ) ) );
     return retTup;
 }
 
-static ten_Tup
-catFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(cat) {
+    State* state = (State*)call->ten;
     
-    ten_Var valsArg = { .tup = args, .loc = 0 };
+    ten_Var valsArg = ten_arg( 0 );
     tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     String* str = libCat( state, tvGetObj( vget( valsArg ) ) );
     vset( retVar, tvObj( str ) );
@@ -2730,18 +2676,17 @@ catFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-joinFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(join) {
+    State* state = (State*)call->ten;
     
-    ten_Var iterArg = { .tup = args, .loc = 0 };
-    ten_Var sepArg  = { .tup = args, .loc = 1 };
+    ten_Var iterArg = ten_arg( 0 );
+    ten_Var sepArg  = ten_arg( 1 );
     
     expectArg( iter, OBJ_CLS );
     expectArg( sep, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     String* str = libJoin( state, tvGetObj( vget( iterArg ) ), tvGetObj( vget( sepArg ) ) );
     vset( retVar, tvObj( str ) );
@@ -2749,13 +2694,12 @@ joinFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-bcmpFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(bcmp) {
+    State* state = (State*)call->ten;
     
-    ten_Var str1Arg = { .tup = args, .loc = 0 };
-    ten_Var oprArg  = { .tup = args, .loc = 1 };
-    ten_Var str2Arg = { .tup = args, .loc = 2 };
+    ten_Var str1Arg = ten_arg( 0 );
+    ten_Var oprArg  = ten_arg( 1 );
+    ten_Var str2Arg = ten_arg( 2 );
     
     expectArg( str1, OBJ_STR );
     expectArg( opr, VAL_SYM );
@@ -2765,19 +2709,18 @@ bcmpFun( ten_PARAMS ) {
     SymT    opr  = tvGetSym( vget( oprArg ) );
     String* str2 = tvGetObj( vget( str2Arg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
     vset( retVar, libBcmp( state, str1, opr, str2 ) );
     return retTup;
 }
 
-static ten_Tup
-ccmpFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(ccmp) {
+    State* state = (State*)call->ten;
     
-    ten_Var str1Arg = { .tup = args, .loc = 0 };
-    ten_Var oprArg  = { .tup = args, .loc = 1 };
-    ten_Var str2Arg = { .tup = args, .loc = 2 };
+    ten_Var str1Arg = ten_arg( 0 );
+    ten_Var oprArg  = ten_arg( 1 );
+    ten_Var str2Arg = ten_arg( 2 );
     
     expectArg( str1, OBJ_STR );
     expectArg( opr, VAL_SYM );
@@ -2787,24 +2730,23 @@ ccmpFun( ten_PARAMS ) {
     SymT    opr  = tvGetSym( vget( oprArg ) );
     String* str2 = tvGetObj( vget( str2Arg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, libCcmp( state, str1, opr, str2 ) );
     return retTup;
 }
 
-static ten_Tup
-bsubFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(bsub) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
-    ten_Var nArg   = { .tup = args, .loc = 1 };
+    ten_Var strArg = ten_arg( 0 );
+    ten_Var nArg   = ten_arg( 1 );
     
     expectArg( str, OBJ_STR );
     expectArg( n, VAL_INT );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     String* sub = libBsub( state, tvGetObj( vget( strArg ) ), tvGetInt( vget( nArg ) ) );
     vset( retVar, tvObj( sub ) );
@@ -2812,18 +2754,17 @@ bsubFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-csubFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(csub) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
-    ten_Var nArg   = { .tup = args, .loc = 1 };
+    ten_Var strArg = ten_arg( 0 );
+    ten_Var nArg   = ten_arg( 1 );
     
     expectArg( str, OBJ_STR );
     expectArg( n, VAL_INT );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     String* sub = libCsub( state, tvGetObj( vget( strArg ) ), tvGetInt( vget( nArg ) ) );
     vset( retVar, tvObj( sub ) );
@@ -2832,15 +2773,14 @@ csubFun( ten_PARAMS ) {
 }
 
 
-static ten_Tup
-blenFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(blen) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var strArg = ten_arg( 0 );
     expectArg( str, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     size_t len = libBlen( state, tvGetObj( vget( strArg ) ) );
     vset( retVar, tvInt( len ) );
@@ -2848,15 +2788,14 @@ blenFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-clenFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(clen) {
+    State* state = (State*)call->ten;
     
-    ten_Var strArg = { .tup = args, .loc = 0 };
+    ten_Var strArg = ten_arg( 0 );
     expectArg( str, OBJ_STR );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     size_t len = libClen( state, tvGetObj( vget( strArg ) ) );
     vset( retVar, tvInt( len ) );
@@ -2865,104 +2804,97 @@ clenFun( ten_PARAMS ) {
 }
 
 
-static ten_Tup
-eachFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(each) {
+    State* state = (State*)call->ten;
     
-    ten_Var iterArg = { .tup = args, .loc = 0 };
-    ten_Var whatArg = { .tup = args, .loc = 1 };
+    ten_Var iterArg = ten_arg( 0 );
+    ten_Var whatArg = ten_arg( 1 );
     
     expectArg( iter, OBJ_CLS );
     expectArg( what, OBJ_CLS );
     
     libEach( state, tvGetObj( vget( iterArg ) ), tvGetObj( vget( whatArg ) ) );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-foldFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(fold) {
+    State* state = (State*)call->ten;
     
-    ten_Var iterArg = { .tup = args, .loc = 0 };
-    ten_Var agrArg  = { .tup = args, .loc = 1 };
-    ten_Var howArg  = { .tup = args, .loc = 2 };
+    ten_Var iterArg = ten_arg( 0 );
+    ten_Var agrArg  = ten_arg( 1 );
+    ten_Var howArg  = ten_arg( 2 );
     
     expectArg( iter, OBJ_CLS );
     expectArg( how, OBJ_CLS );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, libFold( state, tvGetObj( vget( iterArg ) ), vget( agrArg ), tvGetObj( vget( howArg ) ) ) );
     
     return retTup;
 }
 
-static ten_Tup
-consFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(cons) {
+    State* state = (State*)call->ten;
     
-    ten_Var carArg = { .tup = args, .loc = 0 };
-    ten_Var cdrArg = { .tup = args, .loc = 1 };
+    ten_Var carArg = ten_arg( 0 );
+    ten_Var cdrArg = ten_arg( 1 );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, tvObj( libCons( state, vget( carArg ), vget(cdrArg ) ) ) );
     
     return retTup;
 }
 
-static ten_Tup
-sepFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(sep) {
+    State* state = (State*)call->ten;
     
-    ten_Var recArg = { .tup = args, .loc = 0 };
+    ten_Var recArg = ten_arg( 0 );
     expectArg( rec, OBJ_REC );
     
     Record* rec = tvGetObj( vget( recArg ) );
     libSep( state, rec );
     
-    return ten_pushA( ten, "V", &recArg );
+    return ten_pushA( call->ten, "V", &recArg );
 }
 
-static ten_Tup
-listFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(list) {
+    State* state = (State*)call->ten;
     
-    ten_Var valsArg = { .tup = args, .loc = 0 };
+    ten_Var valsArg = ten_arg( 0 );
     tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, tvObj( libList( state, tvGetObj( vget( valsArg ) ) ) ) );
     
     return retTup;
 }
 
-static ten_Tup
-explodeFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(explode) {
+    State* state = (State*)call->ten;
     
-    ten_Var iterArg = { .tup = args, .loc = 0 };
+    ten_Var iterArg = ten_arg( 0 );
     expectArg( iter, OBJ_CLS );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     vset( retVar, tvObj( libExplode( state, tvGetObj( vget( iterArg ) ) ) ) );
     
     return retTup;
 }
 
-static ten_Tup
-fiberFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(fiber) {
+    State* state = (State*)call->ten;
     
-    ten_Var clsArg = { .tup = args, .loc = 0 };
-    ten_Var optArg = { .tup = args, .loc = 1 };
+    ten_Var clsArg = ten_arg( 0 );
+    ten_Var optArg = ten_arg( 1 );
     
     expectArg( cls, OBJ_CLS );
     tenAssert( tvIsObjType( vget( optArg ), OBJ_REC ) );
@@ -2970,8 +2902,8 @@ fiberFun( ten_PARAMS ) {
     Closure* cls = tvGetObj( vget( clsArg ) );
     Record*  opt = tvGetObj( vget( optArg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     TVal opt0 = recGet( state, opt, tvInt( 0 ) );
     if( !tvIsUdf( opt0 ) ) {
@@ -2989,12 +2921,11 @@ fiberFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-contFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(cont) {
+    State* state = (State*)call->ten;
     
-    ten_Var fibArg  = { .tup = args, .loc = 0 };
-    ten_Var argsArg = { .tup = args, .loc = 1 };
+    ten_Var fibArg  = ten_arg( 0 );
+    ten_Var argsArg = ten_arg( 1 );
     
     expectArg( fib, OBJ_FIB );
     expectArg( args, OBJ_REC );
@@ -3009,61 +2940,57 @@ contFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-yieldFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(yield) {
+    State* state = (State*)call->ten;
     
-    ten_Var valsArg = { .tup = args, .loc = 0 };
+    ten_Var valsArg = ten_arg( 0 );
     tenAssert( tvIsObjType( vget( valsArg ), OBJ_REC ) );
     
     Record* vals = tvGetObj( vget( valsArg ) );
     
     libYield( state, vals, true );
     
-    return ten_pushA( ten, "" );
+    return ten_pushA( call->ten, "" );
 }
 
-static ten_Tup
-stateFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(state) {
+    State* state = (State*)call->ten;
     
-    ten_Var fibArg = { .tup = args, .loc = 0 };
+    ten_Var fibArg = ten_arg( 0 );
     expectArg( fib, OBJ_FIB );
     
     Fiber* fib = tvGetObj( vget( fibArg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, tvSym( libState( state, fib ) ) );
     return retTup;
 }
 
-static ten_Tup
-errvalFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(errval) {
+    State* state = (State*)call->ten;
     
-    ten_Var fibArg = { .tup = args, .loc = 0 };
+    ten_Var fibArg = ten_arg( 0 );
     expectArg( fib, OBJ_FIB );
     
     Fiber* fib = tvGetObj( vget( fibArg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, libErrval( state, fib ) );
     return retTup;
 }
 
-static ten_Tup
-traceFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(trace) {
+    State* state = (State*)call->ten;
     
-    ten_Var fibArg = { .tup = args, .loc = 0 };
+    ten_Var fibArg = ten_arg( 0 );
     expectArg( fib, OBJ_FIB );
     
     Fiber* fib = tvGetObj( vget( fibArg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     
     Record* trace = libTrace( state, fib );
     if( trace )
@@ -3073,39 +3000,37 @@ traceFun( ten_PARAMS ) {
     return retTup;
 }
 
-static ten_Tup
-scriptFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(script) {
+    State* state = (State*)call->ten;
     
-    ten_Var upvalsArg = { .tup = args, .loc = 0 };
-    ten_Var codeArg   = { .tup = args, .loc = 1 };
+    ten_Var upvalsArg = ten_arg( 0 );
+    ten_Var codeArg   = ten_arg( 1 );
     expectArg( upvals, OBJ_REC );
     expectArg( code, OBJ_STR );
     
     Record* upvals = tvGetObj( vget( upvalsArg ) );
     String* code   = tvGetObj( vget( codeArg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, tvObj( libScript( state, upvals, code ) ) );
     
     return retTup;
 }
 
-static ten_Tup
-exprFun( ten_PARAMS ) {
-    State* state = (State*)ten;
+ten_define(expr) {
+    State* state = (State*)call->ten;
     
-    ten_Var upvalsArg = { .tup = args, .loc = 0 };
-    ten_Var codeArg   = { .tup = args, .loc = 1 };
+    ten_Var upvalsArg = ten_arg( 0 );
+    ten_Var codeArg   = ten_arg( 1 );
     expectArg( upvals, OBJ_REC );
     expectArg( code, OBJ_STR );
     
     Record* upvals = tvGetObj( vget( upvalsArg ) );
     String* code   = tvGetObj( vget( codeArg ) );
     
-    ten_Tup retTup = ten_pushA( ten, "U" );
-    ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    ten_Tup retTup = ten_pushA( call->ten, "U" );
+    ten_Var retVar = ten_var( retTup, 0 );
     vset( retVar, tvObj( libExpr( state, upvals, code ) ) );
     
     return retTup;
@@ -3137,11 +3062,11 @@ libInit( State* state ) {
     
     stateCommitRaw( state, &libP );
     
-    ten_Tup varTup = ten_pushA( (ten_State*)state, "UUUU" );
-    ten_Var idxVar = { .tup = &varTup, .loc = 0 };
-    ten_Var funVar = { .tup = &varTup, .loc = 1 };
-    ten_Var clsVar = { .tup = &varTup, .loc = 2 };
-    ten_Var symVar = { .tup = &varTup, .loc = 3 };
+    ten_Tup varTup = ten_pushA( s, "UUUU" );
+    ten_Var idxVar = ten_var( varTup, 0 );
+    ten_Var funVar = ten_var( varTup, 1 );
+    ten_Var clsVar = ten_var( varTup, 2 );
+    ten_Var symVar = ten_var( varTup, 3 );
     
     
     #define IDENT( I ) \
@@ -3266,7 +3191,7 @@ libInit( State* state ) {
             vset( idxVar, tvObj( idx ) );                           \
         }                                                           \
                                                                     \
-        Function* fun = funNewNat( state, (P), idx, N ## Fun );     \
+        Function* fun = funNewNat( state, (P), idx, ten_fun( N ) ); \
         fun->u.nat.name = lib->idents[IDENT_ ## N];                 \
         vset( funVar, tvObj( fun ) );                               \
                                                                     \

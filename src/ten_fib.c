@@ -626,29 +626,30 @@ doCall( State* state, Fiber* fib ) {
         regs->context    = NULL;
         regs->checkpoint = -1;
         
-        // Initialize an argument tuple for the callback.
-        Tup aTup = {
+        ten_Call call = { .ten = (ten_State*)state };
+        *(Tup*)&call.args = (Tup) {
             .base   = &fib->stack.buf,
             .offset = regs->lcl - fib->stack.buf + 1,
             .size   = argc
         };
         
-        // If a Data object is attached to the closure
-        // then we need to initialize a tuple for its
-        // members as well, otherwise pass NULL.
-        ten_Tup t;
-        if( cls->dat.dat != NULL ) {
+        if( cls->dat.dat ) {
             Data* dat = cls->dat.dat;
-            Tup mTup = {
+            *(Tup*)&call.mems = (Tup) {
                 .base   = &dat->mems,
                 .offset = 0,
                 .size   = dat->info->nMems
             };
-            t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, (ten_Tup*)&mTup, dat->data );
+            call.data = dat->data;
         }
         else {
-            t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&aTup, NULL, NULL );
+            *(Tup*)&call.mems = (Tup) {
+                .base   = NULL,
+                .offset = 0,
+                .size   = 0
+            };
         }
+        ten_Tup t = cls->fun->u.nat.cb( &call );
         
         Tup*  rets = (Tup*)&t;
         uint  retc = rets->size;
@@ -1244,16 +1245,34 @@ finishCon( State* state, ConAR* con, bool free ) {
     if( cls->fun->vargIdx )
         argc++;
     
-    Tup args = {
+    ten_Call call = { .ten = (ten_State*)state };
+    *(Tup*)&call.args = (Tup) {
         .base   = &fib->stack.buf,
         .offset = regs->lcl - fib->stack.buf + 1,
         .size   = argc
     };
     
+    if( cls->dat.dat ) {
+        Data* dat = cls->dat.dat;
+        *(Tup*)&call.mems = (Tup) {
+            .base   = &dat->mems,
+            .offset = 0,
+            .size   = dat->info->nMems
+        };
+        call.data = dat->data;
+    }
+    else {
+        *(Tup*)&call.mems = (Tup) {
+            .base   = NULL,
+            .offset = 0,
+            .size   = 0
+        };
+    }
+    
     // If the native callback specified a checkpoint,
-    // then it's expected the destination tuple at
-    // (ctx + dstOffset) to be populated with the
-    // continuation values.  These will either by the
+    // then it's expected that the destination tuple at
+    // (ctx + dstOffset) will be populated with the
+    // continuation values.  These will either be the
     // continuation arguments (if this is the function
     // that originally yielded), or the results from
     // the yielding function that it called.
@@ -1262,19 +1281,7 @@ finishCon( State* state, ConAR* con, bool free ) {
         *dst = fibTop( state, fib );
     }
     
-    ten_Tup t;
-    if( cls->dat.dat != NULL ) {
-        Data* dat = cls->dat.dat;
-        Tup mems = {
-            .base   = &dat->mems,
-            .offset = 0,
-            .size   = dat->info->nMems
-        };
-        t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&args, (ten_Tup*)&mems, dat->data );
-    }
-    else {
-        t = cls->fun->u.nat.cb( (ten_State*)state, (ten_Tup*)&args, NULL, NULL );
-    }
+    ten_Tup t = cls->fun->u.nat.cb( &call );
     
     Tup*  rets = (Tup*)&t;
     uint  retc = rets->size;

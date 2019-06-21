@@ -141,7 +141,7 @@ ten_free( ten_State* s ) {
     stateFinl( state );
     
     void*      udata    = state->config.udata;
-    ten_MemFun frealloc = state->config.frealloc;
+    ten_MemCb frealloc = state->config.frealloc;
     frealloc( udata, s, sizeof(State), 0 );
 }
 
@@ -291,6 +291,8 @@ ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 ) {
 
 ten_Case*
 ten_match( ten_State* s, ten_Var* var, ten_Tup* tup, ... ) {
+    State* state = (State*)s;
+    
     va_list args; va_start( args, tup );
     
     ten_Case* mcase;
@@ -413,6 +415,24 @@ ten_str( ten_State* s, char const* str ) {
     State* state = (State*)s;
     String* t = strNew( state, str, strlen( str ) );
     return stateTmp( state, tvObj( t ) );
+}
+
+ten_Var*
+ten_fmtV( ten_State* s, char const* fmt, va_list ap ) {
+    State* state = (State*)s;
+    fmtMode( state, FMT_VARS );
+    char const* str = fmtV( state, false, fmt, ap );
+    fmtMode( state, FMT_VALS );
+    return ten_str( s, str );
+}
+
+ten_Var*
+ten_fmtA( ten_State* s, char const* fmt, ... ) {
+    va_list args; va_start( args, fmt );
+    ten_Var* var = ten_fmtV( s, fmt, args );
+    va_end( args );
+    
+    return var;
 }
 
 typedef struct {

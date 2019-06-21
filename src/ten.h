@@ -15,7 +15,7 @@ can be found in `../docs/manual`.
 #include <stdio.h>
 
 typedef struct ten_State       ten_State;
-typedef struct ten_CallContext ten_CallContext;
+typedef struct ten_Call        ten_Call;
 typedef struct ten_DatInfo     ten_DatInfo;
 
 typedef struct {
@@ -37,13 +37,18 @@ typedef struct {
 } ten_Tup;
 
 typedef struct {
-    ten_Tup* tup;
-    unsigned loc;
+    ten_Tup const* tup;
+    unsigned       loc;
 } ten_Var;
 
-#define ten_PARAMS ten_State* ten, ten_Tup* args, ten_Tup* mems, void* dat
+struct ten_Call {
+    ten_State* ten;
+    ten_Tup    args;
+    ten_Tup    mems;
+    void*      data;
+};
 
-typedef ten_Tup (*ten_FunCb)( ten_PARAMS );
+typedef ten_Tup (*ten_FunCb)( ten_Call const* call );
 
 typedef struct {
     char const*  name;
@@ -109,10 +114,10 @@ typedef struct ten_Source {
     void       (*finl)( struct ten_Source* src );
 } ten_Source;
 
-typedef void* (*ten_MemFun)( void* udata,  void* old, size_t osz, size_t nsz );
+typedef void* (*ten_MemCb)( void* udata,  void* old, size_t osz, size_t nsz );
 typedef struct ten_Config {
     void*       udata;
-    ten_MemFun  frealloc;
+    ten_MemCb   frealloc;
     
     bool ndebug;
     
@@ -127,6 +132,13 @@ typedef struct {
 } ten_Version;
 
 extern ten_Version const ten_VERSION;
+
+#define ten_define( NAME ) static ten_Tup tf_ ## NAME( ten_Call const* call )
+
+#define ten_fun( NAME )     (tf_ ## NAME)
+#define ten_arg( ARG )      (ten_Var){ .tup = &call->args, .loc = (ARG) }
+#define ten_mem( MEM )      (ten_Var){ .tup = &call->mems, .loc = (MEM) }
+#define ten_var( TUP, LOC ) (ten_Var){ .tup = &(TUP), .loc = (LOC) };
 
 // Ten instance creation and destruction.
 ten_State*
@@ -235,6 +247,12 @@ ten_ptr( ten_State* s, void* ptr );
 
 ten_Var*
 ten_str( ten_State* s, char const* str );
+
+ten_Var*
+ten_fmtV( ten_State* s, char const* str, va_list ap );
+
+ten_Var*
+ten_fmtA( ten_State* s, char const* str, ... );
 
 // Sources.
 ten_Source*
