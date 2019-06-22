@@ -66,7 +66,7 @@ And seven object value types:
 - `Dat` - This is the 'object' counterpart to the `Ptr` type.  Objects
   of this type provide chunks of raw memory which can be accessed and
   mutated by host code or native functions, but don't serve much purpose
-  in pure Lua code.
+  in pure Ten code.
 
 
 Ten code can both call and be called by native code in C or other
