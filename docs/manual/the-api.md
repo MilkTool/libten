@@ -583,19 +583,45 @@ native function to be invoked when the associated Ten closure
 is called.  This should have a signature of:
 
     ten_Tup
-    cb( ten_State* ten, ten_Tup* args, ten_Tup* mems, void* dat );
+    cb( ten_Call* call );
 
-But Ten defines a convenience macro to shorten this list, so we
-can use:
+Where the `ten_Call` struct looks like:
 
-    ten_Tup
-    cb( ten_PARAMS );
+    typedef struct {
+        ten_State* ten;  // The runtime state
+        ten_Tup    args; // Tuple of arguments passed to the call
+        ten_Tup    mems; // Members of the Data associated with the closure
+        void*      data; // Memory buffer of the Data associated with the closure
+    } ten_Call;
+    
+This is all enclosed in a single struct to make it easier and more
+efficient to pass these fields to helper functions.  The callback
+itself should return a tuple of return values.
 
-Instead.  The callback should return a tuple of zero or more result
-valuse.  The `args` tuple will contain the arguments passed to the
-call and `mems` will have the member variables of the `Dat` object
-associated with the called closure.  The `dat` is passed as the `Dat`
-object's memory buffer.
+The API provides a few helper macros to make native function definitions
+a bit cleaner.  The `ten_define()` macro helps with the function's
+signature, and gives it a prefix to prevent naming conflicts, and
+`ten_arg()` and `ten_mem()` expand to `ten_Var` values for arguments
+and members of the function respectively.
+
+    ten_define(myFun) {
+        ten_Var arg0 = ten_arg( 0 );
+        ten_Var arg1 = ten_arg( 1 );
+        ten_var mem0 = ten_mem( 0 );
+        
+        ...
+    }
+
+The name of a function defined with `ten_define()` can be resolved
+with `ten_fun()` which expands to the given name, plus the same
+prefix as used in `ten_define()`.
+
+    ten_FunParams p = {
+        .name   = "myFun",
+        .params = (char const*[]){ "arg1", "arg2", NULL },
+        .cb     = ten_fun(myFun)
+    };
+    ten_newFun( ten, &p, &funVar );
 
 Once we've created a function, closures can be built with:
 
@@ -668,8 +694,7 @@ invocation of `ten_call()` or `ten_yield()`, otherwise the
 
 The typical pattern for using this system is presented below.
 
-    ten_Tup
-    foo( ten_PARAMS ) {
+    ten_define(foo) {
         // The call context.
         struct {
           int     var1;
@@ -681,13 +706,13 @@ The typical pattern for using this system is presented below.
         // Variable initialization, this should be done for
         // every entry, since the tuple addresses will not
         // persist.
-        ten_Var arg1 = { .tup = &ctx.args, .loc = 0 };
-        ten_Var arg2 = { .tup = &ctx.args, .loc = 1 };
+        ten_Var arg1 = ten_var( ctx.rets, 0 );
+        ten_Var arg2 = ten_var( ctx.rets, 1 );
 
-        ten_Var ret1 = { .tup = &ctx.rets, .loc = 0 };
-        ten_Var ret2 = { .tup = &ctx.rets, .loc = 1 };
+        ten_Var ret1 = ten_var( ctx.rets, 0 );
+        ten_Var ret2 = ten_var( ctx.rets, 1 );
 
-        ten_Var bar = { .tup = args, .loc = 0 };
+        ten_Var bar = ten_arg( 0 );
 
         // The goto switch continues the function from right
         // after the block that triggered the previous yield.
@@ -1011,7 +1036,35 @@ where values can be put or taken from.
 ### <a name="type-ten_FunCb">`func ten_FunCb`</a>
 Callback implementing a native function to be called as a Ten function.
 
-    typedef ten_Tup (*ten_FunCb)( ten_State* ten, ten_Tup* args, ten_Tup* mems, void* dat );
+    typedef ten_Tup (*ten_FunCb)( ten_Call* call );
+
+### <a name="type-ten_Call">`struct ten_Call`</a>
+Various bits of function call info combined into a single struct to
+make it easier and more efficient to pass the info on to helper
+functions.
+
+    typedef struct {
+        ten_State* ten;  // The runtime state
+        ten_Tup    args; // Tuple of arguments passed to the call
+        ten_Tup    mems; // Members of the Data associated with the closure
+        void*      data; // Memory buffer of the Data associated with the closure
+    } ten_Call;
+
+### <a name="type-ten_MemCb">`func ten_MemCb`</a>
+Memory management function.  Should implement the combined functionality
+of the standard `malloc()`, `realloc()`, and `free()` functions.
+
+    typedef void* (*ten_MemCb)( void* udata,  void* old, size_t osz, size_t nsz );
+
+Given `nsz = 0 && osz > 0` the function should free `old`.
+
+Given `nsz > 0 && osz > 0` the function should reallocate `old`
+from `osz` to `nsz`.
+
+Given `nsz > 0 && osz = 0` the function should allocate a block
+of size `nsz`.
+
+Each call will be passed the `udata` given in `ten_Config`.
 
 ### <a name="type-ten_FunParams">`struct ten_FunParams`</a>
 Parameters for bulding a Ten function from a native callback.
@@ -1112,22 +1165,6 @@ The `next` function should return the next byte of the stream, or
 The `finl` function will be called to cleanup after the stream, either
 once Ten is finished compiling its code or if an error occurs during
 compilation.
-
-### <a name="type-ten_MemFun">`func ten_MemFun`</a>
-Memory management function.  Should implement the combined functionality
-of the standard `malloc()`, `realloc()`, and `free()` functions.
-
-    typedef void* (*ten_MemFun)( void* udata,  void* old, size_t osz, size_t nsz );
-
-Given `nsz = 0 && osz > 0` the function should free `old`.
-
-Given `nsz > 0 && osz > 0` the function should reallocate `old`
-from `osz` to `nsz`.
-
-Given `nsz > 0 && osz = 0` the function should allocate a block
-of size `nsz`.
-
-Each call will be passed the `udata` given in `ten_Config`.
 
 ### <a name="type-ten_Config">`struct ten_Config`</a>
 Runtime configuration.  Any of its fields can be passed as zero, and

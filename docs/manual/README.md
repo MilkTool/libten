@@ -1,4 +1,4 @@
-# Ten 0.4 Reference Manual
+# Ten 0.6 Reference Manual
 The reference manual is the official definition of the Ten programming
 language, it's based on the [Lua Reference Manual][lua-manual].
 
@@ -295,7 +295,9 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`ten_Tup`][a-ten_Tup]
 - [`ten_Var`][a-ten_Var]
 - [`ten_FunCb`][a-ten_FunCb]
+- [`ten_Call`][a-ten_Call]
 - [`ten_FunParams`][a-ten_FunParams]
+- [`ten_MemCb`][a-ten_MemCb]
 - [`ten_ErrNum`][a-ten_ErrNum]
 - [`ten_ComType`][a-ten_ComType]
 - [`ten_ComScope`][a-ten_ComScope]
@@ -430,6 +432,8 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [a-ten_Tup]:            the-api.md#type-ten_Tup
 [a-ten_Var]:            the-api.md#type-ten_Var
 [a-ten_FunCb]:          the-api.md#type-ten_FunCb
+[a-ten_Call]:           the-api.md#type-ten_Call
+[a-ten_MemCb]:          the-api.md#type-ten_MemCb
 [a-ten_FunParams]:      the-api.md#type-ten_FunParams
 [a-ten_ErrNum]:         the-api.md#type-ten_ErrNum
 [a-ten_ComType]:        the-api.md#type-ten_ComType
