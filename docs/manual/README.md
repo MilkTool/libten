@@ -44,7 +44,8 @@ language, it's based on the [Lua Reference Manual][lua-manual].
     * [4.9 - Records][ch4.9]
     * [4.10 - Compiling][ch4.10]
     * [4.11 - Modules][ch4.11]
-    * [4.12 - Misc][ch4.12]
+    * [4.12 - Pipelining][ch4.12]
+    * [4.13 - Misc][ch4.13]
 * [5 - The API][ch5]
     * [5.1 - Ten State][ch5.1]
     * [5.2 - Variables][ch5.2]
@@ -120,6 +121,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [ch4.10]:     the-prelude.md#4.10
 [ch4.11]:     the-prelude.md#4.11
 [ch4.12]:     the-prelude.md#4.12
+[ch4.13]:     the-prelude.md#4.13
 [ch5]:        the-api.md
 [ch5.1]:      the-api.md#5.1
 [ch5.2]:      the-api.md#5.2
@@ -214,6 +216,10 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`trace( fib )`][p-trace]
 - [`script( upvals, script )`][p-script]
 - [`expr( upvals, expr )`][p-expr]
+- [`pipe( val, pipeline... )`][p-pipe]
+- [`rpipe( val, { pipeline... } )`][p-rpipe]
+- [`pump( iter, pipeline... )`][p-pump]
+- [`rpump( iter, { pipeline... } )`][p-rpump]
 - [`rand()`][p-rand]
 - [`clock()`][p-clock]
 - [`assert()`][p-assert]
@@ -277,6 +283,10 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [p-trace]:    the-prelude.md#fun-trace
 [p-script]:   the-prelude.md#fun-script
 [p-expr]:     the-prelude.md#fun-expr
+[p-pipe]:     the-prelude.md#fun-pipe
+[p-rpipe]:    the-prelude.md#fun-rpipe
+[p-pump]:     the-prelude.md#fun-pump
+[p-rpump]:    the-prelude.md#fun-rpump
 [p-N]:        the-prelude.md#var-N  
 [p-R]:        the-prelude.md#var-R
 [p-L]:        the-prelude.md#var-L
@@ -338,6 +348,8 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`ten_sym( ten, sym )`][a-ten_sym]
 - [`ten_ptr( ten, ptr )`][a-ten_ptr]
 - [`ten_str( ten, str )`][a-ten_str]
+- [`ten_fmtA( ten, fmt, ... )`][a-ten_fmtA]
+- [`ten_fmtV( ten, fmt, ap )`][a-ten_fmtV]
 - [`ten_fileSource( ten, file, name )`][a-ten_fileSource]
 - [`ten_pathSource( ten, path )`][a-ten_pathSource]
 - [`ten_stringSource( ten, string, name )`][a-ten_stringSource]
@@ -422,6 +434,11 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`ten_clearError( ten, fib )`][a-ten_clearError]
 - [`ten_propError( ten, fib )`][a-ten_propError]
 - [`ten_swapErrJmp( ten, errJmp )`][a-ten_swapErrJmp]
+- [`ten_define`][a-ten_define]
+- [`ten_fun`][a-ten_fun]
+- [`ten_arg`][a-ten_arg]
+- [`ten_mem`][a-ten_mem]
+- [`ten_var`][a-ten_var]
 
 
 [a-ten_State]:          the-api.md#type-ten_State
@@ -475,6 +492,8 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [a-ten_sym]:            the-api.md#fun-ten_sym
 [a-ten_ptr]:            the-api.md#fun-ten_ptr
 [a-ten_str]:            the-api.md#fun-ten_str
+[a-ten_fmtA]:           the-api.md#fun-ten_fmtA
+[a-ten_fmtV]:           the-api.md#fun-ten_fmtV
 [a-ten_fileSource]:     the-api.md#fun-ten_fileSource
 [a-ten_pathSource]:     the-api.md#fun-ten_pathSource
 [a-ten_stringSource]:   the-api.md#fun-ten_stringSource
@@ -559,3 +578,8 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [a-ten_clearError]:     the-api.md#fun-ten_clearError
 [a-ten_propError]:      the-api.md#fun-ten_propError
 [a-ten_swapErrJmp]:     the-api.md#fun-ten_swapErrJmp
+[a-ten_define]:         the-api.md#mac-ten_define
+[a-ten_fun]:            the-api.md#mac-ten_fun
+[a-ten_arg]:            the-api.md#mac-ten_arg
+[a-ten_mem]:            the-api.md#mac-ten_mem
+[a-ten_var]:            the-api.md#mac-ten_var

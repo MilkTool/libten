@@ -395,7 +395,51 @@ import; since Ten caches modules based on their module ID, this allows
 multiple different module IDs that refer to the same thing be normalized
 into a common form before loading.
 
-## <a name="4.12">4.2 - Misc</a>
+## <a name="4.12">4.12 - Pipelining</a>
+
+### <a name="fun-pipe">`pipe( val, pipeline... )`</a>
+Pipes `val` through the given pipeline of closures, returning the result
+of the last closure in the line.
+
+    def result: pipe( 1, [ v ] v + 1, [ v ] v * 2 )
+    result -> 4
+
+### <a name="fun-rpipe">`rpipe( val, { pipeline... } )`</a>
+This does the same as [`pipe()`](#fun-pipe) except the pipeline
+is passed as a record instead of variadic arguments.  Note that
+the given record might not be copied, so any subsequent changes
+may be reflected in the pipeline; so the given record shouldn't
+be modified after being passed to `rpipe()`.
+
+### <a name="fun-pump">`pump( iter, pipeline... )`</a>
+This function is similar to [`pipe()`](#fun-pipe) but instead of
+passing a single value through the pipeline, it wraps an iterator
+with the line to create a new iterator with additional middleware.
+
+The resulting iterator lazilly processes each value of the given
+`iter`, passing the value through the pipeling and returning the
+final result.  If at any point in the pipeline a closure returns
+`udf` for a value, that value is dropped from the flow and won't
+be processed by the rest of the line, instead the `iter` will be
+re-invoked and the new value passed through the line; effectively
+filtering out the previous value.
+
+The returned pump iterator will consume values from `iter` either
+until `nil` is returned by the original iterator, or the last
+closure in the pipeline returns `nil`, since iterators must continue
+to return `nil` after the first.  Note that this means that any but
+the first closure in the pipeline may receive a `nil` value,
+and that any but the last may return a `nil` value without terminating
+the stream; but this should generally be avoided to prevent confusion.
+
+### <a name="fun-rpump">`rpump( iter, { pipeline... } )`</a>
+This does the same as [`pump()`](#fun-pump) except the pipeline
+is passed as a record instead of variadic arguments.  Note that
+the given record might not be copied, so any subsequent changes
+may be reflected in the pipeline; so the record shouldn't be
+modified after being passed to `rpump()`.
+
+## <a name="4.13">4.13 - Misc</a>
 
 ### <a name="fun-assert">`assert( cond, str )`</a>
 Panics if the given condition is falsey.  The `false` and `nil` values

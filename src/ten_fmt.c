@@ -425,7 +425,7 @@ fmtVal( State* state, TVal val, bool q ) {
 
 static void
 fmtVar( State* state, ten_Var* var, bool q ) {
-    fmtVal( state, vget(*var), q );
+    fmtVal( state, varGet(*var), q );
 }
 
 char const*

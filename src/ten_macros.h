@@ -34,37 +34,37 @@ implementation.
 
 #define isEmpty( DEF ) (identCat( DEF, 1 ) == 1)
 
-// The vget() macro has been implemented to prevent assignement
-// on purpose as this causes issues when the pointers on
-// the left are evaluated before the right hand expression
-// causes changes to the stack or other shared state.  So
-// use the vset() macro for setting variable from values.
+// The varGet() and tupGet() macros have been implemented to
+// prevent assignement on purpose as assignment causes issues
+// when the pointers on the left are evaluated before the right
+// hand expression causes changes to the stack or other shared
+// state.  So use the *Set() macros for setting values.
 // This macro can still cause issues when used multiple times
 // in an expression with side effects, so we need to be
 // careful about where it's used.
-#define vget( VAR ) expAssert(                                              \
-    (VAR).loc < ((Tup*)(VAR).tup)->size,                                    \
-    ( tvUdf(), *(*((Tup*)(VAR).tup)->base + ((Tup*)(VAR).tup)->offset + (VAR).loc) ), \
-    "Variable 'loc' out of tuple bounds, tuple size is %u",                 \
-    ((Tup*)(VAR).tup)->size                                                 \
+#define tupGet( TUP, LOC ) expAssert(                                       \
+    (LOC) < (TUP).size,                                                     \
+    *( 0, *(TUP).base + (TUP).offset + (LOC) ),                             \
+    "Attempt to access out of range tuple slot",                            \
+    NULL                                                                    \
 )
 
-// The vset() macro overcomes some of the shortcomings of the ref()
-// macro by forcing the right hand side to be evaluated first.
-#define vset( VAR, VAL )                                        \
-    do {                                                        \
-        Tup* tup = (Tup*)(VAR).tup;                             \
-        fmtAssert(                                              \
-            (VAR).loc < tup->size,                              \
-            "Variable 'loc' out of tuple bounds, "              \
-            "tuple size is %u",                                 \
-            tup->size                                           \
-        );                                                      \
+#define varGet( VAR ) tupGet( *(Tup*)(VAR).tup, (VAR).loc )
+
+
+#define tupSet( TUP, LOC, VAL ) do {                            \
+    Tup* _tup = &(TUP);                                         \
+    TVal _val = (VAL);                                          \
+    fmtAssert(                                                  \
+        (LOC) < _tup->size,                                     \
+        "Attempt to access out of range tuple slot",            \
+        NULL                                                    \
+    );                                                          \
                                                                 \
-        TVal rhs = (VAL);                                       \
-                                                                \
-        *(*tup->base + tup->offset + (VAR).loc) = rhs;          \
-    } while( 0 )
+    *(*_tup->base + _tup->offset + (LOC) ) = _val;              \
+} while( 0 )
+
+#define varSet( VAR, VAL ) tupSet( *(Tup*)(VAR).tup, (VAR).loc, (VAL) )
 
 
 #define panic( FMT... )                                         \

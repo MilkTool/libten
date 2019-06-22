@@ -1446,6 +1446,33 @@ Allocates a temporary variable, and initializes to `addr`.
     str     : char const*
     return  : ten_Var*    : Str
 
+Allocates a temporary variable, and initializes to `str`.
+
+### <a name="fun-ten_fmtA">`ten_fmtA( ten, fmt, ... )`</a>
+    ten     : ten_State*
+    fmt     : char const*
+    return  : ten_Var*    : Str
+
+Allocates a temporary variable and initializes to a string
+formatted according to `sprintf()` format specifiers.  In
+addition to the formatters supported by the `sprintf()`
+family of functions, three additional formatters are allowed.
+The `%v` and `%q` formatters expect `ten_Var*` arguments and
+stringify their contents.  The only difference is that `%q`
+includes quotation marks for strings and symbols while `%v`
+omits them.  The third formatter `%t` also expects a `ten_Var*`
+but outputs the value's type instead of the value itself.
+
+### <a name="fun-fmtV">`ten_fmtV( ten, fmt, va_list ap )`</a>
+    ten     : ten_State*
+    fmt     : char const*
+    return  : ten_Var*    : Str
+
+This does the same as [`ten_fmtA`](#ten_fmtA) except the format
+arguments are passed as a `va_list` instead of variadic arguments,
+making it possible to forward arguments to the function.
+
+
 ### <a name="fun-ten_fileSource">`ten_fileSource( ten, file, name )`</a>
     ten     : ten_State*
     file    : FILE*
@@ -2052,5 +2079,52 @@ either a fiber's local error handler or the global handler.  If
 
 Swaps the current error handler jump with the given one.  Returns
 the old destination.
+
+### <a name="mac-ten_define">`ten_define( NAME )`</a>
+A helper macro to aid in the definition of native function callbacks.
+This expands to a static function prototype for the given `NAME`
+with a prefix added to prevent naming collisions.  The given name
+should generally be the name that's gonna be used to refer to the
+function within Ten.  The `ten_fun()` macro can be used to resolve
+the function name produced by this macro.
+
+    ten_define(foo) {
+        ...
+    }
+
+### <a name="mac-ten_arg">`ten_arg( N )`</a>
+A helper macro to access the `N`th argument passed to a native
+function.  This macro expects `ten_Call* call` to be defined in
+the current scope, and expands to a compound `ten_Var` literal.
+
+    ten_define(foo) {
+        ten_Var arg0 = ten_arg( 0 );
+        ...
+    }
+
+### <a name="mac-ten_mem">`ten_mem( N )`</a>
+A helper macro to access the `N`th member of the Data object
+bound to the current native closure.  This macro expects 
+`ten_Call* call` to be defined in the current scope, and expands
+to a `ten_Var` compound literal.
+
+    ten_define(foo) {
+        ten_Var mem0 = ten_mem( 0 );
+        ...
+    }
+
+### <a name="mac-ten_var">`ten_var( TUP, N )`</a>
+A helper macro for accessing the `N`th slot of the given `TUP`
+tuple.  This macro expands to a compoind `ten_Var` literal.
+
+    ten_Tup tup = ten_pushA( ten, "U" );
+    ten_Var var = ten_var( tup, 0 );
+
+### <a name="mac-ten_fun">`ten_fun( NAME )`</a>
+This macro adds a prefix to `NAME` to match the prefix used by
+`ten_define`, this allows the function to be referenced without
+relying on a particular prefix.
+
+    ten_FunCb fun = ten_fun(foo);
 
 [Next: Ten Module Loader](ten-module-loader.md)

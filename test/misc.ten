@@ -27,3 +27,17 @@ assert( hex"FFF" = 4095, "18" )
 assert( hex"F.F" = 15.9375, "19" )
 assert( oct"666" = 438, "20" )
 assert( bin"110" = 6, "21" )
+
+assert( pipe( 1, [ v ] v + 1, [ v ] v*2 ) = 4, "22" )
+assert( pipe( nil, [ v ] udf ) != udf, "23" )
+
+def p: pump( seq( 1, 2, 3 ), [ v ] v + 1 )
+assert( p() = 2, "24" )
+assert( p() = 3, "25" )
+assert( p() = 4, "26" )
+assert( p() = nil, "27" )
+
+def p: rpump( seq( 1, 2, 3 ), { [ v ] if v = 2: udf else v } )
+assert( p() = 1, "28" )
+assert( p() = 3, "29" )
+assert( p() = nil, "30" )

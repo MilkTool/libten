@@ -351,11 +351,11 @@ fibCall_( State* state, Closure* cls, Tup* args, char const* file, uint line ) {
     tenAssert( fib );
     
     Tup cit = fibPush( state, fib, 1 );
-    tupAt( cit, 0 ) = tvObj( cls );
+    tupSet( cit, 0, tvObj( cls ) );
     
     Tup dup = fibPush( state, fib, args->size );
     for( uint i = 0 ; i < args->size ; i++ )
-        tupAt( dup, i ) = tupAt( *args, i );
+        tupSet( dup, i, tupGet( *args, i ) );
     
     NatAR nat = { .file = file, .line = line };
     fib->push( state, fib, &nat );
@@ -453,12 +453,12 @@ contFirst( State* state, Fiber* fib, Tup* args ) {
     // stack before invoking a call to kickstart
     // the fiber.
     Tup cls = fibPush( state, fib, 1 );
-    tupAt( cls, 0 ) = tvObj( fib->entry );
+    tupSet( cls, 0, tvObj( fib->entry ) );
     fib->entry = NULL;
     
     Tup args2 = fibPush( state, fib, args->size );
     for( uint i = 0 ; i < args->size ; i++ )
-        tupAt( args2, i ) = tupAt( *args, i );
+        tupSet( args2, i, tupGet( *args, i ) );
     
     // That's all for initialization, the call routine
     // will take care of the rest.
@@ -483,7 +483,7 @@ contNext( State* state, Fiber* fib, Tup* args ) {
     // to replace the yield returns, so we push those.
     Tup args2 = fibPush( state, fib, args->size );
     for( uint i = 0 ; i < args->size ; i++ )
-        tupAt( args2, i ) = tupAt( *args, i );
+        tupSet( args2, i, tupGet( *args, i ) );
     
     // If yield was made from a native function then
     // we need to finish its execution and pop its 

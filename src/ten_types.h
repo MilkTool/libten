@@ -556,6 +556,4 @@ typedef struct {
     uint   size;
 } Tup;
 
-#define tupAt( TUP, LOC ) ( *(*(TUP).base + (TUP).offset + (LOC)) )
-
 #endif
