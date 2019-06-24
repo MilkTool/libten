@@ -662,7 +662,7 @@ identity.
 
 
     assertion = comparison
-              | comparison & "->" & comparison
+              | comparison & "->" & expression
 
 The result of an assertion is the left operand, so we can do things like:
 

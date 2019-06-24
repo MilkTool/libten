@@ -1781,7 +1781,7 @@ parAssert( State* state, bool tail ) {
         lex( state );
         parDelim( state );
         
-        parConditional( state, false );
+        parExpr( state, false );
         
         // And the assertion instruction itself.
         genInstr( state, OPC_ASSERT, 0 );
