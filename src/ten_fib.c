@@ -16,6 +16,7 @@
 #include "ten_math.h"
 #include <string.h>
 #include <limits.h>
+#include <ctype.h>
 
 static void
 ensureStack( State* state, Fiber* fib, uint n );

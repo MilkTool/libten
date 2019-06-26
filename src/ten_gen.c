@@ -5,6 +5,7 @@
 #include "ten_idx.h"
 #include "ten_fun.h"
 #include "ten_upv.h"
+#include "ten_str.h"
 #include "ten_env.h"
 #include "ten_state.h"
 #include "ten_stab.h"
@@ -422,14 +423,26 @@ genAddConst( State* state, Gen* gen, TVal val ) {
     Part cP;
     GenConst* c = stateAllocRaw( state, &cP, sizeof(GenConst) );
     
-    char   buf[sizeof(ullong) + 1];
-    ullong* v = (ullong*)buf;
-    uchar*  t = (uchar*)(buf + sizeof(ullong));
+    SymT s;
+    String* str = NULL;
+    if( tvIsObjType( val, OBJ_STR ) && (str = tvGetObj( val ))->len < 64 ) {
+        
+        char buf[ str->len + 1 ];
+        memcpy( buf, str->buf, str->len );
+        buf[str->len] = OBJ_STR;
+        
+        s = symGet( state, buf, sizeof(buf) );
+    }
+    else {
+        char    buf[sizeof(ullong) + 1];
+        ullong* v = (ullong*)buf;
+        uchar*  t = (uchar*)(buf + sizeof(ullong));
     
-    *v = tvGetVal( val );
-    *t = tvGetTag( val );
-    
-    SymT s = symGet( state, buf, sizeof(buf) );
+        *v = tvGetVal( val );
+        *t = tvGetTag( val );
+        
+        s = symGet( state, buf, sizeof(buf) );
+    }
     
     c->which = stabAdd( state, gen->cons, s, c );
     c->val   = val;
