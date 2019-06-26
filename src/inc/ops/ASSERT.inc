@@ -1,17 +1,17 @@
-TVal* tup2 = regs.sp - 1;
+TVal* tup2 = --regs.sp;
 uint  cnt2 = 1;
-regs.sp--;
 if( tvIsTup( tup2[0] ) ) {
     cnt2     = tvGetTup( tup2[0] );
-    regs.sp -= cnt2;
     tup2    -= cnt2;
+    regs.sp -= cnt2;
 }
 
-TVal* tup1 = regs.sp - 1;
+TVal* tup1 = --regs.sp;
 uint  cnt1 = 1;
 if( tvIsTup( tup1[0] ) ) {
-    cnt1  = tvGetTup( tup1[0] );
-    tup1 -= cnt1;
+    cnt1     = tvGetTup( tup1[0] );
+    tup1    -= cnt1;
+    regs.sp -= cnt1;
 }
 
 if( cnt1 != cnt2 )
@@ -28,6 +28,9 @@ for( uint i = 0 ; i < cnt1 ; i++ ) {
     if( !tvEqual( tup1[i], tup2[i] ) )
         goto fail;
 }
+
+*(regs.sp++) = tvUdf();
+
 
 EXIT;
 
