@@ -33,20 +33,26 @@ EXIT;
 
 fail: {
 
-    VirFun*   fun   = &regs.cls->fun->u.vir;
-    uint      place = regs.ip - fun->code;
-    LineInfo* line  = findLine( state, fun, place );
-    if( line )
+    VirFun*     fun   = &regs.cls->fun->u.vir;
+    uint        place = regs.ip - fun->code;
+    LineInfo*   line  = findLine( state, fun, place );
+    if( line ) {
+        char const* text  = line->text;
+        while( isblank( *text ) )
+            text++;
+        
         stateErrFmtA(
             state,
             ten_ERR_ASSERT,
             "Assertion Failed: %s",
-            line->text
+            text
         );
-    else
+    }
+    else {
         stateErrFmtA(
             state,
             ten_ERR_ASSERT,
             "Assertion Failed"
         );
+    }
 }

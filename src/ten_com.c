@@ -512,10 +512,7 @@ lexOper( State* state ) {
         type = '+';
     else
     if( maybeChar( state, false, '-' ) ) {
-        if( maybeChar( state, false, '>' ) )
-            type = '->';
-        else
-            type = '-';
+        type = '-';
     }
     else
     if( maybeChar( state, false, '!' ) ) {
@@ -584,8 +581,12 @@ lexOper( State* state ) {
             type = '&';
     }
     else
-    if( maybeChar( state, false, '=' ) )
-        type = '=';
+    if( maybeChar( state, false, '=' ) ) {
+        if( maybeChar( state, false, '>' ) )
+            type = '=>';
+        else
+            type = '=';
+    }
     else
         return false;
     
@@ -1777,7 +1778,7 @@ parAssert( State* state, bool tail ) {
     ComState* com = state->comState;
     parConditional( state, tail );
     
-    if( com->tok.type == '->' ) {
+    if( com->tok.type == '=>' ) {
         lex( state );
         parDelim( state );
         

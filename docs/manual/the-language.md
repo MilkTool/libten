@@ -643,7 +643,7 @@ also has `!?` which evaluates the right expression only if the left is `udf`.
                 | comparison & "!?" & expression
 
 ## <a name="3.14">3.14 - Assertion</a>
-Ten's assertion operator `->` provides a nice syntax for confirming
+Ten's assertion operator `=>` provides a nice syntax for confirming
 the value of an expression.  This is an alternative to the prelude's
 `assert()` function, which reports the line on which the assertion
 occurs as an error message if the left operand isn't equal to the
@@ -654,7 +654,7 @@ works on tuples, compares strings by contents rather than identity,
 and allows `udf` values.  Without these semantics the operator's
 usefulness would be limited, since things like:
 
-    myStr -> "some string"
+    myStr => "some string"
 
 Wouldn't work properly.  I haven't figured out a good way to compare
 records in a useful way here; so for now we still compare records by
@@ -662,17 +662,13 @@ identity.
 
 
     assertion = comparison
-              | comparison & "->" & expression
+              | comparison & "=>" & expression
 
-The result of an assertion is the left operand, so we can do things like:
+The result of an assertion is `udf`.  Since the assertion operator
+reports the full text of the line on which it occurs; an assertion
+message can be included as a comment, for example:
 
-    def myVar: getSomeVal() -> 'SomeVal'
-
-With the expected semantics.  Since the assertion operator reports the
-full text of the line on which it occurs; an assertion message can be
-included as a comment, for example:
-
-    type( arg ) -> 'Rec:Point'    `The 'arg' needs to be a Point
+    type( arg ) => 'Rec:Point'    `The 'arg' needs to be a Point
 
 ## <a name="3.15">3.15 - Fix</a>
 The `!` FIX operator is another unary operator unique to Ten.  It's
