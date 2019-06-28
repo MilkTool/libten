@@ -6,6 +6,8 @@ implementation.
 #ifndef ten_macros_h
 #define ten_macros_h
 
+#include "ten.h"
+
 #define addNode( LIST, NODE )                           \
     do {                                                \
         (NODE)->next = *(LIST);                         \
@@ -77,4 +79,13 @@ implementation.
     } while( 0 )
 
 #define elemsof( ARRAY ) (sizeof(ARRAY)/sizeof((ARRAY)[0]))
+
+typedef union {
+    ten_Tup api;
+    Tup     imp;
+} TupUnion;
+
+#define apiToImpTup( TUP ) (TupUnion){ .api = (TUP) }.imp
+#define impToApiTup( TUP ) (TupUnion){ .imp = (TUP) }.api
+
 #endif

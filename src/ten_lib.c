@@ -126,6 +126,9 @@ typedef enum {
     IDENT_pump,
     IDENT_rpump,
     
+    IDENT_limit,
+    IDENT_skip,
+    
     IDENT__break,
     
     IDENT_LAST
@@ -167,6 +170,7 @@ struct LibState {
     ten_DatInfo* dRangeInfo;
     ten_DatInfo* iRangeInfo;
     ten_DatInfo* pumpInfo;
+    ten_DatInfo* limiterInfo;
 };
 
 static void
@@ -2299,6 +2303,75 @@ libPump( State* state, Closure* iter, Record* pipeline ) {
     return cls;
 }
 
+typedef enum {
+    Limiter_ITER,
+    Limiter_LAST    
+} LimiterMem;
+
+typedef struct {
+    uint left;
+} Limiter;
+
+ten_define(limiterNext) {
+    State*   state = (State*)call->ten;
+    Limiter* limit = call->data;
+    
+    if( limit->left == 0 )
+        return ten_pushA( call->ten, "N" );
+    limit->left--;
+    
+    Closure* iter = tvGetObj( varGet( ten_mem( Limiter_ITER ) ) );
+    
+    Tup args = statePush( state, 0 );
+    return impToApiTup( fibCall( state, iter, &args ) );
+}
+
+static Closure*
+libLimit( State* state, Closure* iter, uint lim ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    ten_Tup varTup = ten_pushA( ten, "UUUU" );
+    ten_Var datVar  = ten_var( varTup, 0 );
+    ten_Var funVar  = ten_var( varTup, 1 );
+    ten_Var clsVar  = ten_var( varTup, 2 );
+    ten_Var tmpVar  = ten_var( varTup, 3 );
+    
+    Limiter* limit = ten_newDat( ten, lib->limiterInfo, &datVar );
+    limit->left = lim;
+    
+    varSet( tmpVar, tvObj( iter ) );
+    ten_setMember( ten, &datVar, Limiter_ITER, &tmpVar );
+    
+    ten_FunParams p = {
+        .name   = fmtA( state, false, "limit%llu", (ullong)(uintptr_t)limit ),
+        .params = NULL,
+        .cb     = ten_fun(limiterNext)
+    };
+    ten_newFun( ten, &p, &funVar );
+    ten_newCls( ten, &funVar, &datVar, &clsVar );
+    
+    Closure* cls = tvGetObj( varGet( clsVar ) );
+    ten_pop( ten );
+    
+    return cls;
+}
+
+static Closure*
+libSkip( State* state, Closure* iter, uint num ) {
+    LibState*  lib = state->libState;
+    ten_State* ten = (ten_State*)state;
+    
+    Tup args = statePush( state, 0 );
+    for( uint i = 0 ; i < num ; i++ ) {
+        fibCall( state, iter, &args );
+        statePop( state );
+    }
+    statePop( state );
+    
+    return iter;
+}
+
 #define expectArg( ARG, TYPE ) \
     libExpect( state, #ARG, state->libState->types[TYPE], varGet( ARG ## Arg ) ) 
 
@@ -3249,6 +3322,50 @@ ten_define(_break) {
     return ten_pushA( call->ten, "" );
 }
 
+ten_define(limit) {
+    State*  state = (State*)call->ten;
+    
+    ten_Var iterArg = ten_arg( 0 );
+    ten_Var limArg  = ten_arg( 1 );
+    
+    expectArg( iter, OBJ_CLS );
+    expectArg( lim, VAL_INT );
+    
+    Closure* iter = tvGetObj( varGet( iterArg ) );
+    long     lim  = tvGetInt( varGet( limArg ) );
+    if( lim < 0 )
+        panic( "Negative iteration limit" );
+    
+    Closure* limiter = libLimit( state, iter, lim );
+    
+    ten_Tup rets = ten_pushA( call->ten, "U" );
+    ten_Var ret  = ten_var( rets, 0 );
+    varSet( ret, tvObj( limiter ) );
+    return rets;
+}
+
+ten_define(skip) {
+    State*  state = (State*)call->ten;
+    
+    ten_Var iterArg = ten_arg( 0 );
+    ten_Var numArg  = ten_arg( 1 );
+    
+    expectArg( iter, OBJ_CLS );
+    expectArg( num, VAL_INT );
+    
+    Closure* iter = tvGetObj( varGet( iterArg ) );
+    long     num  = tvGetInt( varGet( numArg ) );
+    if( num < 0 )
+        panic( "Negative iteration skip" );
+    
+    Closure* skipped = libSkip( state, iter, num );
+    
+    ten_Tup rets = ten_pushA( call->ten, "U" );
+    ten_Var ret  = ten_var( rets, 0 );
+    varSet( ret, tvObj( skipped ) );
+    return rets;
+}
+
 void
 libInit( State* state ) {
     ten_State* s = (ten_State*)state;
@@ -3373,6 +3490,9 @@ libInit( State* state ) {
     
     IDENT( _break );
     
+    IDENT( limit );
+    IDENT( skip );
+    
 
     #define OPER( N, O ) \
         lib->opers[OPER_ ## N] = symGet( state, O, sizeof(O)-1 )
@@ -3495,6 +3615,9 @@ libInit( State* state ) {
     FUN( pump, 1, true );
     FUN( rpump, 2, false );
     FUN( _break, 1, false );
+    FUN( limit, 2, false );
+    FUN( skip, 2, false );
+    
     
     ten_def( s, ten_sym( s, "N" ), ten_sym( s, "\n" ) );
     ten_def( s, ten_sym( s, "R" ), ten_sym( s, "\r" ) );
@@ -3572,6 +3695,15 @@ libInit( State* state ) {
             .tag   = "Pump",
             .size  = sizeof(Pump),
             .mems  = Pump_LAST,
+            .destr = NULL
+        }
+    );
+    lib->limiterInfo = ten_addDatInfo(
+        s,
+        &(ten_DatConfig){
+            .tag   = "Limiter",
+            .size  = sizeof(Limiter),
+            .mems  = Limiter_LAST,
             .destr = NULL
         }
     );

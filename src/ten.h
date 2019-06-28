@@ -138,7 +138,7 @@ extern ten_Version const ten_VERSION;
 #define ten_fun( NAME )     (tf_ ## NAME)
 #define ten_arg( ARG )      (ten_Var){ .tup = &call->args, .loc = (ARG) }
 #define ten_mem( MEM )      (ten_Var){ .tup = &call->mems, .loc = (MEM) }
-#define ten_var( TUP, LOC ) (ten_Var){ .tup = &(TUP), .loc = (LOC) };
+#define ten_var( TUP, LOC ) (ten_Var){ .tup = &(TUP), .loc = (LOC) }
 
 // Ten instance creation and destruction.
 ten_State*
