@@ -129,12 +129,13 @@ if the string includes invalid characters.
 ## <a name="4.4">4.4 - Iteration</a>
 Since Ten doesn't have any language level loops, the prelude provides
 functions for some of the more common tasks.  These traverse the
-given iterators, which represented as zero parameter closures which
+given iterators, which are represented as zero parameter closures that
 should return the next value (or values) of a stream on each call,
 or all `nil` values once the full stream has been consumed.
 
 In addition to the looping functions, the prelude provides constructors
-for various types of iterators.
+for various types of iterators and utilities for trimming the edges of
+an iterator.
 
 ### <a name="fun-each">`each( iter, what )`</a>
 Traverses `iter`, for each set of values calls `what` with the
@@ -151,6 +152,20 @@ from there on (for each additional value of the iterator), the
 `how` function is called with its last return passed as the first
 argument and the next stream value as its second.  The function
 returns that result of its last call to `how`.
+
+### <a name="fun-skip">`skip( iter, num )`</a>
+Given an `iter`ator, this function returns an equivalent iterator
+`num` values ahead of the given one.  The function _may_ create and
+return a new iterator, or may return the same iterator after discarding
+the first `num` values.  So the original reference to `iter` should
+be discarded after this call.
+
+### <a name="fun-limit">`limit( iter, lim )`</a>
+Given an `iter`ator, this function returns an equivalent iterator
+consisting of only the next `lim` values.  The function _may_ create
+and return a new iterator, or may modify and return the given `iter`
+so references to the original iterator should be discarded after
+this call.
 
 ### <a name="fun-keys">`keys( rec )`</a>
 Constructs a key iterator over a record.  If the record is modified

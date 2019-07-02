@@ -167,6 +167,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`collect()`][p-collect]
 - [`type( val )`][p-type]
 - [`expect( what, type, val )`][p-expect]
+- [`assert()`][p-assert]
 - [`clock()`][p-clock]
 - [`rand()`][p-rand]
 - [`log( val )`][p-log]
@@ -220,9 +221,8 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`rpipe( val, { pipeline... } )`][p-rpipe]
 - [`pump( iter, pipeline... )`][p-pump]
 - [`rpump( iter, { pipeline... } )`][p-rpump]
-- [`rand()`][p-rand]
-- [`clock()`][p-clock]
-- [`assert()`][p-assert]
+- [`skip( iter, num )`][p-skip]
+- [`limit( iter, lim )`][p-limit]
 - [`N`][p-N]
 - [`R`][p-R]
 - [`L`][p-L]
@@ -234,6 +234,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [p-collect]:  the-prelude.md#fun-collect
 [p-type]:     the-prelude.md#fun-type
 [p-expect]:   the-prelude.md#fun-expect
+[p-assert]:   the-prelude.md#fun-assert
 [p-clock]:    the-prelude.md#fun-clock
 [p-rand]:     the-prelude.md#fun-rand
 [p-log]:      the-prelude.md#fun-log
@@ -287,13 +288,12 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [p-rpipe]:    the-prelude.md#fun-rpipe
 [p-pump]:     the-prelude.md#fun-pump
 [p-rpump]:    the-prelude.md#fun-rpump
+[p-skip]:     the-prelude.md#fun-skip
+[p-limit]:    the-prelude.md#fun-limit
 [p-N]:        the-prelude.md#var-N  
 [p-R]:        the-prelude.md#var-R
 [p-L]:        the-prelude.md#var-L
 [p-T]:        the-prelude.md#var-T
-[p-assert]:   the-prelude.md#fun-assert
-[p-rand]:     the-prelude.md#fun-rand
-[p-clock]:    the-prelude.md#fun-clock
 
 ## API Index
 
@@ -317,6 +317,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`ten_Config`][a-ten_Config]
 - [`ten_Version`][a-ten_Version-0]
 - [`ten_VERSION`][a-ten_VERSION-1]
+- [`ten_Case`][a-ten_Case]
 - [`ten_make( config, errJmp )`][a-ten_make]
 - [`ten_free( ten )`][a-ten_free]
 - [`ten_pushA( ten, pat, ap... )`][a-ten_pushA]
@@ -331,6 +332,9 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`ten_type( ten, var, dst)`][a-ten_type]
 - [`ten_expect( ten, what, type, var )`][a-ten_expect]
 - [`ten_equal( ten, var1, var2 )`][a-ten_equal]
+- [`ten_match( ten, var, tup, ... )`][a-ten_match]
+- [`ten_case( WHICH, THING )`][a-ten_case]
+- [`ten_END`][a-ten_END]
 - [`ten_copy( ten, src, dst )`][a-ten_copy]
 - [`ten_string( ten, tup )`][a-ten_string]
 - [`ten_loader( ten, type, loadr, trans )`][a-ten_loader]
@@ -461,6 +465,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [a-ten_Config]:         the-api.md#type-ten_Config
 [a-ten_Version-0]:      the-api.md#type-ten_Version
 [a-ten_VERSION-1]:      the-api.md#const-ten_Version
+[a-ten_Case]:           the-api.md#type-ten_Case
 [a-ten_make]:           the-api.md#fun-ten_make
 [a-ten_free]:           the-api.md#fun-ten_free
 [a-ten_pushA]:          the-api.md#fun-ten_pushA
@@ -475,6 +480,9 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 [a-ten_type]:           the-api.md#fun-ten_type
 [a-ten_expect]:         the-api.md#fun-ten_expect
 [a-ten_equal]:          the-api.md#fun-ten_equal
+[a-ten_match]:          the-api.md#fun-ten_match
+[a-ten_case]:           the-api.md#mac-ten_case
+[a-ten_END]:            the-api.md#mac-ten_END
 [a-ten_copy]:           the-api.md#fun-ten_copy
 [a-ten_string]:         the-api.md#fun-ten_string
 [a-ten_loader]:         the-api.md#fun-ten_loader

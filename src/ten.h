@@ -186,8 +186,8 @@ bool
 ten_equal( ten_State* s, ten_Var* var1, ten_Var* var2 );
 
 typedef struct {
-    int   which;
-    void* thing;
+    unsigned which;
+    void*    thing;
 } ten_Case;
 
 #define ten_case( WHICH, THING ) &(ten_Case){ (WHICH), (THING) };

@@ -1202,6 +1202,18 @@ Represents the semantic version of the linked Ten library.
         unsigned minor;
         unsigned patch;
     } ten_Version;
+    
+### <a name="type-ten_Case">`struct ten_Case`</a>
+Represents an acceptable match case for [`ten_match`](#fun-ten_match).
+
+    typedef struct {
+        unsigned which;
+        void*    thing;
+    } ten_Case;
+
+The `.which` field indicates which value of the given tuple to match
+against, and `.thing` allows association of an arbitrary pointer to
+each case.
 
 ### <a name="var-ten_VERSION">`ten_VERSION : ten_Version`</a>
 The semantic version of the linked Ten library.
@@ -1318,6 +1330,65 @@ as having the wrong type.
 
 Compares the values in the given variables, returning `true` if they're
 equal, `false` otherwise.
+
+### <a name="fun-ten_match">`ten_match( ten, var, tup, ... )`</a>
+    ten     : ten_State*
+    var     : ten_Var*
+    tup     : ten_Tup*
+    ...     : ten_Case*...
+    return  : ten_Case*
+    
+This is a helper to make matching a Ten value against various cases
+easier and more efficient.  The `var` here provides the value being
+matched, and `tup` gives a tuple of values to match against.  Then
+each `ten_Case` struct in the variadic argument list indicates an
+entry in `tup` to match against.  The last variadic argument should
+be `NULL` to indicate the end of the list.
+
+Here's an example:
+
+    ten_Tup tup = ten_pushA( ten, "IIII", 1, 2, 3, 4 );
+    
+    ten_Case* c = ten_match( ten, ten_int( ten, 3 ), &tup,
+        &(ten_Case){ .which = 0, .thing = NULL },
+        &(ten_Case){ .which = 1, .thing = NULL },
+        &(ten_Case){ .which = 2, .thing = NULL },
+        &(ten_Case){ .which = 3, .thing = NULL },
+        NULL
+    );
+
+After this is executed `c` will contain:
+
+    &(ten_Case){ .which = 3, .thing = NULL }
+
+Note that not all entries in the tuple need to be compared against
+`var`, the function will only check the slot specified in the `.which`
+field of each case.  The `.thing` field of each case allows for
+arbitrary data to be associated with it via a `void*` pointer.
+
+This usage pattern can be made a bit cleaner by taking advantage of
+the macros [`ten_case()`](#mac-ten_case) and [`ten_END`](#mac-ten_END)
+which take the place of the case literals.
+
+    ten_Case* c = ten_match( ten, ten_int( ten, 3 ), &tup,
+        ten_case( 0, NULL ),
+        ten_case( 1, NULL ),
+        ten_case( 2, NULL ),
+        ten_case( 3, NULL ),
+        NULL
+    );
+
+### <a name="mac-ten_case">`ten_case( WHICH, THING )`</a>
+    WHICH  : unsigned
+    THING  : void*
+    return : ten_Case*
+
+Wraps the given `WHICH` and `THING` values in a `ten_Case*`
+compound literal to be passed into [`ten_match`](#fun-ten_match).
+
+### <a name="mac-ten_END">`ten_END`</a>
+Should be passed to [`ten_match`](#fun-ten_match) as the last
+case argument to indicate the end of the list.
 
 ### <a name="fun-ten_copy">`ten_copy( ten, src, dst )`</a>
     ten     : ten_State*
