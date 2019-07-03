@@ -1631,7 +1631,7 @@ libJoin( State* state, Closure* iter, String* sep ) {
         
         char const* str = fmtBuf( state );
         size_t      len = fmtLen( state );
-        if( !tvIsUdf( varGet( retVar ) ) ) {
+        if( !tvIsNil( varGet( retVar ) ) ) {
             str = fmtA( state, true, "%v", tvObj( sep ) );
             len = fmtLen( state );
         }
