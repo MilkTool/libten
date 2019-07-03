@@ -1,0 +1,31 @@
+`Make sure pipelining related functions work.
+
+group"Pipelining"
+
+def pass: [] do
+  pipe( 1, [ a ] a + 2, [ b ] b * 2 ) => 6
+for()
+check( "pipe() Function", pass, nil )
+
+def pass: [] do
+  rpipe( 1, { [ a ] a + 2, [ b ] b * 2 } ) => 6
+for()
+check( "rpipe() Function", pass, nil )
+
+def pass: [] do
+  def iter: pump( seq( 1, 2, 3 ), [ a ] a + 2, [ b ] b * 2 )
+  iter() => 6
+  iter() => 8
+  iter() => 10
+  iter() => nil
+for()
+check( "pump() Function", pass, nil )
+
+def pass: [] do
+  def iter: rpump( seq( 1, 2, 3 ), { [ a ] a + 2, [ b ] b * 2 } )
+  iter() => 6
+  iter() => 8
+  iter() => 10
+  iter() => nil
+for()
+check( "rpump() Function", pass, nil )

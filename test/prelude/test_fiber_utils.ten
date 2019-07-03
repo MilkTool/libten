@@ -1,0 +1,42 @@
+group"Fiber Utilities"
+
+def pass: [] do
+  def fib: fiber[]()
+  type( fib )  => 'Fib'
+  state( fib ) => 'stopped'
+for()
+check( "Fiber Construction", pass, nil )
+
+def pass: [] do
+  def var: 123
+  def fib: fiber[ val ] set var: val
+  cont( fib, { 321 } )
+  
+  var          => 321
+  state( fib ) => 'finished'
+for()
+check( "Fiber Continuation", pass, nil )
+
+def pass: [] do
+  def fib: fiber[] 123 => 321
+  cont( fib, {} )
+  
+  state( fib )          => 'failed'
+  !errval( fib ) ~= nil => true
+  !trace( fib )  ~= nil => true
+for()
+check( "Fiber Failure", pass, nil )
+
+def pass: [] do
+  def fib: fiber[] yield( 123 )
+  def var: cont( fib, {} )
+  var => 123
+for()
+check( "Fiber Yield", pass, nil )
+
+def pass: [] do
+  def fib: fiber[] panic( "Die" )
+  cont( fib, {} ) => ()
+  state( fib )    => 'failed'
+for()
+check( "Fiber Panic", pass, nil )

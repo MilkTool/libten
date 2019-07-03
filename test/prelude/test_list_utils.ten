@@ -1,0 +1,26 @@
+group"List Utilities"
+
+def pass: [] do
+  def ls: list( 1, 2, 3 )
+  ls.car         => 1
+  ls.cdr.car     => 2
+  ls.cdr.cdr.car => 3
+  ls.cdr.cdr.cdr => nil
+for()
+check( "List Construction", pass, nil )
+
+def pass: [] do
+  def cn: cons( 1, 2 )
+  cn.car => 1
+  cn.cdr => 2
+for()
+check( "Cell Construction", pass, nil )
+
+def pass: [] do
+  def ex: explode( seq( 3, 2, 1 ) )
+  ex.car         => 3
+  ex.cdr.car     => 2
+  ex.cdr.cdr.car => 1
+  ex.cdr.cdr.cdr => nil
+for()
+check( "List Explosion", pass, nil )

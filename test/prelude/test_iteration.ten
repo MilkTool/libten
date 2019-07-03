@@ -1,0 +1,185 @@
+`Make sure iteration related functions work.
+
+group"Record Iterators"
+
+def pass: [] do
+  def src:  { .a: 1, .b: 2, .c: 3 }
+  def dst:  {}
+  def iter: pairs( src )
+  
+  def ( key, val ): iter()
+  def dst@key: val
+  
+  def ( key, val ): iter()
+  def dst@key: val
+  
+  def ( key, val ): iter()
+  def dst@key: val
+  
+  iter() => ( nil, nil )
+  
+  dst.a => 1
+  dst.b => 2
+  dst.c => 3
+for()
+check( "Record Pair Iterator", pass, nil )
+
+def pass: [] do
+  def src:  { .a: 1, .b: 2, .c: 3 }
+  def dst:  {}
+  def iter: keys( src )
+  
+  def dst@(iter()): nil
+  def dst@(iter()): nil
+  def dst@(iter()): nil
+  
+  iter() => nil
+  
+  dst.a => nil
+  dst.b => nil
+  dst.c => nil
+for()
+check( "Record Key Iterator", pass, nil )
+
+def pass: [] do
+  def src:  { .a: 1, .b: 2, .c: 3 }
+  def dst:  {}
+  def iter: vals( src )
+  
+  def dst@(iter()): nil
+  def dst@(iter()): nil
+  def dst@(iter()): nil
+  
+  iter() => nil
+  
+  dst@1 => nil
+  dst@2 => nil
+  dst@3 => nil
+for()
+check( "Record Value Iterator", pass, nil )
+
+group"Sequence Iterators"
+
+def pass: [] do
+  def iter: seq( 1, 2, 3 )
+  iter() => 1
+  iter() => 2
+  iter() => 3
+  iter() => nil
+for()
+check( "Tuple Sequence Iterator", pass, nil )
+
+def pass: [] do
+  def iter: rseq{ 1, 2, 3 }
+  iter() => 1
+  iter() => 2
+  iter() => 3
+  iter() => nil
+for()
+check( "Record Sequence Iterator", pass, nil )
+
+group"String Iterators"
+
+def pass: [] do
+  def iter: chars"ガはラ"
+  iter() => 'ガ'
+  iter() => 'は'
+  iter() => 'ラ'
+  iter() => nil
+for()
+check( "String Character Iterator", pass, nil )
+
+def pass: [] do
+  def iter: bytes"nah"
+  iter() => 110
+  iter() => 97
+  iter() => 104
+  iter() => nil
+for()
+check( "String Byte Iterator", pass, nil )
+
+def pass: [] do
+  def iter: split( "it wasn't me", " " )
+  iter() => "it"
+  iter() => "wasn't"
+  iter() => "me"
+  iter() => nil
+for()
+check( "String Split Iterator", pass, nil )
+
+
+group"List Iterators"
+
+def pass: [] do
+  def iter: items( list( 1, 2, 3 ) )
+  iter() => 1
+  iter() => 2
+  iter() => 3
+  iter() => nil
+for()
+check( "List Item Iterator", pass, nil )
+
+group"Range Iterators"
+
+def pass: [] do
+  def r1: irange( 0, 3 )
+  r1() => 0
+  r1() => 1
+  r1() => 2
+  r1() => nil
+  
+  def r2: irange( -3, 0 )
+  r2() => -3
+  r2() => -2
+  r2() => -1
+  r2() => nil
+  
+  def r3: irange( -3, 3, 2 )
+  r3() => -3
+  r3() => -1
+  r3() => 1
+  r3() => nil
+for()
+check( "Integral Range Iterator", pass, nil )
+
+def pass: [] do
+  def r1: drange( 0.0, 3.0 )
+  r1() => 0.0
+  r1() => 1.0
+  r1() => 2.0
+  r1() => nil
+  
+  def r2: drange( -3.0, 0.0 )
+  r2() => -3.0
+  r2() => -2.0
+  r2() => -1.0
+  r2() => nil
+  
+  def r3: drange( -3.0, 3.0, 2.0 )
+  r3() => -3.0
+  r3() => -1.0
+  r3() => 1.0
+  r3() => nil
+for()
+check( "Decimal Range Iterator", pass, nil )
+
+group"Iterator Constraints"
+
+def pass: [] do
+  def iter: skip( seq( 1, 2, 3, 4 ), 2 )
+  
+  iter() => 3
+  iter() => 4
+  iter() => nil
+for()
+check( "skip() Function", pass, nil )
+
+def pass: [] do
+  def iter: limit( seq( 1, 2, 3, 4 ), 2 )
+  
+  iter() => 1
+  iter() => 2
+  iter() => nil
+for()
+pass()
+check( "limit() Function", pass, nil )

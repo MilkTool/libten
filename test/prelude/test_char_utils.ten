@@ -1,0 +1,11 @@
+group"Character Utilities"
+
+def pass: [] do
+  ucode'ぁ' => 12353
+for()
+check( "ucode() Function", pass, nil )
+
+def pass: [] do
+  uchar( 12353 ) = 'ぁ
+for()
+check( "uchar() Function", pass, nil )

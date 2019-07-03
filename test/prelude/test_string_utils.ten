@@ -1,0 +1,45 @@
+group"String Utilities"
+
+def pass: [] do
+  cat( "Hello, ", "World!" ) => "Hello, World!"
+for()
+check( "String Concatenation", pass, nil )
+
+def pass: [] do
+  join( seq( 1, 2, 3 ), " " ) => "1 2 3"
+for()
+check( "String Joining", pass, nil )
+
+def pass: [] do
+  bcmp( "abc", '<', "cba" ) => true
+  bcmp( "cba", '>', "abc" ) => true
+  bcmp( "abc", '=', "abc" ) => true
+
+  ccmp( "abc", '<', "cba" ) => true
+  ccmp( "cba", '>', "abc" ) => true
+  ccmp( "abc", '=', "abc" ) => true
+
+  ccmp( "ぁ", '<', "ぃ" ) => true
+  ccmp( "ぃ", '>', "ぁ" ) => true
+  ccmp( "ぁ", '=', "ぁ" ) => true
+
+  bcmp( bsub( "abc", 1 ), '=', "a" )  => true
+  bcmp( bsub( "abc", -1 ), '=', "c" ) => true
+  ccmp( csub( "ぁぃ", 1 ), '=', "ぁ" )   => true
+  ccmp( csub( "ぁぃ", -1 ), '=', "ぃ" )  => true
+for()
+check( "String Comparison", pass, nil )
+
+def pass: [] do
+  blen( "abc" ) => 3
+  clen( "ぁぃ" )  => 2
+for()
+check( "String Length", pass, nil )
+
+def pass: [] do
+  bsub( "abc", 2 )   => "ab"
+  bsub( "abc", -2 )  => "bc"
+  csub( "ガはラ", 2 )  => "ガは"
+  csub( "ガはラ", -2 ) => "はラ"
+for()
+check( "Substrings", pass, nil )

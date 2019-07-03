@@ -203,7 +203,7 @@ language, it's based on the [Lua Reference Manual][lua-manual].
 - [`blen( str )`][p-blen]
 - [`clen( str )`][p-clen]
 - [`each( iter, what )`][p-each]
-- [`fold( iter, agr, how)`][p-fold]
+- [`fold( iter, agr, how )`][p-fold]
 - [`sep( rec )`][p-sep]
 - [`cons( car, cdr )`][p-cons]
 - [`list( vals... )`][p-list]

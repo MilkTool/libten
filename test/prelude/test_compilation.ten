@@ -1,0 +1,15 @@
+group"Compilation"
+
+def pass: [] do
+  def rec: { .a: 1, .b: 2 }
+  def cls: script( { .rec: rec }, "def rec.c: rec.a + rec.b" )
+  cls()
+  rec.c => 3
+for()
+check( "Script Compilation", pass, nil )
+
+def pass: [] do
+  def cls: expr( { .a: 1, .b: 2 }, "a + b" )
+  cls() => 3
+for()
+check( "Expression Compilation", pass, nil )

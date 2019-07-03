@@ -1,0 +1,22 @@
+group"Misc"
+
+def pass: [] do
+  type( input ) => 'Cls'
+  type( warn )  => 'Cls'
+  type( show )  => 'Cls'
+  type( N )     => 'Sym'
+  type( R )     => 'Sym'
+  type( L )     => 'Sym'
+  type( T )     => 'Sym'
+  type( NULL )  => 'Ptr'
+for()
+check( "Things That Should Exist", pass, nil )
+
+def pass: [] do
+  type( sep{ 1, 2, 3, 4 } ) => 'Rec'
+  type( rand() )            => 'Dec'
+  type( clock() )           => 'Dec'
+  collect()
+for()
+check( "Things That Should Be Called", pass, nil )
+

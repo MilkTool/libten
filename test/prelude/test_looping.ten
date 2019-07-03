@@ -1,0 +1,17 @@
+`Make loop functions work.
+
+group"Looping"
+
+def pass: [] do
+  def sum: 0
+  each( irange( 0, 5 ), [ v ] set sum: sum + v )
+  sum => 10
+for()
+check( "each() Function", pass, nil )
+
+def pass: [] do
+  def sum: fold( irange( 0, 5 ), 0, [ agr, nxt ] agr + nxt )
+  sum => 10
+for()
+check( "fold() Function", pass, nil )
+
