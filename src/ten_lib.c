@@ -1903,13 +1903,21 @@ libList( State* state, Record* vals ) {
     
     uint  i = 0;
     TVal  v = recGet( state, vals, tvInt( i++ ) );
+    if( tvIsUdf( v ) )
+        return NULL;
+    
+    Record* list = libCons( state, v, tvNil() );
+    Record* tail = list;
+    varSet( listVar, tvObj( list ) );
+    
+    v = recGet( state, vals, tvInt( i++ ) );
     while( !tvIsUdf( v ) ) {
-        Record* cell = libCons( state, v, varGet( listVar ) );
-        varSet( listVar, tvObj( cell ) );
+        Record* cell = libCons( state, v, tvNil() );
+        recDef( state, tail, tvSym( lib->idents[IDENT_cdr] ), tvObj( cell ) );
+        
+        tail = cell;
         v = recGet( state, vals, tvInt( i++ ) );
     }
-    
-    Record* list = tvGetObj( varGet( listVar ) );
     ten_pop( ten );
     
     return list;
@@ -3064,7 +3072,11 @@ ten_define(list) {
     ten_Tup retTup = ten_pushA( call->ten, "U" );
     ten_Var retVar = ten_var( retTup, 0 );
     
-    varSet( retVar, tvObj( libList( state, tvGetObj( varGet( valsArg ) ) ) ) );
+    Record* list = libList( state, tvGetObj( varGet( valsArg ) ) );
+    if( list )
+        varSet( retVar, tvObj( list ) );
+    else
+        varSet( retVar, tvUdf() );
     
     return retTup;
 }
