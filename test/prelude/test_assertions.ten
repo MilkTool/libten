@@ -1,0 +1,12 @@
+`Make sure assertion functions assert() and expect() work
+`as they should.
+
+group"Assertion Functions"
+def pass: [] assert( true, "" )
+def fail: [] assert( false, "" )
+check( "assert()", pass, fail )
+
+def ( a, b ): ( 'a', 'b' )
+def pass: [] expect( "a", 'Sym', a )
+def fail: [] expect( "b", 'Str', b )
+check( "expect()", pass, fail )

@@ -1,0 +1,33 @@
+`Make sure records work properly.
+
+group"Records"
+
+def pass: [] do
+  def r: { .a: 1, .b: 2 }
+  r.a => 1, r.b => 2
+for()
+def fail: [] do
+  def r: { .a: udf, .b: udf }
+for()
+check( "Simple Record Construction", pass, fail )
+
+def pass: [] do
+  def r1: { .a: 1, .b: 2 }
+  def r2: { .c: 3, ...r1 }
+  r2.a => 1, r2.b => 2, r2.c => 3
+for()
+check( "Record Expansion In Record", pass, nil )
+
+def pass: [] do
+  def r: { 2, 3 }
+  def ( a, b, c ): ( 1, ...r )
+  a => 1, b => 2, c => 3
+for()
+check( "Record Expansion In Tuple", pass, nil )
+
+def pass: [] do
+  def r: {}
+  each( irange( 0, 1000000 ), [ i ] def r@i: nil )
+  r@999999 => nil
+for()
+check( "Large Record", pass, nil )

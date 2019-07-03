@@ -223,4 +223,50 @@ def test: [] do
   !udf => nil
   !123 => 123
 for()
-check( "Fix Operator", test, nil )
+check( "FIX Operator", test, nil )
+
+def test: [] do
+  def var: 123
+  
+  false &? do set var: 321 for true => false
+  var => 123
+  
+  true &? do set var: 321 for true => true
+  var => 321
+  
+  nil  &? true => nil
+  true &? nil  => nil
+  ""   &? true => true
+for()
+check( "AND Replacement Operator", test, nil )
+
+def test: [] do
+  def var: 123
+  
+  true |? do set var: 321 for false => true
+  var => 123
+  
+  false |? do set var: 321 for false => false
+  var => 321
+  
+  nil  |? true => true
+  true |? nil  => true
+  false |? nil => nil
+  nil   |? ""  => ""
+for()
+check( "OR Replacement Operator", test, nil )
+
+def test: [] do
+  def var: 123
+  
+  nil !? do set var: 321 for 'thing' => nil
+  var => 123
+  
+  udf !? do set var: 321 for 'thing' => 'thing'
+  var => 321
+  
+  udf !? nil => nil
+  nil !? udf => nil
+  udf !? udf => udf
+for()
+check( "FIX Replacement Operator", test, nil )

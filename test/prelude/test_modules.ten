@@ -1,0 +1,52 @@
+`Make sure module loading works properly.
+
+def modFuns: {}
+def funLoad: [ name ] do
+  def fun: modFuns@(sym name)
+for
+  if !fun:
+    fun()
+  else
+    udf
+def funTrans: [ name ] do
+  def s: split( name, " " )
+  def j: join( s, "_" )
+for j
+
+def pass: [] do
+  loader( 'fun', funLoad, funTrans )
+for()
+def fail: [] do
+  loader( 'fun', "Bad Value", "Bad Value" )
+for()
+check( "Loader Installation", pass, fail )
+
+def pass: [] do
+  def modFuns@'one_two_three': [] 123
+  
+  import"fun:one two three" => 123
+  import"fun:three two one" => udf
+for()
+check( "import() Function", pass, nil )
+
+def pass: [] do
+  def modFuns@'one_two_three': [] 123
+  
+  require"fun:one two three" => 123
+for()
+def fail: [] do
+  def modFuns@'one_two_three': [] 123
+  
+  require"fun:three two one"
+for()
+check( "require() Function", pass, fail )
+
+def pass: [] do
+  def loaded: false
+  def onlyOnce: [] do loaded => false, set loaded: true for 123
+  def modFuns@'onlyOnce': onlyOnce
+  
+  require"fun:onlyOnce" => 123
+  require"fun:onlyOnce" => 123
+for()
+check( "Load Only Once", pass, nil )

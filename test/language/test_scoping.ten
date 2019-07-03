@@ -1,0 +1,83 @@
+`Here we make sure Ten's scoping rules work properly.
+
+group"Scoping"
+
+def ( a, b, c ): ( 1, 2, 3 )
+def pass: [] do
+  a => 1, b => 2, c => 3
+for()
+check( "Access To Lexical Variables", pass, nil )
+
+def pass: [] do
+  def mutate: [] do
+    set ( a, b, c ): ( 3, 2, 1 )
+  for()
+  mutate()
+  
+  a => 3, b => 2, c => 1
+for()
+check( "Mutation Of Lexical Variables", pass, nil )
+
+def pass: [] do
+  def overshadow: [] do
+    def ( a, b, c ): ( 1, 2, 3 )
+    a => 1, b => 2, c => 3
+    set ( a, b, c ): ( 'a', 'b', 'c' )
+    a => 'a', b => 'b', c => 'c'
+  for()
+  overshadow()
+  a => 3, b => 2, c => 1
+for()
+check( "Overshadowing Of Lexical Variables", pass, nil )
+
+def fail: [] do
+  def var: 123
+  def var: udf
+  def fun: [] do
+    set var: 123
+  for()
+  fun()
+for()
+check( "Non-Capture Of Manually Undefined Variables", nil, fail )
+
+def pass: [] do
+  def ( a, b, c ): ( 1, 2, 3 )
+  do
+    a => 1, b => 2, c => 3
+    set ( a, b, c ): ( 3, 2, 1 )
+  for()
+  a => 3, b => 2, c => 1
+  
+  do
+    def ( a, b, c ): ( nil, nil, nil )
+    set ( a, b, c ): ( 'a', 'b', 'c' )
+    a => 'a', b => 'b', c => 'c'
+  for()
+  a => 3, b => 2, c => 1
+for()
+check( "Do-For Scoping", pass, nil )
+
+def pass: [] do
+  if true: def a: 123 else()
+  if false: () else def b: 321
+  a => 123, b => 321
+for()
+pass()
+check( "If-Else Scoping", pass, nil )
+
+def pass: [] do
+  def ( x, y, z ): ( 1, 2, 3 )
+  when
+    jump( a, b ): do
+      def ( u, w ): ( 'u', 'w' )
+      
+      x => 1, y => 2, z => 3
+      a => 'a', b => 'b'
+      u => 'u', w => 'w'
+    for()
+  in do
+    u => udf, w => udf
+    sig jump: ( 'a', 'b' )
+  for()
+for()
+check( "When-In Scoping", pass, nil )

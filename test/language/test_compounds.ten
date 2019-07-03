@@ -1,0 +1,57 @@
+`Make sure compound expressions work properly.
+
+group"Compound Expressions"
+
+def pass: [] do
+  def var1: 123
+  def res: do
+    def var2: 321
+    
+    var1 => 123
+    var2 => 321
+  for 'res'
+  
+  var1 => 123
+  var2 => udf
+  res  => 'res'
+for()
+check( "Do-For Expression", pass, nil )
+
+def pass: [] do
+  def res: if true: 'true' else 'false'
+  res => 'true'
+  
+  def res: if false: 'true' else 'false'
+  res => 'false'
+  
+  def val: 123
+  def res:
+    if
+      val = 123:   '123'
+      val = 321:   '321'
+      val = 'abc': 'abc'
+    else nil
+  res => '123'
+for()
+check( "If-Else Expression", pass, nil )
+
+def pass: [] do
+  def fun: [ op, arg1, arg2 ]
+    when
+      opt1( a, b ): a + b
+      opt2( a, b ): a * b
+      opt3( v... ): v@0 / v@1
+    in
+      if
+        op = 'add': sig opt1: ( arg1, arg2 )
+        op = 'mul': sig opt2: ( arg1, arg2 )
+        op = 'div': sig opt3: ( arg1, arg2 )
+      else
+        udf
+  
+  fun( 'add', 1, 2 ) => 3
+  fun( 'mul', 2, 2 ) => 4
+  fun( 'div', 4, 2 ) => 2
+  fun( 'nop', 0, 0 ) => udf
+for()
+check( "When-In Expression", pass, nil )

@@ -1,0 +1,119 @@
+`Make sure the type checking and conversion functions work.
+
+group"Type Checking"
+
+def pass: [] do
+  type( nil )   => 'Nil'
+  type( true )  => 'Log'
+  type( 123 )   => 'Int'
+  type( 3.14 )  => 'Dec'
+  type( 'abc' ) => 'Sym'
+  type( NULL )  => 'Ptr'
+  type( "abc" ) => 'Str'
+  type( []()  ) => 'Cls'
+  type( {} )    => 'Rec'
+  
+  type( { .tag: 'T' } ) => 'Rec:T'
+  type( fiber[]() )     => 'Fib'
+for()
+pass()
+check( "type() Function", pass, nil )
+
+group"Type Conversion"
+
+def pass: [] do
+  log( 1 ) => true
+  log( 2 ) => true
+  log( 0 ) => false
+  
+  log( 1.0 )  => true
+  log( 2.2 )  => true
+  log( 0.0 )  => false
+  log( -0.0 ) => false
+  
+  log( 'true' )  => true
+  log( 'false' ) => false
+  
+  log( "true" )  => true
+  log( "false" ) => false
+  
+  log( nil )    => udf
+  log( {} )     => udf
+  log( "abc" )  => udf
+for()
+check( "Conversion To Logical Value", pass, nil )
+
+def pass: [] do
+  int( true )  => 1
+  int( false ) => 0
+  
+  int( 1.1 )  => 1
+  int( -3.5 ) => -3
+  int( 0.5 )  => 0
+  
+  int( '123' )  => 123
+  int( '321' )  => 321
+  
+  int( "123" )  => 123
+  int( "321" )  => 321
+  
+  int( nil )   => udf
+  int( {} )    => udf
+  int( "abc" ) => udf
+for()
+check( "Convsersion To Integral Value", pass, nil )
+
+def pass: [] do
+  dec( true )  => 1.0
+  dec( false ) => 0.0
+  
+  dec( 123 )  => 123.0
+  dec( -3 )   => -3.0
+  
+  dec( '3.0' ) => 3.0
+  dec( '1.0' ) => 1.0
+  
+  dec( "3.0" ) => 3.0
+  dec( "1.0" ) => 1.0
+  
+  dec( nil )   => udf
+  dec( {} )    => udf
+  dec( "abc" ) => udf
+for()
+check( "Conversion To Decimal Value", pass, nil )
+
+def pass: [] do
+  sym( true )  => 'true'
+  sym( false ) => 'false'
+  
+  sym( 123 )  => '123'
+  sym( -321 ) => '-321'
+  
+  sym( 3.0 ) => '3.0'
+  sym( 1.0 ) => '1.0'
+  
+  sym( "abc" ) => 'abc'
+  sym( "cba" ) => 'cba'
+  
+  sym( nil ) => 'nil'
+  sym( {} )  => '{}'
+for()
+check( "Conversion To Symbol Value", pass, nil )
+
+def pass: [] do
+  str( true )  => "true"
+  str( false ) => "false"
+  
+  str( 123 )  => "123"
+  str( -321 ) => "-321"
+  
+  str( 3.0 ) => "3.0"
+  str( 1.0 ) => "1.0"
+  
+  str( "abc" ) => "abc"
+  str( "cba" ) => "cba"
+  
+  str( nil ) => "nil"
+  str( {} )  => "{}"
+for()
+check( "Conversion To String Value", pass, nil )

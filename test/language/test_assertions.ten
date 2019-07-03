@@ -21,12 +21,3 @@ check( "Tuple comparison", pass, fail )
 def pass: [] ( () => () ) => udf
 def fail: [] ( () => ( 1 ) ) => udf
 check( "Return value", pass, fail )
-
-group"Assertion Functions"
-def pass: [] assert( true, "" )
-def fail: [] assert( false, "" )
-check( "assert()", pass, fail )
-
-def pass: [] expect( "a", 'Sym', a )
-def fail: [] expect( "b", 'Str', b )
-check( "expect()", pass, fail )

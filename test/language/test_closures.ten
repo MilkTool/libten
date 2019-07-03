@@ -1,0 +1,43 @@
+`Here we make sure closure construction and calling works.
+
+group"Closures"
+
+def pass: [] do
+  def var: 123
+  def fun: [ val ] do
+    set var: val
+  for()
+  fun( 321 )
+  var => 321
+for()
+def fail: [] do
+  def fun: [ val ] ()
+  fun( udf )
+for()
+check( "Simple Closure Call", pass, fail )
+
+def pass: [] do
+  def sum: [ args... ] do
+    args@0 => 1, args@1 => 2, args@2 => 3
+  for args@0 + args@1 + args@2
+  
+  sum( 1, 2, 3 ) => 6
+for()
+pass()
+def fail: [] do
+  def fun: [ args... ] ()
+  fun( udf, udf, udf )
+for()
+check( "Only Variadic Parameters", pass, fail )
+
+def pass: [] do
+  def fun: [ a, b, rest... ] a + b + rest@0 + rest@1
+  fun( 1, 2, 3, 4 ) => 10
+for()
+check( "Normal and Variadic Parameters", pass, nil )
+
+def pass: [] do
+  def recur: [ n ] if n > 0: 1 + this( n - 1 ) else 0
+  recur( 1000000 ) => 1000000
+for()
+check( "Recursion", pass, nil )
