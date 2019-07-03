@@ -286,10 +286,8 @@ genUpvalRef( State* state, void* udat, void* edat ) {
 Function*
 genFinish( State* state, Gen* gen, bool constr ) {
     Index* vargIdx = NULL;
-    if( gen->vParams ) {
-        tenAssert( gen->nParams > 0 );
+    if( gen->vParams )
         vargIdx = idxNew( state );
-    }
     gen->obj1 = vargIdx;
     
     Function* fun  = funNewVir( state, gen->nParams, vargIdx );
