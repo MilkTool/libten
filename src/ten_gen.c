@@ -627,8 +627,12 @@ setUpval( State* state, void* udat, void* edat ) {
     
     Upvalue** upvals = gen->upvals;
     TVal*     global = envGetGlobalByName( state, var->name );
-    if( global )
-        upvals[var->which] = upvNew( state, *global );
+    if( global ) {
+        if( tvIsObjType( *global, OBJ_UPV ) )
+            upvals[var->which] = tvGetObj( *global );
+        else
+            upvals[var->which] = upvNew( state, *global );
+    }
 }
 
 Upvalue**
