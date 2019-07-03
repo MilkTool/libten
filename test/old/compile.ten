@@ -1,8 +1,0 @@
-def r: {}
-def s: script( { .a: 1, .b: 2, .r: r }, "def r.sum: a + b" )
-def (): s()
-
-assert( r.sum = 3, "1" )
-
-def e: expr( { .a: 2, .b: 3 }, "a * b" )
-assert( e() = 6, "2" )

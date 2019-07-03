@@ -1,6 +1,0 @@
-def sum: 0
-each( seq( 1, 2, 3, 4, 5 ), [ v ] set sum: sum + v )
-assert( sum = 15, "1" )
-
-def sum: fold( seq( 1, 2, 3, 4, 5 ), 0, [ a, v ] a + v )
-assert( sum = 15, "2" )
