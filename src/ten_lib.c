@@ -1899,7 +1899,6 @@ libList( State* state, Record* vals ) {
     
     ten_Tup varTup  = ten_pushA( ten, "U" );
     ten_Var listVar = ten_var( varTup, 0 );
-    varSet( listVar, tvNil() );
     
     uint  i = 0;
     TVal  v = recGet( state, vals, tvInt( i++ ) );
@@ -1930,26 +1929,34 @@ libExplode( State* state, Closure* iter ) {
     
     ten_Tup varTup  = ten_pushA( ten, "U" );
     ten_Var listVar = ten_var( varTup, 0 );
-    varSet( listVar, tvNil() );
     
     ten_Tup argTup = ten_pushA( ten, "" );
     ten_Tup retTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &argTup );
     ten_Var retVar = { .tup = &retTup, .loc = 0 };
+    
+    if( ten_areNil( ten, &retTup ) )
+        return NULL;
+    
+    Record* list = libCons( state, varGet(retVar), tvNil() );
+    Record* tail = list;
+    varSet( listVar, tvObj( list ) );
+    
+    ten_pop( ten );
+    retTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &argTup );
     while( !ten_areNil( ten, &retTup ) ) {
         if( ten_size( ten, &retTup ) != 1 )
-            panic( "Iterator returned tuple" );
+            ten_panic( ten, ten_str( ten, "Iterator returned tuple" ) );
         
-        Record* cell = libCons( state, varGet( retVar ), varGet( listVar ) );
-        varSet( listVar, tvObj( cell ) );
+        Record* cell = libCons( state, varGet(retVar), tvNil() );
+        recDef( state, tail, tvSym( lib->idents[IDENT_cdr] ), tvObj( cell ) );
         
+        tail = cell;
         ten_pop( ten );
         retTup = ten_call( ten, stateTmp( state, tvObj( iter ) ), &argTup );
     }
     
     ten_pop( ten );
     ten_pop( ten );
-    
-    Record* list = tvGetObj( varGet( listVar ) );
     ten_pop( ten );
     
     return list;
