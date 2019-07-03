@@ -292,12 +292,18 @@ isIdent( State* state, TVal val ) {
 static void
 fmtRec( State* state, Record* rec ) {
     
-    fmtRaw( state, "{ " );
+    fmtRaw( state, "{" );
+    
+    bool isEmpty = true;
     
     // First print all the sequenced values.
     uint loc = 0;
     TVal key = tvInt( loc++ );
     TVal val = recGet( state, rec, key );
+    if( !tvIsUdf( val ) ) {
+        fmtRaw( state, " " );
+        isEmpty = false;
+    }
     while( !tvIsUdf( val ) ) {
         fmtVal( state, val, true );
         
@@ -312,12 +318,15 @@ fmtRec( State* state, Record* rec ) {
     key = nextKey( state, iter, loc );
     val = tvIsUdf( key )? tvUdf() : recGet( state, rec, key );
     
-    // If `loc != 0` then we know that some sequence items
-    // were added to the format buffer, and if `val != udf`
-    // then we know that at least one more field will be
-    // added, so we add a comma to delimit the two.
-    if( loc > 1 && !tvIsUdf( val ) )
-        fmtRaw( state, ", " );
+    // Add a delimiter (comma or whitespace) if there
+    // are more values to be formatted.
+    if( !tvIsUdf( val ) ) {
+        if( isEmpty )
+            fmtRaw( state, " " );
+        else
+            fmtRaw( state, ", " );
+        isEmpty = false;
+    }
     
      
     while( !tvIsUdf( key ) ) {
@@ -344,7 +353,10 @@ fmtRec( State* state, Record* rec ) {
             fmtRaw( state, ", " );
     }
     
-    fmtRaw( state, " }" );
+    if( isEmpty )
+        fmtRaw( state, "}" );
+    else
+        fmtRaw( state, " }" );
 }
 
 static void
