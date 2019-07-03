@@ -29,11 +29,7 @@ for( uint i = 0 ; i < cnt1 ; i++ ) {
         goto fail;
 }
 
-*(regs.sp++) = tvUdf();
-
-
-EXIT;
-
+goto pass;
 fail: {
 
     VirFun*     fun   = &regs.cls->fun->u.vir;
@@ -59,3 +55,6 @@ fail: {
         );
     }
 }
+pass:
+
+*(regs.sp++) = tvUdf();

@@ -21,14 +21,14 @@
 // needed.
 
 OP( DEF_ONE, SE( 0, -1 ) )
-OP( DEF_TUP, SE( -2, -1 ) )
-OP( DEF_VTUP, SE( -2, -2 ) )
+OP( DEF_TUP, SE( -2, 0 ) )
+OP( DEF_VTUP, SE( -2, -1 ) )
 OP( DEF_REC, SE( -1, 0 ) )
 OP( DEF_VREC, SE( -1, -1 ) )
 OP( DEF_SIG, SE( -2, -1 ) )
 OP( DEF_VSIG, SE( -2, -2 ) )
 OP( SET_ONE, SE( 0, -1 ) )
-OP( SET_TUP, SE( -2, -1 ) )
+OP( SET_TUP, SE( -2, 0 ) )
 OP( SET_VTUP, SE( -2, -1 ) )
 OP( SET_REC, SE( -1, 0 ) )
 OP( SET_VREC, SE( -1, 0 ) )

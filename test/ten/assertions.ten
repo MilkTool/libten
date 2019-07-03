@@ -1,0 +1,32 @@
+`This test just makes sure the assertion operations work properly.
+`Assertions are used throughout the rest of the test cases to make
+`sure everything else works properly, so if they don't work then
+`none of the other tests are very useful.  Unfortunately we need to
+`assume that fibers work as expected here to test for failed assertions,
+`so we have a circular dependency between the tests, where each
+`assumes the other works properly.  This dependency should be kept in
+`mind, and the assumptions validated manually at times.
+
+group"Assertion Operator"
+def ( a, b, c ): ( 'a', 'b', 'c' )
+
+def pass: [] cat( a, b, c ) => "abc"
+def fail: [] cat( c, b, a ) => "abc"
+check( "String comparison", pass, fail )
+
+def pass: [] ( a, b, c ) => ( 'a', 'b', 'c' )
+def fail: [] ( a, b, c ) => ( 'c', 'b', 'a' )
+check( "Tuple comparison", pass, fail )
+
+def pass: [] ( () => () ) => udf
+def fail: [] ( () => ( 1 ) ) => udf
+check( "Return value", pass, fail )
+
+group"Assertion Functions"
+def pass: [] assert( true, "" )
+def fail: [] assert( false, "" )
+check( "assert()", pass, fail )
+
+def pass: [] expect( "a", 'Sym', a )
+def fail: [] expect( "b", 'Str', b )
+check( "expect()", pass, fail )

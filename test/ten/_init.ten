@@ -1,0 +1,42 @@
+`This initialization script is run before each test.  The script is
+`compiled with a global scope, so its root level definitions will be
+`available from test scripts.
+
+`Pads a line with whitespace to the given column assuming
+`that 'text' has already been printed on the line.
+def pad: [ text, columns ] do
+	def gap: columns - clen( text )
+	gap > 0 &? each( irange( 0, gap ), [ _ ] show" " )
+for()
+
+`Given two closures <passCase> and <failCase>, executs each in its
+`own closure.  If <passCase> passes and <failCase> fails then the
+`test passes and an appropriate message is printed, otherwise the
+`test fails.  The <what> argument should be passed as a string
+`which tells us 'what' is being tested in the cases.
+def check: [ what, passCase, failCase ] do
+  show( "Testing: ", what ), pad( what, 45 )
+  
+  def passed: true
+  
+  passCase ~= nil &? do
+	def passFiber: fiber( passCase )
+	cont( passFiber, {} )
+	set passed: passed &? state( passFiber ) = 'finished'
+  for()
+  
+  failCase ~= nil &? do
+	def failFiber: fiber( failCase )
+	cont( failFiber, {} )
+	set passed: passed &? state( failFiber ) = 'failed'
+  for()
+  
+  show( if passed: "PASSED" else "FAILED", N )
+for()
+
+`Outputs a group header for the given group name.
+def group: [ name ] do
+	show( N )
+	show( "Group: ", name, N )
+	show( "------------------------------------------", N )
+for()

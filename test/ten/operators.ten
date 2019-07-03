@@ -1,0 +1,223 @@
+def roughly: [ value, need ] value <= need + 0.0001 &? value >= need - 0.0001
+
+group"Arithmetic Operators"
+def test: [] do
+  roughly( 4.0^0.5, 2.0 )    => true
+  roughly( 2.0^2.0, 4.0 )    => true
+  roughly( 2.0^(-1.0), 0.5 ) => true
+for()
+check( "Decimal Power Operator", test, nil )
+
+
+def test: [] do
+  1^(-1) => 1
+  2^(-1) => 0
+  2^2    => 4
+for()
+check( "Integral Power Operator", test, nil )
+
+def test: [] do
+  -1.0  => -1.0
+  --1.0 => 1.0
+for()
+check( "Decimal Negation (Unary Minus) Operator", test, nil )
+
+def test: [] do
+  -1  => -1
+  --1 => 1
+for()
+check( "Integral Negation (Unary Minus) Operator", test, nil )
+
+def test: [] do
+  roughly( 3.0 * 5.0, 15.0 ) => true
+  roughly( 4.0 * 3.0, 12.0 ) => true
+for()
+check( "Decimal Product Operator", test, nil )
+
+def test: [] do
+  3 * 5 => 15
+  4 * 3 => 12
+for()
+check( "Integral Product Operator", test, nil )
+
+def test: [] do
+  roughly( 15.0 / 5.0, 3.0 ) => true
+  roughly( 12.0 / 3.0, 4.0 ) => true
+for()
+check( "Decimal Quotient Operator", test, nil )
+
+def test: [] do
+  15 / 5 => 3
+  12 / 3 => 4
+for()
+check( "Integral Quotient Operator", test, nil )
+
+def test: [] do
+  roughly( 16.1 % 5.0, 1.1 ) => true
+  roughly( 11.5 % 5.0, 1.5 ) => true
+for()
+check( "Decimal Modulo Operator", test, nil )
+
+def test: [] do
+  16 % 5 => 1
+  11 % 5 => 1
+for()
+check( "Integral Modulo Operator", test, nil )
+
+def test: [] do
+  roughly( 5.5 + 1.1, 6.6 ) => true
+  roughly( 2.2 + 4.4, 6.6 ) => true
+for()
+check( "Decimal Addition Operator", test, nil )
+
+def test: [] do
+	5 + 2 => 7
+	3 + 3 => 6
+for()
+check( "Integral Addition Operator", test, nil )
+
+def test: [] do
+	roughly( 5.5 - 1.1, 4.4 ) => true
+	roughly( 1.1 - 2.2, -1.1 ) => true
+for()
+check( "Decimal Subtraction Operator", test, nil )
+
+def test: [] do
+	6 - 1 => 5
+	1 - 2 => -1
+for()
+check( "Integral Subtraction Operator", test, nil )
+
+group"Logical Operators"
+
+def test: [] do
+  ~255 => -256
+  ~127 => -128
+for()
+check( "Bitwise NOT Operator", test, nil )
+
+def test: [] do
+  ~true  => false
+  ~false => true
+for()
+check( "Boolean NOT Operator", test, nil )
+
+def test: [] do
+  255 & 15 => 15
+  240 & 15 => 0
+for()
+check( "Bitwise AND Operator", test, nil )
+
+
+def test: [] do
+  true & true   => true
+  true & false  => false
+  false & false => false
+for()
+check( "Boolean AND Operator", test, nil )
+
+def test: [] do
+  123 \ 321 => 314
+  255 \ 15  => 240
+for()
+check( "Bitwise XOR Operator", test, nil )
+
+
+def test: [] do
+  true \ true   => false
+  true \ false  => true
+  false \ false => false
+for()
+check( "Boolean XOR Operator", test, nil )
+
+def test: [] do
+  240 | 15  => 255
+  0 | 15    => 15
+for()
+check( "Bitwise OR Operator", test, nil )
+
+def test: [] do
+  true | true     => true
+  false | true    => true
+  false | false   => false
+for()
+check( "Boolean OR Operator", test, nil )
+
+group"Shift Operators"
+
+def test: [] do
+  1 << 5     => 32
+  123 << 4   => 1968
+for()
+check( "Left Shift Operator", test, nil )
+
+def test: [] do
+  123 >> 2  => 30
+  321 >> 5  => 10
+for()
+check( "Right Shift Operator", test, nil )
+
+group"Comparison Operators"
+
+def test: [] do
+  1 > 2      => false
+  2 > 1      => true
+  1.0 > 2.0  => false
+  2.0 > 1.0  => true
+for()
+check( "Greater Than Operator", test, nil )
+
+def test: [] do
+  1 < 2      => true
+  2 < 1      => false
+  1.0 < 2.0  => true
+  2.0 < 1.0  => false
+for()
+check( "Less Than Operator", test, nil )
+
+
+def test: [] do
+  2 >= 1    => true
+  1 >= 1    => true
+  1 >= 2    => false
+for()
+check( "Greater Than Or Equal To Operator", test, nil )
+
+def test: [] do
+  1 <= 2    => true
+  1 <= 1    => true
+  2 <= 1    => false
+for()
+check( "Less Than Or Equal To Operator", test, nil )
+
+def pass: [] do
+  1 = 1   => true
+  5 = 5   => true
+  1 = 5   => false
+for()
+def fail: [] do
+  udf = udf
+  123 = udf
+for()
+check( "Equal To Operator", pass, fail )
+
+def test: [] do
+  1 ~= 1  => false
+  5 ~= 5  => false
+  1 ~= 5  => true
+for()
+check( "Not Equal To Operator", test, nil )
+
+group"Undefined Operators"
+
+def test: [] do
+  123 != udf => false
+  udf != udf => true
+for()
+check( "Undefined Equal To", test, nil )
+
+def test: [] do
+  !udf => nil
+  !123 => 123
+for()
+check( "Fix Operator", test, nil )
