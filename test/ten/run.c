@@ -5,8 +5,8 @@
 
 int
 main( int argc, char const** argv ) {
-    if( argc != 2 ) {
-        fprintf( stderr, "Usage: %s test-file\n", argv[0] );
+    if( argc < 2 ) {
+        fprintf( stderr, "Usage: %s tests...\n", argv[0] );
         exit( 1 );
     }
     
@@ -41,15 +41,18 @@ main( int argc, char const** argv ) {
     ten = ten_make( NULL, &jmp );
     
     // Run initialization script.
-    ten_Source* initSrc = ten_pathSource( ten, "_init.ten" );
+    ten_Source* initSrc = ten_pathSource( ten, "init.ten" );
     ten_executeScript( ten, initSrc, ten_SCOPE_GLOBAL );
 
-    // Run the test.
-    ten_Source* testSrc = ten_pathSource( ten, argv[1] );
-    printf( "File: %s\n", argv[1] );
-    printf( "==========================================\n" );
-    
-    ten_executeScript( ten, testSrc, ten_SCOPE_LOCAL );
+    // Run the tests.
+    for( unsigned i = 1 ; argv[i] != NULL ; i++ ) {
+        ten_Source* testSrc = ten_pathSource( ten, argv[i] );
+        printf( "\n\n" );
+        printf( "File: %s\n", argv[i] );
+        printf( "==========================================\n" );
+        
+        ten_executeScript( ten, testSrc, ten_SCOPE_LOCAL );
+    }
     
     ten_free( ten );
     return 0;

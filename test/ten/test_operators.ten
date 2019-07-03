@@ -1,3 +1,6 @@
+`Here we make sure all of Ten's operators work properly.  All except the
+`assertion operator anyway, since that's validated in test_assertions.ten.
+
 def roughly: [ value, need ] value <= need + 0.0001 &? value >= need - 0.0001
 
 group"Arithmetic Operators"

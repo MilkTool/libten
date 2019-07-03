@@ -1,0 +1,164 @@
+`This script makes sure that Ten's assignment forms work properly, this
+`includes simple definitions and mutations as well as the more complex
+`assignment patterns and variadic assignments.
+
+group"Variable Definition"
+
+def pass: [] do
+  def var: 123
+  var => 123
+  def var: udf
+  var => udf
+for()
+def fail: [] do
+  def var: ()
+for()
+check( "Simple Variable Definition", pass, fail )
+
+def pass: [] do
+  def ( a, b, c ): ( 1, 2, 3 )
+  a => 1, b => 2, c => 3
+for()
+def fail: [] do
+  def ( a, b ): ( 1, 2, 3 )
+for()
+check( "Tuple Pattern Variable Definition", pass, fail )
+
+def pass: [] do
+  def { a, b, c }: { 1, 2, 3 }
+  a => 1, b => 2, c => 3
+  
+  def { dst: .src }: { .src: 123 }
+  dst => 123
+for()
+def fail: [] do
+  def { a, b, c }: ( 1, 2, 3 )
+for()
+check( "Record Pattern Variable Definition", pass, fail )
+
+group"Variable Mutation"
+
+def pass: [] do
+	def var: 123
+	set var: 321
+	var => 321
+for()
+def fail: [] do
+  def var: 123
+  set var: udf
+for()
+check( "Simple Variable Mutation", pass, fail )
+
+
+def pass: [] do
+  def ( a, b, c ): ( 1, 2, 3 )
+  set ( a, b, c ): ( 3, 2, 1 )
+  a => 3, b => 2, c => 1
+for()
+check( "Tuple Pattern Variable Mutation", pass, nil )
+
+def pass: [] do
+  def ( a, b, c ): ( 1, 2, 3 )
+  def { a, b, c }: { 3, 2, 1 }
+  a => 3, b => 2, c => 1
+for()
+check( "Record Pattern Variable Mutation", pass, nil )
+
+group"Field Definition"
+
+def pass: [] do
+  def r: {}
+  def r.field: 123
+  r.field => 123
+for()
+def fail: [] do
+	def r: {}
+	def r.field: ()
+for()
+check( "Simple Field Definition", pass, fail )
+
+def pass: [] do
+  def r: {}
+  def r( .a, .b, .c ): ( 1, 2, 3 )
+  r.a => 1, r.b => 2, r.c => 3
+for()
+def fail: [] do
+  def r: {}
+  def r( .a, .b ): ( 1, 2, 3 )
+for()
+check( "Tuple Pattern Field Definition", pass, fail )
+
+def pass: [] do
+  def r: {}
+  def r{ .a, .b, .c }: { 1, 2, 3 }
+  r.a => 1, r.b => 2, r.c => 3
+  
+  def r{ .d : .v1, .e: .v2 }: { .v1: 4, .v2: 5 }
+  r.d => 4, r.e => 5
+for()
+def fail: [] do
+  def r: {}
+  def r{ .a, .b, .c }: ( 1, 2, 3 )
+for()
+check( "Record Pattern Field Definition", pass, fail )
+
+group"Field Mutation"
+
+def pass: [] do
+  def r: { .field: 123 }
+  set r.field: 321
+  r.field => 321
+for()
+def fail: [] do
+  def r: { .field: 123 }
+  set r.field: udf
+for()
+check( "Simple Field Mutation", pass, fail )
+
+def pass: [] do
+  def r: { .a: 1, .b: 2, .c: 3 }
+  set r( .a, .b, .c ): ( 3, 2, 1 )
+  r.a => 3, r.b => 2, r.c => 1
+for()
+def fail: [] do
+  def r: { .a: 1, .b: 2, .c: 3 }
+  set r( .a, .b, .c ): ( 3, 2, 1, 0 )
+for()
+check( "Tuple Pattern Field Mutation", pass, fail )
+
+def pass: [] do
+  def r: { .a: 1, .b: 2, .c: 3 }
+  def r{ .a, .b, .c }: { 3, 2, 1 }
+  r.a => 3, r.b => 2, r.c => 1
+  
+  def r{ .a: @1, .b: @0 }: { 1, 2 }
+  r.a => 2, r.b => 1
+for()
+def fail: [] do
+  def r: { .a: 1, .b: 2, .c: 3 }
+  set r{ .a, .b, .c }: ( 1, 2, 3 )
+for()
+check( "Record Pattern Field Mutation", pass, fail )
+
+group"Variadic Assignment"
+
+def pass: [] do
+  def ( a, b, rst... ): ( 1, 2, 3, 4 )
+  a => 1, b => 2, rst@0 => 3, rst@1 => 4
+  
+  def r: {}
+  def r( .a, .b, .rst... ): ( 1, 2, 3, 4 )
+  r.a => 1, r.b => 2, r.rst@0 => 3, r.rst@1 => 4
+for()
+check( "Variadic Tuple Pattern Assignment", pass, nil )
+
+def pass: [] do
+  def { a, b, rst... }: { 1, 2, 3, .x: 4, .y: 5 }
+  a => 1, b => 2, rst@2 => 3, rst.x => 4, rst.y => 5
+  
+  def r: {}
+  def r{ .a, .b, .rst... }: { 1, 2, 3, .x: 4, .y: 5 }
+  r.a => 1, r.b => 2, r.rst@2 => 3, r.rst.x => 4, r.rst.y => 5
+for()
+pass()
+check( "Variadic Record Pattern Assignment", pass, nil )
