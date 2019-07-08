@@ -206,6 +206,12 @@ void
 ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans );
 
 void
+ten_require( ten_State* s, char const* mod, ten_Var* dst );
+
+void
+ten_import( ten_State* s, char const* mod, ten_Var* dst );
+
+void
 ten_panic( ten_State* s, ten_Var* val );
 
 #define ten_call( S, CLS, ARGS ) \
@@ -348,6 +354,9 @@ ten_symType( ten_State* s );
 // Pointer values.
 bool
 ten_isPtr( ten_State* s, ten_Var* var, ten_PtrInfo* info );
+
+bool
+ten_hasPtr( ten_State* s, void* addr, ten_PtrInfo* info );
 
 void
 ten_setPtr( ten_State* s, void* addr, ten_PtrInfo* info, ten_Var* dst );

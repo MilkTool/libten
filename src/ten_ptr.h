@@ -38,6 +38,9 @@ ptrInit( State* state );
 PtrInfo*
 ptrAddInfo( State* state, ten_PtrConfig* config );
 
+bool
+ptrExists( State* state, PtrInfo* info, void* addr );
+
 PtrT
 ptrGet( State* state, PtrInfo* info, void* addr );
 

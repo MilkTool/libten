@@ -158,6 +158,27 @@ ptrAddInfo( State* state, ten_PtrConfig* config ) {
     return info;
 }
 
+
+bool
+ptrExists( State* state, PtrInfo* info, void* addr ) {
+    PtrState* ptrState = state->ptrState;
+    
+    if( ptrState->count*3 >= ptrState->map.cap )
+        growMap( state );
+    
+    uint h = (uint)(uintptr_t)addr;
+    uint s = h % ptrState->map.cap;
+    
+    // Search existing nodes for the address.
+    PtrNode* node = ptrState->map.buf[s];
+    while( node ) {
+        if( node->info == info && node->addr == addr )
+            return true;
+        node = node->next;
+    }
+    return false;
+}
+
 PtrT
 ptrGet( State* state, PtrInfo* info, void* addr ) {
     PtrState* ptrState = state->ptrState;

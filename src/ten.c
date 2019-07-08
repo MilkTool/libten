@@ -366,6 +366,29 @@ ten_loader( ten_State* s, ten_Var* type, ten_Var* loadr, ten_Var* trans ) {
     libLoader( state, typeS, loadrO, transO );
 }
 
+void
+ten_require( ten_State* s, char const* mod, ten_Var* dst ) {
+    State*    state = (State*)s;
+    ApiState* api   = state->apiState;
+    
+    String* modStr = strNew( state, mod, strlen( mod ) );
+    api->val1 = tvObj( modStr );
+    api->val2 = libRequire( state, modStr );
+    varSet( *dst, api->val2 );
+}
+
+void
+ten_import( ten_State* s, char const* mod, ten_Var* dst ) {
+    State*    state = (State*)s;
+    ApiState* api   = state->apiState;
+    
+    String* modStr = strNew( state, mod, strlen( mod ) );
+    api->val1 = tvObj( modStr );
+    api->val2 = libImport( state, modStr );
+    varSet( *dst, api->val2 );
+}
+
+
 ten_Var*
 ten_udf( ten_State* s ) {
     State* state = (State*)s;
@@ -824,10 +847,17 @@ ten_isPtr( ten_State* s, ten_Var* var, ten_PtrInfo* info ) {
     return ptrInfo( state, tvGetPtr( varGet( *var ) ) ) == (PtrInfo*)info;
 }
 
+
+bool
+ten_hasPtr( ten_State* s, void* addr, ten_PtrInfo* info ) {
+    State* state = (State*)s;
+    return ptrExists( state, addr, (PtrInfo*)info );
+}
+
 void
 ten_setPtr( ten_State* s, void* addr, ten_PtrInfo* info, ten_Var* dst ) {
     State* state = (State*)s;
-    varSet( *dst, tvPtr( ptrGet( state, addr, (PtrInfo*)info ) ) );
+    varSet( *dst, tvPtr( ptrGet( state, (PtrInfo*)info, addr ) ) );
 }
 
 ten_Var*
