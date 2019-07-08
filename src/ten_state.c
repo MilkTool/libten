@@ -548,8 +548,12 @@ reallocRaw( State* state, void* old, size_t osz, size_t nsz ) {
         collect( state, nsz );
     
     void* mem = state->config.frealloc( state->config.udata, old, osz, nsz );
-    if( nsz > 0 && !mem )
-        stateErrVal( state, ten_ERR_FATAL, state->errOutOfMem );
+    if( nsz > 0 && !mem ) {
+        collect( state, nsz );
+        mem = state->config.frealloc( state->config.udata, old, osz, nsz );
+        if( !mem )
+            stateErrVal( state, ten_ERR_FATAL, state->errOutOfMem );
+    }
     
     state->memUsed += nsz;
     state->memUsed -= osz;
